@@ -16,11 +16,10 @@ import ReactFlow, {
   type Node,
   type Edge,
   type NodeTypes,
-  type OnNodesChange,
-  type OnEdgesChange,
+
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, Trash2, Download, Palette, Sparkles } from "lucide-react";
+import { Plus, Trash2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateId } from "@/lib/utils";
 
