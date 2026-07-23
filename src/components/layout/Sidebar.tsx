@@ -16,6 +16,7 @@ import {
   Sparkles,
   Menu,
   X,
+  ChevronLeft,
   Coffee,
 } from "lucide-react";
 
