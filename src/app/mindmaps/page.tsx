@@ -382,13 +382,38 @@ function MindMapToolbar({
 // Main Mind Map Component
 // ============================================================
 
+const STORAGE_KEY = "lexis-mindmap";
+
+function loadMindMap(): { nodes: Node<MindMapNodeData>[]; edges: Edge[] } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed.nodes && parsed.edges) return parsed;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+function saveMindMap(nodes: Node<MindMapNodeData>[], edges: Edge[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
+  } catch { /* ignore */ }
+}
+
 function MindMapFlow() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(DEFAULT_NODES);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(DEFAULT_EDGES);
+  const saved = useRef(loadMindMap());
+  const [nodes, setNodes, onNodesChange] = useNodesState(saved.current?.nodes || DEFAULT_NODES);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(saved.current?.edges || DEFAULT_EDGES);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [descriptionNode, setDescriptionNode] = useState<Node<MindMapNodeData> | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
+
+  // Auto-save whenever nodes or edges change
+  useEffect(() => {
+    saveMindMap(nodes, edges);
+  }, [nodes, edges]);
 
   // Listen for label changes from custom node (double-click rename)
   useEffect(() => {
