@@ -145,10 +145,6 @@ function MindMapToolbar({
   onDeleteSelected: () => void;
   selectedNodeId: string | null;
 }) {
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const [color, setColor] = useState("#06b6d4");
-  const [emoji, setEmoji] = useState("💡");
-
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
       <button
@@ -184,6 +180,14 @@ function MindMapToolbar({
 }
 
 // ============================================================
+// Node Types (defined outside component for React Flow performance)
+// ============================================================
+
+const nodeTypes: NodeTypes = {
+  mindMapNode: MindMapNode,
+};
+
+// ============================================================
 // Main Mind Map Component
 // ============================================================
 
@@ -193,10 +197,6 @@ function MindMapFlow() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
-
-  const nodeTypes: NodeTypes = {
-    mindMapNode: MindMapNode,
-  };
 
   const onConnect = useCallback(
     (params: Connection) => {
