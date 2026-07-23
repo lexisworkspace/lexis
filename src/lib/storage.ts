@@ -1,7 +1,8 @@
 "use client";
 
-import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage } from "@/types";
-import { generateId, getToday } from "./utils";
+import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage, AIMode } from "@/types";
+import { generateId, getToday, calculateStreak } from "./utils";
+import { loadFromIDB, saveToIDB, clearIDB } from "./db";
 
 const STORAGE_KEY = "lexis-data";
 const SYNC_KEY = "lexis-sync";
@@ -37,16 +38,72 @@ const DEFAULT_DATA: AppData = {
   ],
   aiConversations: [],
   aiSuggestions: [],
+  selectedModel: "thallo-1.0" as const,
+  selectedMode: "normal" as AIMode,
   onboardingCompleted: false,
   lastSync: null,
 };
 
 class Storage {
   private data: AppData | null = null;
+  private initialized = false;
+  private initPromise: Promise<void> | null = null;
+
+  /**
+   * Initialize storage — loads from IndexedDB, falls back to localStorage, then defaults.
+   */
+  async init(): Promise<void> {
+    if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      try {
+        if (typeof window === "undefined") {
+          this.data = { ...DEFAULT_DATA };
+          this.initialized = true;
+          return;
+        }
+
+        // Try IndexedDB first (async, non-blocking)
+        const idbData = await loadFromIDB();
+        if (idbData) {
+          this.data = { ...DEFAULT_DATA, ...idbData };
+          // Sync to localStorage as backup
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+          } catch {}
+          this.initialized = true;
+          return;
+        }
+
+        // Fallback: migrate from localStorage
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          this.data = { ...DEFAULT_DATA, ...parsed };
+          // Migrate to IndexedDB
+          await saveToIDB(this.data!);
+          this.initialized = true;
+          return;
+        }
+
+        // Fresh start — save defaults
+        this.data = { ...DEFAULT_DATA };
+        await saveToIDB(this.data);
+        this.initialized = true;
+      } catch (e) {
+        console.warn("Storage init failed, using defaults", e);
+        this.data = { ...DEFAULT_DATA };
+        this.initialized = true;
+      }
+    })();
+
+    return this.initPromise;
+  }
 
   getData(): AppData {
+    // Synchronous getter for components that can't await
     if (this.data) return this.data;
-    
     if (typeof window === "undefined") return { ...DEFAULT_DATA };
 
     try {
@@ -66,8 +123,17 @@ class Storage {
   saveData(): void {
     if (typeof window === "undefined") return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
-      localStorage.setItem(SYNC_KEY, new Date().toISOString());
+      // Save to localStorage immediately (synchronous, fast)
+      if (this.data) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+        localStorage.setItem(SYNC_KEY, new Date().toISOString());
+      }
+
+      // Also save to IndexedDB (async, non-blocking, larger capacity)
+      const dataToSave = this.data;
+      if (dataToSave) {
+        saveToIDB(dataToSave).catch(() => {});
+      }
     } catch (e) {
       console.error("Failed to save data", e);
     }
@@ -271,6 +337,15 @@ class Storage {
     return newEntry;
   }
 
+  getJournalDates(): string[] {
+    return this.getData().journalEntries.map((e) => e.date);
+  }
+
+  getJournalStreak(): { current: number; longest: number } {
+    const dates = this.getJournalDates();
+    return calculateStreak(dates);
+  }
+
   updateJournalEntry(id: string, updates: Partial<JournalEntry>): JournalEntry | undefined {
     const data = this.getData();
     const idx = data.journalEntries.findIndex((e) => e.id === id);
@@ -404,6 +479,19 @@ class Storage {
   }
 
   // ============================================================
+  // Mode
+  // ============================================================
+
+  setMode(mode: AIMode): void {
+    this.getData().selectedMode = mode;
+    this.saveData();
+  }
+
+  getMode(): AIMode {
+    return this.getData().selectedMode;
+  }
+
+  // ============================================================
   // Onboarding
   // ============================================================
 
@@ -435,10 +523,13 @@ class Storage {
     }
   }
 
-  clearAll(): void {
+  async clearAll(): Promise<void> {
     if (typeof window === "undefined") return;
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SYNC_KEY);
+    localStorage.removeItem("lexis-password");
+    localStorage.removeItem("lexis-tutorial-pending");
+    await clearIDB();
     this.data = null;
   }
 }

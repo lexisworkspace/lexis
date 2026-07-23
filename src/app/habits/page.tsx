@@ -21,7 +21,7 @@ import {
 import { storage } from "@/lib/storage";
 import { ai } from "@/lib/ai";
 import { cn, getToday, calculateStreak, formatDate, getDaysInMonth, hexToRgba } from "@/lib/utils";
-import { Habit, HabitFrequency, HabitTimeOfDay } from "@/types";
+import { Habit, HabitFrequency, HabitTimeOfDay, DAYS_OF_WEEK } from "@/types";
 
 const ICONS = ["💪", "🧠", "📚", "🧘", "🏃", "🎯", "🎨", "🎵", "🌱", "💧", "🔥", "⭐", "❤️", "🌈", "🦋", "🌙"];
 
@@ -54,45 +54,54 @@ export default function HabitsPage() {
   const selectedStats = selectedHabit ? getHabitStats(selectedHabit) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-8">
+
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="flex items-start justify-between relative"
       >
         <div>
-          <h1 className="text-2xl font-bold md:text-3xl">Habits</h1>
-          <p className="text-muted-foreground mt-1">Track and build your daily routines</p>
+          <h1 className="text-3xl font-bold tracking-tight leading-none">Habits</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-xs">
+            Track and build your daily routines
+          </p>
         </div>
-        <button onClick={() => { setEditingHabit(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { setEditingHabit(null); setShowForm(true); }} className="btn-primary flex items-center gap-2 shrink-0">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">New Habit</span>
         </button>
       </motion.div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Active Habits", value: habits.length, icon: CheckCircle2, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Today", value: data.habitLogs.filter((l) => l.date === today).length, icon: Target, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "This Month", value: data.habitLogs.filter((l) => {
-            const d = new Date(l.date);
-            return d.getMonth() === new Date().getMonth();
-          }).length, icon: Calendar, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Best Streak", value: Math.max(...habits.map((h) => calculateStreak(storage.getHabitLogDates(h.id)).longest), 0), icon: Flame, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-        ].map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }} className="card">
-            <div className="flex items-center justify-between">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", stat.bg)}>
-                <stat.icon className={cn("h-5 w-5", stat.color)} />
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
+        className="relative"
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Active Habits", value: habits.length, icon: CheckCircle2 },
+            { label: "Today", value: data.habitLogs.filter((l) => l.date === today).length, icon: Target },
+            { label: "This Month", value: data.habitLogs.filter((l) => {
+              const d = new Date(l.date);
+              return d.getMonth() === new Date().getMonth();
+            }).length, icon: Calendar },
+            { label: "Best Streak", value: Math.max(...habits.map((h) => calculateStreak(storage.getHabitLogDates(h.id)).longest), 0), icon: Flame },
+          ].map((stat, i) => (
+            <motion.div key={stat.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.05, duration: 0.35, ease: "easeOut" }} className="card">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                <stat.icon className="h-5 w-5 text-primary-500" />
               </div>
-            </div>
-            <p className="mt-3 text-2xl font-bold">{stat.value}</p>
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-          </motion.div>
-        ))}
-      </div>
+              <p className="mt-3 text-2xl font-bold">{stat.value}</p>
+              <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
 
       {/* Habits Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -121,7 +130,11 @@ export default function HabitsPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold">{habit.name}</h3>
-                    <p className="text-xs text-muted-foreground capitalize">{habit.frequency} · {habit.timeOfDay}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {habit.frequency === "custom" && habit.customDays?.length
+                        ? habit.customDays.map((d) => DAYS_OF_WEEK[d]).join(", ")
+                        : habit.frequency} · {habit.timeOfDay}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -209,22 +222,21 @@ export default function HabitsPage() {
             Create Habit
           </button>
         </motion.div>
-      )}
-
-      {/* Selected Habit Detail */}
+      )}        {/* Selected Habit Detail */}
       <AnimatePresence>
         {selectedHabit && selectedHabitData && selectedStats && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="card"
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="card relative"
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <h3 className="text-lg font-bold">{selectedHabitData.name} - Details</h3>
+                <h3 className="text-lg font-bold tracking-tight">{selectedHabitData.name}</h3>
                 <div className="flex items-center gap-1 text-sm">
-                  <Flame className="h-4 w-4 text-zinc-400" />
+                  <Flame className="h-4 w-4 text-muted-foreground" />
                   <span className="font-medium">{selectedStats.streak.current} day streak</span>
                 </div>
               </div>
@@ -348,9 +360,15 @@ function HabitForm({
   const [description, setDescription] = useState(habit?.description || "");
   const [categoryId, setCategoryId] = useState(habit?.categoryId || categories[0]?.id || "health");
   const [frequency, setFrequency] = useState<HabitFrequency>(habit?.frequency || "daily");
+  const [customDays, setCustomDays] = useState<number[]>(habit?.customDays || []);
   const [timeOfDay, setTimeOfDay] = useState<HabitTimeOfDay>(habit?.timeOfDay || "morning");
-  const [reminderEnabled, setReminderEnabled] = useState(habit?.reminderEnabled || false);
   const [icon, setIcon] = useState(habit?.icon || "⭐");
+
+  const toggleDay = (day: number) => {
+    setCustomDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    );
+  };
 
   return (
     <motion.div
@@ -424,35 +442,46 @@ function HabitForm({
             </div>
             <div>
               <label className="text-sm font-medium mb-1.5 block">Frequency</label>
-              <select value={frequency} onChange={(e) => setFrequency(e.target.value as HabitFrequency)} className="input-field">
+              <select value={frequency} onChange={(e) => { setFrequency(e.target.value as HabitFrequency); setCustomDays([]); }} className="input-field">
                 <option value="daily">Daily</option>
+                <option value="custom">Custom Days</option>
                 <option value="weekly">Weekly</option>
                 <option value="monthly">Monthly</option>
               </select>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {frequency === "custom" && (
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Time of Day</label>
-              <select value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value as HabitTimeOfDay)} className="input-field">
-                <option value="morning">🌅 Morning</option>
-                <option value="afternoon">☀️ Afternoon</option>
-                <option value="evening">🌙 Evening</option>
-                <option value="anytime">🔄 Anytime</option>
-              </select>
+              <label className="text-sm font-medium mb-1.5 block">Repeat on</label>
+              <div className="flex gap-1.5">
+                {DAYS_OF_WEEK.map((day, idx) => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleDay(idx)}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg text-xs font-medium transition-all",
+                      customDays.includes(idx)
+                        ? "bg-primary-500 text-white ring-2 ring-primary-500/30 scale-110"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex items-end pb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={reminderEnabled}
-                  onChange={(e) => setReminderEnabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary-500 focus:ring-primary-500"
-                />
-                <span className="text-sm">Reminder</span>
-              </label>
-            </div>
+          )}
+
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">Time of Day</label>
+            <select value={timeOfDay} onChange={(e) => setTimeOfDay(e.target.value as HabitTimeOfDay)} className="input-field">
+              <option value="morning">🌅 Morning</option>
+              <option value="afternoon">☀️ Afternoon</option>
+              <option value="evening">🌙 Evening</option>
+              <option value="anytime">🔄 Anytime</option>
+            </select>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -460,7 +489,7 @@ function HabitForm({
             <button
               onClick={() => {
                 if (!name.trim()) return;
-                onSave({ name, description, categoryId, frequency, timeOfDay, reminderEnabled, icon, targetCount: 1, color: "#6366f1" });
+                onSave({ name, description, categoryId, frequency, customDays: frequency === "custom" ? customDays : [], timeOfDay, icon, targetCount: 1, color: "#6366f1" });
               }}
               disabled={!name.trim()}
               className="btn-primary flex-1"

@@ -6,11 +6,17 @@ export const metadata: Metadata = {
   title: "LEXIS - AI Productivity Suite",
   description: "A premium productivity app combining habits, notes, journal, and tasks with AI-powered insights.",
   keywords: ["productivity", "habits", "notes", "journal", "tasks", "AI"],
+  icons: {
+    icon: "/lexis-logo.png",
+    apple: "/lexis-logo.png",
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#0a0a0a" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
@@ -36,9 +42,12 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var theme = JSON.parse(localStorage.getItem('lexis-data') || '{}').theme?.theme || 'dark';
-                  var isDark = theme !== 'light';
+                  var saved = JSON.parse(localStorage.getItem('lexis-data') || '{}');
+                  var theme = saved.theme?.theme || 'dark';
+                  var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                   document.documentElement.classList.toggle('dark', isDark);
+                  var fontSize = saved.theme?.fontSize || 'md';
+                  document.documentElement.setAttribute('data-font-size', fontSize);
                 } catch(e) {}
               })();
             `,

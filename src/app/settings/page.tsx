@@ -1,28 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Settings,
   Download,
   Upload,
   Trash2,
   Sparkles,
   Palette,
-  Type,
   Monitor,
-  Smartphone,
-  Tablet,
   Check,
   AlertTriangle,
+  Shield,
+  ShieldOff,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
+import { isPasswordSet, clearPassword, PasswordGate } from "@/components/layout/PasswordGate";
+
 
 export default function SettingsPage() {
   const [data, setData] = useState(storage.getData());
   const [showConfirm, setShowConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [hasPassword, setHasPassword] = useState(isPasswordSet());
+  const [clearingPassword, setClearingPassword] = useState(false);
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false);
+
+  useEffect(() => {
+    setHasPassword(isPasswordSet());
+  }, []);
 
   const refresh = () => setData({ ...storage.getData() });
 
@@ -60,9 +68,15 @@ export default function SettingsPage() {
     input.click();
   };
 
-  const handleClear = () => {
-    storage.clearAll();
-    window.location.reload();
+  const handleClear = async () => {
+    setClearing(true);
+    try {
+      await storage.clearAll();
+      window.location.reload();
+    } catch (e) {
+      console.error("Failed to clear data", e);
+      setClearing(false);
+    }
   };
 
   return (
@@ -197,6 +211,71 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
+      {/* Security */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.175 }}
+        className="card"
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Shield className="h-5 w-5 text-primary-500" />
+          <h2 className="font-semibold">Security</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          {hasPassword
+            ? "Your app is protected with a local password. This password never leaves your device."
+            : "No password is set. Anyone with access to this browser can open LEXIS."
+          }
+        </p>
+        <div className="flex flex-wrap gap-3">
+          {hasPassword ? (
+            <button
+              onClick={() => {
+                if (window.confirm("Remove your password? Anyone with access to this browser will be able to open LEXIS.")) {
+                  setClearingPassword(true);
+                  try {
+                    clearPassword();
+                    setHasPassword(false);
+                  } catch (e) {
+                    console.error("Failed to clear password", e);
+                  } finally {
+                    setClearingPassword(false);
+                  }
+                }
+              }}
+              disabled={clearingPassword}
+              className="btn-secondary flex items-center gap-2 text-zinc-400 border-zinc-400/20 hover:bg-zinc-500/10 disabled:opacity-50"
+            >
+              <ShieldOff className="h-4 w-4" />
+              {clearingPassword ? "Removing..." : "Remove Password"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowPasswordSetup(true)}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <Shield className="h-4 w-4" />
+              Set Password
+            </button>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Password Setup Overlay */}
+      {showPasswordSetup && (
+        <div className="fixed inset-0 z-[100]">
+          <PasswordGate
+            mode="setup"
+            onUnlock={() => {
+              setShowPasswordSetup(false);
+              setHasPassword(true);
+            }}
+            showSkip
+          />
+        </div>
+      )}
+
       {/* About */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -238,7 +317,7 @@ export default function SettingsPage() {
               <button onClick={() => setShowConfirm(false)} className="btn-secondary flex-1">
                 Cancel
               </button>
-              <button onClick={handleClear} className="flex-1 rounded-xl bg-zinc-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-500 transition-colors">
+              <button onClick={handleClear} disabled={clearing} className="flex-1 rounded-xl bg-zinc-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 Delete Everything
               </button>
             </div>

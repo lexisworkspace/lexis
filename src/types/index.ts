@@ -16,8 +16,11 @@ export interface ThemeConfig {
 // Habit Types
 // ============================================================
 
-export type HabitFrequency = "daily" | "weekly" | "monthly";
+export type HabitFrequency = "daily" | "weekly" | "monthly" | "custom";
 export type HabitTimeOfDay = "morning" | "afternoon" | "evening" | "anytime";
+
+export const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+export const DAYS_OF_WEEK_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
 export interface HabitCategory {
   id: string;
@@ -33,10 +36,9 @@ export interface Habit {
   description: string;
   categoryId: string;
   frequency: HabitFrequency;
+  customDays?: number[];
   timeOfDay: HabitTimeOfDay;
-  targetCount: number; // e.g., 3 times per week
-  reminderEnabled: boolean;
-  reminderTime?: string; // HH:mm format
+  targetCount: number;
   createdAt: string;
   archived: boolean;
   color: string;
@@ -46,7 +48,7 @@ export interface Habit {
 export interface HabitLog {
   id: string;
   habitId: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   count: number;
   note?: string;
   createdAt: string;
@@ -58,7 +60,7 @@ export interface HabitStreak {
   longestStreak: number;
   lastLogDate: string | null;
   totalCompletions: number;
-  completionRate: number; // 0-100
+  completionRate: number;
 }
 
 // ============================================================
@@ -127,7 +129,7 @@ export const MOODS: MoodConfig[] = [
 
 export interface JournalEntry {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   title: string;
   content: string;
   mood: Mood;
@@ -156,12 +158,13 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  dueDate: string | null; // YYYY-MM-DD
-  dueTime: string | null; // HH:mm
+  dueDate: string | null;
+  dueTime: string | null;
   completedAt: string | null;
   tags: string[];
   listId: string | null;
   recurring: RecurringType;
+  recurringDays?: number[];
   recurringEndDate: string | null;
   estimatedMinutes: number | null;
   order: number;
@@ -183,7 +186,7 @@ export interface TaskList {
 
 export interface ProductivityScore {
   date: string;
-  score: number; // 0-100
+  score: number;
   habitsCompleted: number;
   tasksCompleted: number;
   journalWritten: boolean;
@@ -205,11 +208,27 @@ export interface WeeklySummary {
 // AI Types
 // ============================================================
 
+export type AIModel = "arete-1.5" | "thallo-1.0" | "tsubame-0.7";
+export type AIMode = "normal" | "thinking" | "deep-research";
+
+export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
+  { id: "arete-1.5", name: "Arete 1.5", description: "Most complex and reasonable", tagline: "Deep analysis & strategic thinking", contextWindow: 20, responseStyle: "thorough" },
+  { id: "thallo-1.0", name: "Thallo 1.0", description: "Best for everyday tasks", tagline: "Balanced, practical, actionable", contextWindow: 12, responseStyle: "balanced" },
+  { id: "tsubame-0.7", name: "Tsubame 0.7", description: "Best for quick answers", tagline: "Fast, concise, to the point", contextWindow: 6, responseStyle: "concise" },
+];
+
+export const AI_MODES: { id: AIMode; name: string; description: string }[] = [
+  { id: "normal", name: "Normal", description: "Standard conversation" },
+  { id: "thinking", name: "Thinking", description: "Shows step-by-step reasoning before answering" },
+  { id: "deep-research", name: "Deep Research", description: "Comprehensive multi-perspective analysis report" },
+];
+
 export interface AIMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  model?: AIModel;
 }
 
 export interface AIConversation {
@@ -246,6 +265,8 @@ export interface AppData {
   taskLists: TaskList[];
   aiConversations: AIConversation[];
   aiSuggestions: AISuggestion[];
+  selectedModel: AIModel;
+  selectedMode: AIMode;
   onboardingCompleted: boolean;
   lastSync: string | null;
 }

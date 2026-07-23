@@ -80,6 +80,7 @@ export function useData() {
 
   // Journal
   const journalEntries = data.journalEntries;
+  const journalStreak = storage.getJournalStreak();
   const createJournalEntry = useCallback(
     (entry: Parameters<typeof storage.createJournalEntry>[0]) => {
       const result = storage.createJournalEntry(entry);
@@ -149,6 +150,7 @@ export function useData() {
     deleteNote,
     // Journal
     journalEntries,
+    journalStreak,
     createJournalEntry,
     // Tasks
     tasks,

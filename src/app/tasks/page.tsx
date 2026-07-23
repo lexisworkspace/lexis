@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { cn, getToday, formatDate, generateId } from "@/lib/utils";
-import { Task, TaskPriority, TaskStatus, RecurringType, ViewMode, PRIORITY_CONFIG, STATUS_CONFIG } from "@/types";
+import { Task, TaskPriority, TaskStatus, RecurringType, ViewMode, PRIORITY_CONFIG, STATUS_CONFIG, DAYS_OF_WEEK } from "@/types";
 
 export default function TasksPage() {
   const [data, setData] = useState(storage.getData());
@@ -68,24 +68,26 @@ export default function TasksPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-8">
+
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-wrap items-center justify-between gap-3"
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="flex flex-wrap items-start justify-between gap-3 relative"
       >
         <div>
-          <h1 className="text-2xl font-bold md:text-3xl">Tasks</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold tracking-tight leading-none">Tasks</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-xs">
             {overdueTasks.length > 0
-              ? `${overdueTasks.length} overdue — time to focus!`
-              : `${tasks.filter((t) => t.status !== "done").length} pending tasks`}
+              ? `${overdueTasks.length} overdue`
+              : `${tasks.filter((t) => t.status !== "done").length} pending`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* View Toggle */}
-          <div className="flex items-center rounded-xl border border-border p-1">
+          <div className="flex items-center rounded-md border border-border p-0.5">
             {[
               { mode: "list" as ViewMode, icon: List },
               { mode: "kanban" as ViewMode, icon: Columns },
@@ -95,11 +97,11 @@ export default function TasksPage() {
                 key={mode}
                 onClick={() => setViewMode(mode)}
                 className={cn(
-                  "rounded-lg p-1.5 transition-all",
-                  viewMode === mode ? "bg-primary-500 text-white" : "text-muted-foreground hover:text-foreground"
+                  "rounded px-1.5 py-1 transition-all text-xs",
+                  viewMode === mode ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3.5 w-3.5" />
               </button>
             ))}
           </div>
@@ -111,36 +113,43 @@ export default function TasksPage() {
       </motion.div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <div className="flex gap-1 rounded-xl border border-border p-1">
-          {["all", "todo", "in_progress", "done"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(s as any)}
-              className={cn(
-                "rounded-lg px-3 py-1 text-xs font-medium transition-all",
-                filterStatus === s ? "bg-primary-500 text-white" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {s === "all" ? "All" : STATUS_CONFIG[s as TaskStatus]?.label || s}
-            </button>
-          ))}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
+        className="relative"
+      >
+        <div className="flex flex-wrap gap-2">
+          <div className="flex gap-1 rounded-md border border-border p-0.5">
+            {["all", "todo", "in_progress", "done"].map((s) => (
+              <button
+                key={s}
+                onClick={() => setFilterStatus(s as any)}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-all",
+                  filterStatus === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {s === "all" ? "All" : STATUS_CONFIG[s as TaskStatus]?.label || s}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-1 rounded-md border border-border p-0.5">
+            {(["all", "urgent", "high", "medium", "low"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setFilterPriority(p)}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-all",
+                  filterPriority === p ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {p === "all" ? "All" : p}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex gap-1 rounded-xl border border-border p-1">
-          {(["all", "urgent", "high", "medium", "low"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setFilterPriority(p)}
-              className={cn(
-                "rounded-lg px-3 py-1 text-xs font-medium transition-all",
-                filterPriority === p ? "bg-primary-500 text-white" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {p === "all" ? "All" : p}
-            </button>
-          ))}
-        </div>
-      </div>
+      </motion.div>
 
       {/* List View */}
       {viewMode === "list" && (
@@ -295,21 +304,24 @@ export default function TasksPage() {
       {/* Calendar View */}
       {viewMode === "calendar" && (
         <CalendarView tasks={tasks} onRefresh={refresh} />
-      )}
-
-      {/* Empty State */}
+      )}        {/* Empty State */}
       {tasks.length === 0 && viewMode === "list" && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="relative flex flex-col items-center justify-center py-20 text-center"
+        >
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
             <ListTodo className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold mb-1">No tasks yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">Create your first task to get started!</p>
+          <h3 className="text-lg font-bold tracking-tight mb-1">No tasks yet</h3>
+          <p className="text-sm text-muted-foreground mb-6 leading-relaxed max-w-xs">Create your first task to get started!</p>
           <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Task
           </button>
-        </div>
+        </motion.div>
       )}
 
       {/* Task Form Modal */}
@@ -384,7 +396,9 @@ function TaskCard({ task, onRefresh }: { task: Task; onRefresh: () => void }) {
           {task.recurring !== "none" && (
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Repeat className="h-3 w-3" />
-              {task.recurring}
+              {task.recurring === "weekly" && task.recurringDays?.length
+                ? `Weekly on ${task.recurringDays.map((d) => DAYS_OF_WEEK[d]).join(", ")}`
+                : task.recurring}
             </span>
           )}
           <span className={cn(
@@ -473,7 +487,7 @@ function CalendarView({ tasks, onRefresh }: { tasks: Task[]; onRefresh: () => vo
             <div
               key={day}
               className={cn(
-                "bg-card p-1.5 min-h-[80px] transition-colors hover:bg-muted/50",
+                "bg-card p-1 md:p-1.5 md:min-h-[80px] transition-colors hover:bg-muted/50",
                 isToday && "ring-1 ring-primary-500"
               )}
             >
@@ -525,7 +539,14 @@ function TaskForm({
   const [dueTime, setDueTime] = useState(task?.dueTime || "");
   const [status, setStatus] = useState<TaskStatus>(task?.status || "todo");
   const [recurring, setRecurring] = useState<RecurringType>(task?.recurring || "none");
+  const [recurringDays, setRecurringDays] = useState<number[]>(task?.recurringDays || []);
   const [listId, setListId] = useState(task?.listId || "");
+
+  const toggleDay = (day: number) => {
+    setRecurringDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort()
+    );
+  };
 
   return (
     <motion.div
@@ -615,10 +636,10 @@ function TaskForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Recurring</label>
-              <select value={recurring} onChange={(e) => setRecurring(e.target.value as RecurringType)} className="input-field">
+              <select value={recurring} onChange={(e) => { setRecurring(e.target.value as RecurringType); setRecurringDays([]); }} className="input-field">
                 <option value="none">Never</option>
                 <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
+                <option value="weekly">Weekly (Pick Days)</option>
                 <option value="monthly">Monthly</option>
               </select>
             </div>
@@ -633,6 +654,29 @@ function TaskForm({
             </div>
           </div>
 
+          {recurring === "weekly" && (
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Repeat on</label>
+              <div className="flex gap-1.5">
+                {DAYS_OF_WEEK.map((day, idx) => (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleDay(idx)}
+                    className={cn(
+                      "flex h-9 w-9 items-center justify-center rounded-lg text-xs font-medium transition-all",
+                      recurringDays.includes(idx)
+                        ? "bg-primary-500 text-white ring-2 ring-primary-500/30 scale-110"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
+                    )}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
             <button
@@ -646,6 +690,7 @@ function TaskForm({
                   dueDate: dueDate || null,
                   dueTime: dueTime || null,
                   recurring,
+                  recurringDays: recurring === "weekly" ? recurringDays : [],
                   listId: listId || null,
                   tags: [],
                   recurringEndDate: null,

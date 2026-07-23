@@ -10,7 +10,8 @@ const shortcuts: { key: string; href: string; label: string }[] = [
   { key: "4", href: "/journal", label: "Journal" },
   { key: "5", href: "/tasks", label: "Tasks" },
   { key: "6", href: "/analytics", label: "Analytics" },
-  { key: "7", href: "/assistant", label: "AI Assistant" },
+  { key: "7", href: "/assistant", label: "Lexis AI" },
+  { key: "8", href: "/settings", label: "Settings" },
 ];
 
 export function KeyboardShortcuts() {
@@ -19,7 +20,7 @@ export function KeyboardShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // cmd+number or ctrl+number
-      if ((e.metaKey || e.ctrlKey) && /^[1-7]$/.test(e.key)) {
+      if ((e.metaKey || e.ctrlKey) && /^[1-8]$/.test(e.key)) {
         e.preventDefault();
         const shortcut = shortcuts[parseInt(e.key) - 1];
         if (shortcut) {

@@ -64,41 +64,51 @@ export default function AnalyticsPage() {
   }));
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-8">
+
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="relative"
       >
-        <h1 className="text-2xl font-bold md:text-3xl">Analytics</h1>
-        <p className="text-muted-foreground mt-1">Track your progress and discover patterns</p>
+        <h1 className="text-3xl font-bold tracking-tight leading-none">Analytics</h1>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-xs">
+          Track your progress and discover patterns
+        </p>
       </motion.div>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Total Habit Logs", value: totalLogs, icon: Activity, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Best Streak", value: `${bestOverallStreak} days`, icon: Flame, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Completed Tasks", value: completedTasks, icon: Target, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Journal Entries", value: journalEntries.length, icon: Smile, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 * i }}
-            className="card"
-          >
-            <div className="flex items-center justify-between">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", stat.bg)}>
-                <stat.icon className={cn("h-5 w-5", stat.color)} />
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
+        className="relative"
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Total Habit Logs", value: totalLogs, icon: Activity },
+            { label: "Best Streak", value: `${bestOverallStreak} days`, icon: Flame },
+            { label: "Completed Tasks", value: completedTasks, icon: Target },
+            { label: "Journal Entries", value: journalEntries.length, icon: Smile },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.05, duration: 0.35, ease: "easeOut" }}
+              className="card"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
+                <stat.icon className="h-5 w-5 text-primary-500" />
               </div>
-            </div>
-            <p className="mt-3 text-2xl font-bold">{stat.value}</p>
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-          </motion.div>
-        ))}
-      </div>
+              <p className="mt-3 text-2xl font-bold">{stat.value}</p>
+              <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Habit Streaks */}
@@ -261,9 +271,9 @@ export default function AnalyticsPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {bestStreakHabit && bestStreakHabit.streak.longest > 0 && (
-            <div className="rounded-xl bg-gradient-to-br from-zinc-500/10 to-zinc-700/10 p-4">
+            <div className="rounded-xl bg-muted p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Flame className="h-5 w-5 text-zinc-400" />
+                <Flame className="h-5 w-5 text-primary-500" />
                 <span className="font-semibold text-sm">Longest Streak</span>
               </div>
               <p className="text-2xl font-bold">{bestStreakHabit.streak.longest} days</p>
@@ -271,9 +281,9 @@ export default function AnalyticsPage() {
             </div>
           )}
           {avgMood > 0 && (
-            <div className="rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 p-4">
+            <div className="rounded-xl bg-muted p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Heart className="h-5 w-5 text-zinc-400" />
+                <Heart className="h-5 w-5 text-primary-500" />
                 <span className="font-semibold text-sm">Average Mood</span>
               </div>
               <p className="text-2xl font-bold">
@@ -284,9 +294,9 @@ export default function AnalyticsPage() {
               </p>
             </div>
           )}
-          <div className="rounded-xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 p-4">
+          <div className="rounded-xl bg-muted p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-5 w-5 text-zinc-400" />
+              <Zap className="h-5 w-5 text-primary-500" />
               <span className="font-semibold text-sm">Task Completion</span>
             </div>
             <p className="text-2xl font-bold">

@@ -6,16 +6,11 @@ import {
   BookOpen,
   Heart,
   Sparkles,
-  Calendar,
+  Flame,
   Search,
   Plus,
   X,
   Smile,
-  Meh,
-  Frown,
-  Sun,
-  Moon,
-  Star,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { ai } from "@/lib/ai";
@@ -53,45 +48,65 @@ export default function JournalPage() {
     ? monthEntries.reduce((sum, e) => sum + getMoodScore(e.mood), 0) / monthEntries.length
     : 0;
 
+  const journalStreak = storage.getJournalStreak();
+
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-8">
+
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="flex items-start justify-between gap-4 relative"
       >
-        <div>
-          <h1 className="text-2xl font-bold md:text-3xl">Journal</h1>
-          <p className="text-muted-foreground mt-1">Reflect, track your mood, and grow</p>
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold tracking-tight leading-none">Journal</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-xs">
+            Reflect, track your mood, and grow
+          </p>
         </div>
-        <button
-          onClick={() => { setSelectedDate(today); setShowEntry(true); }}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">
-            {todayEntry ? "Edit Today" : "Write Today"}
-          </span>
-        </button>
+        <div className="flex items-center gap-3 shrink-0 mt-12">
+          {/* Streak badge */}
+          {journalStreak.current > 0 && (
+            <div className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 md:px-3 md:py-2">
+              <Flame className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="hidden md:block">
+                <span className="text-sm font-medium">{journalStreak.current}</span>
+                <span className="text-[10px] text-muted-foreground/60 ml-0.5">day{journalStreak.current > 1 ? 's' : ''}</span>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => { setSelectedDate(today); setShowEntry(true); }}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">
+              {todayEntry ? "Edit Today" : "Write Today"}
+            </span>
+          </button>
+        </div>
       </motion.div>
 
       {/* Mood Overview */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="card"
+        transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
+        className="relative"
       >
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Smile className="h-5 w-5 text-primary-500" />
-            <h2 className="font-semibold">This Month's Mood</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">
-              {avgMood >= 75 ? "😊 Positive" : avgMood >= 50 ? "😐 Neutral" : "😔 Low"}
-            </span>
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Smile className="h-5 w-5 text-primary-500" />
+              <h2 className="font-semibold tracking-tight">This Month</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">
+                {avgMood >= 75 ? "😊 Positive" : avgMood >= 50 ? "😐 Neutral" : "😔 Low"}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -132,15 +147,16 @@ export default function JournalPage() {
       {/* Today's Entry Preview */}
       {todayEntry && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="card border-primary-500/20 bg-gradient-to-br from-primary-500/5 to-purple-500/5"
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="card relative"
         >
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-xl">{MOODS.find((m) => m.value === todayEntry.mood)?.emoji}</span>
               <div>
-                <h3 className="font-semibold">Today's Entry</h3>
+                <h3 className="font-semibold tracking-tight">Today's Entry</h3>
                 <p className="text-xs text-muted-foreground">{formatDate(today)}</p>
               </div>
             </div>
@@ -148,7 +164,7 @@ export default function JournalPage() {
               Edit
             </button>
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-3">{todayEntry.content}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{todayEntry.content}</p>
           {todayEntry.gratitude.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {todayEntry.gratitude.map((g, i) => (
@@ -168,10 +184,10 @@ export default function JournalPage() {
           return (
             <motion.div
               key={entry.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.03 * i }}
-              className="card cursor-pointer hover:shadow-md transition-all"
+              transition={{ delay: 0.03 * i, duration: 0.35, ease: "easeOut" }}
+              className="card cursor-pointer transition-all hover:bg-secondary/50"
               onClick={() => { setSelectedDate(entry.date); setShowEntry(true); }}
             >
               <div className="flex items-start gap-3">
@@ -199,14 +215,15 @@ export default function JournalPage() {
 
       {entries.length === 0 && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="relative flex flex-col items-center justify-center py-20 text-center"
         >
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
             <BookOpen className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold mb-1">
+          <h3 className="text-lg font-bold tracking-tight mb-1">
             {search ? "No entries found" : "No journal entries yet"}
           </h3>
           <p className="text-sm text-muted-foreground mb-4">

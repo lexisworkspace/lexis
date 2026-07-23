@@ -18,6 +18,8 @@ import {
   BarChart3,
   ArrowRight,
   Star,
+  Flame,
+  Coffee,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { ai } from "@/lib/ai";
@@ -82,26 +84,31 @@ export default function DashboardPage() {
     return d >= weekAgo;
   }).length;
 
+  const journalStreak = storage.getJournalStreak();
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between"
       >
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold md:text-3xl">{greeting}!</h1>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold mb-1">{greeting}!</h1>
+            <p className="text-sm text-muted-foreground">
+              {formatDate(new Date(), "EEEE, MMMM d")}
+            </p>
+          </div>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500/10">
             {new Date().getHours() < 12 ? (
-              <Sun className="h-6 w-6 text-zinc-400" />
+              <Sun className="h-6 w-6 text-primary-500" />
             ) : new Date().getHours() < 17 ? (
-              <Cloud className="h-6 w-6 text-zinc-400" />
+              <Cloud className="h-6 w-6 text-primary-500" />
             ) : (
-              <Moon className="h-6 w-6 text-zinc-400" />
+              <Moon className="h-6 w-6 text-primary-500" />
             )}
           </div>
-          <p className="text-muted-foreground">{formatDate(new Date(), "EEEE, MMMM d")}</p>
         </div>
       </motion.div>
 
@@ -110,20 +117,18 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="card-glass"
+        className="card"
       >
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-primary-500" />
-              <h2 className="font-semibold">Productivity Score</h2>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground">Productivity Score</p>
+            <h2 className="text-2xl font-bold mt-1">{productivityScore}/100</h2>
+            <p className="text-xs text-muted-foreground mt-1">
               {productivityScore >= 80
-                ? "Outstanding day! 🌟"
+                ? "Outstanding day!"
                 : productivityScore >= 50
-                ? "Good progress! 💪"
-                : "Let's pick up the pace! 🚀"}
+                ? "Good progress!"
+                : "Let's build momentum!"}
             </p>
           </div>
           <div className="relative flex h-20 w-20 items-center justify-center">
@@ -142,30 +147,34 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Habits Today", value: `${completedToday}/${totalHabits}`, icon: CheckCircle2, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Tasks Today", value: `${todayDone}/${todayTasks.length}`, icon: Target, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Week Habits", value: `${weekHabitLogs}`, icon: TrendingUp, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-          { label: "Journal", value: todayJournal ? "Written ✍️" : "Not yet", icon: BookOpen, color: "text-zinc-400", bg: "bg-zinc-400/10" },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 + i * 0.05 }}
-            className="card"
-          >
-            <div className="flex items-center justify-between">
-              <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", stat.bg)}>
-                <stat.icon className={cn("h-5 w-5", stat.color)} />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Habits Today", value: `${completedToday}/${totalHabits}`, icon: CheckCircle2 },
+            { label: "Tasks Today", value: `${todayDone}/${todayTasks.length}`, icon: Target },
+            { label: "Week Habits", value: `${weekHabitLogs}`, icon: TrendingUp },
+            { label: "Journal Streak", value: todayJournal ? `${journalStreak.current}d` : journalStreak.current > 0 ? `${journalStreak.current}d` : "\u2014", icon: Flame },
+          ].map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.05 }}
+              className="card"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-500/10">
+                <stat.icon className="h-5 w-5 text-primary-500" />
               </div>
-            </div>
-            <p className="mt-3 text-2xl font-bold">{stat.value}</p>
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-          </motion.div>
-        ))}
-      </div>
+              <p className="mt-3 text-2xl font-bold">{stat.value}</p>
+              <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Today's Habits */}
@@ -209,7 +218,7 @@ export default function DashboardPage() {
                     "flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium",
                     habit.logged ? "bg-zinc-500/20" : "bg-muted"
                   )}>
-                    {habit.logged ? "✓" : habit.icon || "○"}
+                    {habit.logged ? "\u2713" : habit.icon || "\u25CB"}
                   </div>
                   <div className="flex-1 text-left">
                     <p className={cn("text-sm font-medium", habit.logged && "line-through")}>{habit.name}</p>
@@ -263,7 +272,7 @@ export default function DashboardPage() {
                       ? "border-zinc-500 bg-zinc-500"
                       : "border-muted-foreground/30"
                   )}>
-                    {task.status === "done" && <span className="text-white text-xs">✓</span>}
+                    {task.status === "done" && <span className="text-white text-xs">\u2713</span>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={cn("text-sm", task.status === "done" && "line-through text-muted-foreground")}>
@@ -331,20 +340,16 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="card bg-gradient-to-br from-zinc-500/5 to-zinc-700/5 border-zinc-700/20"
+          className="card"
         >
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl gradient-primary-subtle shadow-lg">
-              <Sparkles className="h-5 w-5 text-white" />
+          <div className="flex items-start gap-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-500/10">
+              <Sparkles className="h-5 w-5 text-primary-500" />
             </div>
             <div>
-              <h2 className="font-semibold mb-1">AI Focus Suggestion</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">{focusSuggestion}</p>
+              <p className="text-sm text-muted-foreground mb-1">AI Focus Suggestion</p>
+              <p className="text-sm leading-relaxed">{focusSuggestion}</p>
             </div>
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-xs">
-            <Zap className="h-3 w-3 text-zinc-400" />
-            <span className="text-gradient-orange">Powered by LEXIS AI</span>
           </div>
         </motion.div>
       </div>
@@ -354,19 +359,39 @@ export default function DashboardPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="card-glass flex items-center justify-between"
+        className="card"
       >
-        <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-primary-500" />
-          <span className="text-sm font-medium">Weekly Progress</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary-500" />
+            <span className="text-sm font-medium">This Week</span>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>{weekHabitLogs} habits</span>
+            <span className="hidden sm:inline">&middot;</span>
+            <span>{todayDone}/{todayTasks.length} tasks</span>
+            <span className="hidden sm:inline">&middot;</span>
+            <span>{todayJournal ? "Journaled today" : "No journal today"}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>{weekHabitLogs} habits</span>
-          <span>·</span>
-          <span>{todayDone}/{todayTasks.length} tasks</span>
-          <span>·</span>
-          <span>{todayJournal ? "Journaled" : "No journal"}</span>
-        </div>
+      </motion.div>
+
+      {/* Buy Me a Coffee */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.45 }}
+        className="flex justify-center"
+      >
+        <a
+          href="https://buymeacoffee.com/lexis"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary transition-all duration-200"
+        >
+          <Coffee className="h-4 w-4" />
+          <span>Support LEXIS</span>
+        </a>
       </motion.div>
     </div>
   );
