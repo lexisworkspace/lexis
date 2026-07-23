@@ -15,7 +15,7 @@ export default function TermsPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. Description of Service</h2>
         <p className="mb-3">
           Lexis is a browser-based productivity suite including tools for habits tracking, journaling, note-taking,
-          task management, and AI-powered assistance. Key characteristics:
+          task management, mind mapping, and AI-powered assistance. Key characteristics:
         </p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li>All data is stored locally in your browser's IndexedDB and localStorage</li>

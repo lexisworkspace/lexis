@@ -121,9 +121,9 @@ const principles = [
 
 const roadmap = [
   {
-    phase: "NOW",
+    phase: "SHIPPED",
     title: "Lexis v1.0",
-    desc: "Habits, Journal, Notes, Tasks, Lexis AI, Analytics Dashboard, Streak System, Export/Import - the complete core experience.",
+    desc: "Habits, Journal, Notes, Tasks, Mind Maps, Lexis AI, Analytics Dashboard, Streak System, Export/Import - the complete core experience.",
     icon: Sparkles,
   },
   {
@@ -308,7 +308,7 @@ export default function LandingPage() {
                   LEXIS
                 </h1>
                 <p className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-md font-body">
-                  An AI-powered productivity suite for habits, journaling, notes, and tasks - built for clarity and momentum.
+                  An AI-powered productivity suite for habits, journaling, notes, tasks, and mind maps - built for clarity and momentum.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                   <a

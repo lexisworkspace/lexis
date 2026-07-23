@@ -38,8 +38,9 @@ export default function DisclaimerPage() {
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">4. Data Loss</h2>
         <p>
-          Since all Lexis data is stored in your browser's localStorage, it is subject to deletion if you clear
-          your browser data, switch devices, or use private browsing modes. We strongly recommend using the
+          Since all Lexis data is stored in your browser's IndexedDB and localStorage, it is subject to deletion if you clear
+          your browser data, switch devices, or use private browsing modes. This includes habits, journal entries,
+          notes, tasks, mind maps, and all other workspace data. We strongly recommend using the
           built-in export feature to maintain regular backups. Lexis is not responsible for data loss.
         </p>
       </section>
