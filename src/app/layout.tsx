@@ -4,8 +4,8 @@ import { ClientLayout } from "@/components/layout/ClientLayout";
 
 export const metadata: Metadata = {
   title: "LEXIS - AI Productivity Suite",
-  description: "A premium productivity app combining habits, notes, journal, and tasks with AI-powered insights.",
-  keywords: ["productivity", "habits", "notes", "journal", "tasks", "AI"],
+  description: "A premium productivity app combining habits, notes, journal, tasks, and mind maps with AI-powered insights.",
+  keywords: ["productivity", "habits", "notes", "journal", "tasks", "mind maps", "AI"],
   icons: {
     icon: "/lexis-logo.png",
     apple: "/lexis-logo.png",
