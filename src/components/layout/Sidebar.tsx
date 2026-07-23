@@ -18,6 +18,7 @@ import {
   X,
   ChevronLeft,
   Coffee,
+  Brain,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -29,9 +30,10 @@ const navItems = [
   { href: "/notes", label: "Notes", icon: FileText, shortcut: "⌘3" },
   { href: "/journal", label: "Journal", icon: BookOpen, shortcut: "⌘4" },
   { href: "/tasks", label: "Tasks", icon: ListTodo, shortcut: "⌘5" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, shortcut: "⌘6" },
-  { href: "/assistant", label: "Lexis AI", icon: Bot, shortcut: "⌘7" },
-  { href: "/settings", label: "Settings", icon: Settings, shortcut: "⌘8" },
+  { href: "/mindmaps", label: "Mind Maps", icon: Brain, shortcut: "⌘6" },
+  { href: "/analytics", label: "Analytics", icon: BarChart3, shortcut: "⌘7" },
+  { href: "/assistant", label: "Lexis AI", icon: Bot, shortcut: "⌘8" },
+  { href: "/settings", label: "Settings", icon: Settings, shortcut: "⌘9" },
 ];
 
 export function Sidebar() {
