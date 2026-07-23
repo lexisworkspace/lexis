@@ -390,7 +390,15 @@ function MindMapFlow() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
 
-
+  // Listen for label changes from custom node (double-click rename)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { id, label } = (e as CustomEvent).detail;
+      setNodes((nds) => nds.map((n) => n.id === id ? { ...n, data: { ...n.data, label } } : n));
+    };
+    document.addEventListener("node-label-change", handler);
+    return () => document.removeEventListener("node-label-change", handler);
+  }, [setNodes]);
 
   const onConnect = useCallback(
     (params: Connection) => {
