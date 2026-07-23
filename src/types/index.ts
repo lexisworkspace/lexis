@@ -209,7 +209,7 @@ export interface WeeklySummary {
 // ============================================================
 
 export type AIModel = "arete-1.5" | "thallo-1.0" | "tsubame-0.7";
-export type AIMode = "normal" | "thinking" | "deep-research";
+
 
 export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
   { id: "arete-1.5", name: "Arete 1.5", description: "Most complex and reasonable", tagline: "Deep analysis & strategic thinking", contextWindow: 20, responseStyle: "thorough" },
@@ -217,11 +217,7 @@ export const AI_MODELS: { id: AIModel; name: string; description: string; taglin
   { id: "tsubame-0.7", name: "Tsubame 0.7", description: "Best for quick answers", tagline: "Fast, concise, to the point", contextWindow: 6, responseStyle: "concise" },
 ];
 
-export const AI_MODES: { id: AIMode; name: string; description: string }[] = [
-  { id: "normal", name: "Normal", description: "Standard conversation" },
-  { id: "thinking", name: "Thinking", description: "Shows step-by-step reasoning before answering" },
-  { id: "deep-research", name: "Deep Research", description: "Comprehensive multi-perspective analysis report" },
-];
+
 
 export interface AIMessage {
   id: string;
@@ -266,7 +262,7 @@ export interface AppData {
   aiConversations: AIConversation[];
   aiSuggestions: AISuggestion[];
   selectedModel: AIModel;
-  selectedMode: AIMode;
+
   onboardingCompleted: boolean;
   lastSync: string | null;
 }

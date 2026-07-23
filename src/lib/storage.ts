@@ -1,6 +1,6 @@
 "use client";
 
-import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage, AIMode } from "@/types";
+import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage } from "@/types";
 import { generateId, getToday, calculateStreak } from "./utils";
 import { loadFromIDB, saveToIDB, clearIDB } from "./db";
 
@@ -39,7 +39,7 @@ const DEFAULT_DATA: AppData = {
   aiConversations: [],
   aiSuggestions: [],
   selectedModel: "thallo-1.0" as const,
-  selectedMode: "normal" as AIMode,
+
   onboardingCompleted: false,
   lastSync: null,
 };
@@ -482,14 +482,7 @@ class Storage {
   // Mode
   // ============================================================
 
-  setMode(mode: AIMode): void {
-    this.getData().selectedMode = mode;
-    this.saveData();
-  }
 
-  getMode(): AIMode {
-    return this.getData().selectedMode;
-  }
 
   // ============================================================
   // Onboarding

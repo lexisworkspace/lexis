@@ -18,26 +18,17 @@ import {
   Cpu,
   Layers,
   Gauge,
-  Brain,
-  Search,
   X as XIcon,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { chat } from "@/lib/ai";
-import { webSearch } from "@/lib/webSearch";
 import { cn, generateId } from "@/lib/utils";
-import { AIMessage, AIModel, AIMode, AI_MODELS, AI_MODES } from "@/types";
+import { AIMessage, AIModel, AI_MODELS } from "@/types";
 
 const MODEL_META: Record<string, { icon: typeof Cpu; color: string; label: string }> = {
   "arete-1.5": { icon: Layers, color: "text-violet-400", label: "Arete 1.5" },
   "thallo-1.0": { icon: Cpu, color: "text-emerald-400", label: "Thallo 1.0" },
   "tsubame-0.7": { icon: Gauge, color: "text-amber-400", label: "Tsubame 0.7" },
-};
-
-const MODE_META: Record<string, { icon: typeof Bot; color: string; label: string }> = {
-  "normal": { icon: Bot, color: "text-zinc-400", label: "Normal" },
-  "thinking": { icon: Brain, color: "text-violet-400", label: "Thinking" },
-  "deep-research": { icon: Search, color: "text-cyan-400", label: "Deep Research" },
 };
 
 const SAFE_MODEL: AIModel = "thallo-1.0";
@@ -49,7 +40,6 @@ export default function AssistantPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AIModel>(getSafeModel(data.selectedModel));
-  const [selectedMode, setSelectedMode] = useState<AIMode>(getSafeMode(data.selectedMode));
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showMobileChats, setShowMobileChats] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,11 +48,6 @@ export default function AssistantPage() {
   function getSafeModel(m: unknown): AIModel {
     if (typeof m === "string" && AI_MODELS.some((x) => x.id === m)) return m as AIModel;
     return SAFE_MODEL;
-  }
-
-  function getSafeMode(m: unknown): AIMode {
-    if (typeof m === "string" && AI_MODES.some((x) => x.id === m)) return m as AIMode;
-    return "normal";
   }
 
   const refresh = () => setData({ ...storage.getData() });
@@ -116,61 +101,6 @@ export default function AssistantPage() {
     storage.saveData();
   };
 
-  const changeMode = (mode: AIMode) => {
-    setSelectedMode(mode);
-    setShowModelPicker(false);
-    storage.setMode(mode);
-  };
-
-  const generateThinkingSteps = (query: string, response: string): string => {
-    const steps = [
-      `**Analyzing your request:** You're asking about "${query.slice(0, 60)}${query.length > 60 ? "..." : ""}". I need to understand what you need and find the relevant information in your workspace.`,
-      `**Scanning your data:** Let me check your habits, tasks, journal, and notes for anything related to this topic. I'll look for patterns, trends, and connections across your workspace.`,
-      `**Cross-referencing insights:** I'm connecting the dots between different areas of your data — seeing how your habits relate to your tasks, and how your journal reflections might inform the bigger picture.`,
-      `**Formulating the response:** Based on the patterns I've found, I'm now crafting a comprehensive answer that addresses your specific question with actionable insights.`,
-    ];
-
-    let thinking = `🧠 **Thinking Process**\n\nLet me work through this step by step.\n\n`;
-    steps.forEach((step, i) => {
-      thinking += `**Step ${i + 1}:** ${step}\n\n`;
-    });
-    thinking += `---\n\n**Response:**\n${response}`;
-    return thinking;
-  };
-
-  const generateDeepResearch = async (query: string, response: string): Promise<string> => {
-    // Actually search the web
-    const searchResults = await webSearch(query);
-
-    // Build the web research section
-    let webSection = "";
-    if (searchResults.abstract) {
-      webSection += `**Overview**\n${searchResults.abstract}\n\n`;
-    }
-    if (searchResults.results.length > 0) {
-      webSection += `**Sources**\n` +
-        searchResults.results.map((r, i) =>
-          `${i + 1}. **${r.title}**\n   ${r.snippet}\n   ${r.url}`
-        ).join("\n\n") + "\n\n";
-    }
-    if (searchResults.relatedTopics.length > 0) {
-      webSection += `**Related Topics**\n${searchResults.relatedTopics.map(t => `• ${t}`).join("\n")}\n\n`;
-    }
-
-    // If we got web results, use them as the primary answer
-    if (webSection) {
-      return `🔬 **Deep Research Report**\n\n` +
-        `**Research Topic:** ${query}\n\n` +
-        webSection;
-    }
-
-    // Fallback: no web results found, use the AI response directly
-    return `🔬 **Deep Research Report**\n\n` +
-      `**Research Topic:** ${query}\n\n` +
-      `${response}\n\n` +
-      `_No web results were found for this query. The response above is from the AI model._`;
-  };
-
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -202,16 +132,9 @@ export default function AssistantPage() {
       "arete-1.5": 1200, "thallo-1.0": 800, "tsubame-0.7": 400,
     };
     const baseDelay = delays[selectedModel] || 800;
-    const modeMultiplier = selectedMode === "thinking" ? 2 : selectedMode === "deep-research" ? 3 : 1;
-    await new Promise((r) => setTimeout(r, baseDelay * modeMultiplier));
+    await new Promise((r) => setTimeout(r, baseDelay));
 
-    let response = chat(queryText, updatedMessages, selectedModel);
-
-    if (selectedMode === "thinking") {
-      response = generateThinkingSteps(queryText, response);
-    } else if (selectedMode === "deep-research") {
-      response = await generateDeepResearch(queryText, response);
-    }
+    const response = chat(queryText, updatedMessages, selectedModel);
 
     const aiMsg: AIMessage = {
       id: generateId(),
@@ -235,13 +158,9 @@ export default function AssistantPage() {
   };
 
   const modelInfo = MODEL_META[selectedModel] || MODEL_META["thallo-1.0"];
-  const modeInfo = MODE_META[selectedMode] || MODE_META["normal"];
   const ModelIcon = modelInfo.icon;
-  const ModeIcon = modeInfo.icon;
   const currentModel = AI_MODELS.find((m) => m.id === selectedModel) || AI_MODELS[1];
-  const currentMode = AI_MODES.find((m) => m.id === selectedMode) || AI_MODES[0];
   const conversations = data.aiConversations;
-  const isModeActive = selectedMode !== "normal";
 
   return (
     <div className="flex gap-6 h-[calc(100vh-6rem)] relative">
@@ -335,18 +254,8 @@ export default function AssistantPage() {
                 showModelPicker ? "bg-secondary border-border" : "border-transparent"
               )}
             >
-              {isModeActive ? (
-                <ModeIcon className={cn("h-4 w-4", modeInfo.color)} />
-              ) : (
-                <ModelIcon className={cn("h-4 w-4", modelInfo.color)} />
-              )}
-              <span>{isModeActive ? currentMode.name : currentModel.name}</span>
-              {isModeActive && (
-                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-violet-500/10 text-[9px] text-violet-400">
-                  <Brain className="h-2.5 w-2.5" />
-                  {selectedMode === "thinking" ? "CoT" : "DR"}
-                </span>
-              )}
+              <ModelIcon className={cn("h-4 w-4", modelInfo.color)} />
+              <span>{currentModel.name}</span>
               <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-200", showModelPicker && "rotate-180")} />
             </button>
 
@@ -363,40 +272,11 @@ export default function AssistantPage() {
                   {AI_MODELS.map((m) => {
                     const meta = MODEL_META[m.id] || { icon: Cpu, color: "text-zinc-400", label: m.name };
                     const Icon = meta.icon;
-                    const isActive = !isModeActive && selectedModel === m.id;
+                    const isActive = selectedModel === m.id;
                     return (
                       <button
                         key={m.id}
                         onClick={() => changeModel(m.id)}
-                        className={cn(
-                          "w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
-                          isActive ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
-                        )}
-                      >
-                        <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", isActive ? "bg-primary-500/20" : "bg-muted")}>
-                          <Icon className={cn("h-4 w-4", meta.color)} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{m.name}</span>
-                            {isActive && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">Active</span>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  <div className="my-2 mx-3 h-px bg-border" />
-                  <p className="text-[9px] font-mono tracking-wider text-muted-foreground/40 px-3 py-1.5 uppercase">Modes</p>
-                  {AI_MODES.map((m) => {
-                    const meta = MODE_META[m.id] || { icon: Bot, color: "text-zinc-400", label: m.name };
-                    const Icon = meta.icon;
-                    const isActive = selectedMode === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => changeMode(m.id)}
                         className={cn(
                           "w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
                           isActive ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
@@ -438,16 +318,12 @@ export default function AssistantPage() {
           {messages.length === 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-full text-center py-10">
               <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl gradient-primary-subtle shadow-lg shadow-black/10">
-                {isModeActive ? <ModeIcon className={cn("h-10 w-10", modeInfo.color)} /> : <ModelIcon className={cn("h-10 w-10", modelInfo.color)} />}
+                <ModelIcon className={cn("h-10 w-10", modelInfo.color)} />
               </div>
-              <h3 className="text-lg font-semibold mb-1">{isModeActive ? currentMode.name : currentModel.name}</h3>
-              <p className="text-xs text-muted-foreground/60 mb-1">{isModeActive ? currentMode.description : currentModel.tagline}</p>
+              <h3 className="text-lg font-semibold mb-1">{currentModel.name}</h3>
+              <p className="text-xs text-muted-foreground/60 mb-1">{currentModel.tagline}</p>
               <p className="text-sm text-muted-foreground max-w-md mb-8">
-                {selectedMode === "thinking"
-                  ? "I'll show you my step-by-step reasoning before giving the final answer. Perfect for understanding the logic behind my responses."
-                  : selectedMode === "deep-research"
-                  ? "I'll conduct a comprehensive multi-perspective analysis, examining your data across all domains to produce a detailed research report."
-                  : selectedModel === "arete-1.5"
+                {selectedModel === "arete-1.5"
                   ? "Deep analysis and strategic thinking. I'll consider all your data and past conversations for thorough insights."
                   : selectedModel === "tsubame-0.7"
                   ? "Fast, concise answers. Perfect for quick check-ins and rapid insights."
@@ -492,22 +368,6 @@ export default function AssistantPage() {
                     {msg.content.split("\n").map((line, i) => {
                       const cleanLine = line.replace(/\*\*/g, "");
                       if (cleanLine.startsWith("---")) return <hr key={i} className="my-2 border-border" />;
-                      // Thinking steps — smaller grey text
-                      if (/^\*\*Step \d+:\*\*|^Step \d+:/.test(cleanLine)) {
-                        return <p key={i} className="ml-3 mb-1 text-[11px] text-muted-foreground/50 italic leading-relaxed">{cleanLine.replace(/\*\*/g, "")}</p>;
-                      }
-                      // Thinking intro/header line
-                      if (cleanLine.includes("Thinking Process") || cleanLine.includes("Let me work through")) {
-                        return <p key={i} className="mb-1 text-[11px] text-muted-foreground/50 italic">{cleanLine}</p>;
-                      }
-                      // Thinking separator and response header
-                      if (cleanLine === "---" || cleanLine.includes("**Response:**") || cleanLine.includes("Response:")) {
-                        return <hr key={i} className="my-1.5 border-border/30" />;
-                      }
-                      // Deep research methodology/findings sections
-                      if (/^(\*\*)?Methodology|^(\*\*)?Web Research|^(\*\*)?Wikipedia|^(\*\*)?Related Topics|^(\*\*)?Research Topic/.test(cleanLine)) {
-                        return <p key={i} className="mb-0.5 text-[11px] text-muted-foreground/50">{cleanLine}</p>;
-                      }
                       if (cleanLine.startsWith("•") || cleanLine.startsWith("-")) {
                         return <p key={i} className="ml-3 mb-0.5 text-muted-foreground"><span className="text-foreground">{cleanLine.charAt(0)}</span>{cleanLine.slice(1)}</p>;
                       }
@@ -525,12 +385,12 @@ export default function AssistantPage() {
           {loading && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 shadow-lg">
-                {isModeActive ? <ModeIcon className={cn("h-4 w-4", modeInfo.color)} /> : <ModelIcon className={cn("h-4 w-4", modelInfo.color)} />}
+                <ModelIcon className={cn("h-4 w-4", modelInfo.color)} />
               </div>
               <div className="rounded-2xl bg-muted px-4 py-3 rounded-bl-md">
                 <div className="flex gap-1.5 items-center">
                   <span className="text-xs text-muted-foreground/60 mr-1">
-                    {selectedMode === "thinking" ? "Thinking step by step" : selectedMode === "deep-research" ? "Researching" : selectedModel === "arete-1.5" ? "Thinking deeply" : selectedModel === "tsubame-0.7" ? "Processing" : "Responding"}
+                    {selectedModel === "arete-1.5" ? "Thinking deeply" : selectedModel === "tsubame-0.7" ? "Processing" : "Responding"}
                   </span>
                   <span className="h-2 w-2 rounded-full bg-primary-500/50 animate-bounce" style={{ animationDelay: "0ms", animationDuration: "0.8s" }} />
                   <span className="h-2 w-2 rounded-full bg-primary-500/50 animate-bounce" style={{ animationDelay: "150ms", animationDuration: "0.8s" }} />
@@ -549,12 +409,12 @@ export default function AssistantPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder={selectedMode === "thinking" ? "Ask me anything — I'll show my reasoning..." : selectedMode === "deep-research" ? "What topic should I research deeply?" : selectedModel === "tsubame-0.7" ? "Quick question..." : "Ask me anything about your productivity..."}
+              placeholder={selectedModel === "tsubame-0.7" ? "Quick question..." : "Ask me anything about your productivity..."}
               className="input-field w-full resize-none pr-10 py-3 min-h-[44px] max-h-32"
               rows={1}
             />
             <div className="absolute right-3 bottom-3">
-              {isModeActive ? <ModeIcon className={cn("h-3.5 w-3.5", modeInfo.color, "opacity-40")} /> : <ModelIcon className={cn("h-3.5 w-3.5", modelInfo.color, "opacity-40")} />}
+              <ModelIcon className={cn("h-3.5 w-3.5", modelInfo.color, "opacity-40")} />
             </div>
           </div>
           <button onClick={sendMessage} disabled={!input.trim() || loading} className="btn-primary p-3 aspect-square rounded-xl transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed">
@@ -589,34 +449,13 @@ export default function AssistantPage() {
           </div>
           <div className="rounded-xl bg-muted p-3">
             <div className="flex items-center gap-2 mb-1">
-              <Zap className="h-3.5 w-3.5 text-primary-500" />
-              <span className="text-xs font-medium">Modes</span>
-            </div>
-            <div className="space-y-2 mt-2">
-              {AI_MODES.map((m) => {
-                const meta = MODE_META[m.id] || { icon: Bot, color: "text-zinc-400", label: m.name };
-                const Icon = meta.icon;
-                return (
-                  <div key={m.id} className="flex items-start gap-2">
-                    <Icon className={cn("h-3 w-3 mt-0.5 shrink-0", meta.color)} />
-                    <div>
-                      <span className={cn("text-[11px] font-medium", meta.color)}>{m.name}</span>
-                      <p className="text-[10px] text-muted-foreground">{m.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="rounded-xl bg-muted p-3">
-            <div className="flex items-center gap-2 mb-1">
               <Lightbulb className="h-3.5 w-3.5 text-zinc-400" />
               <span className="text-xs font-medium">Pro Tips</span>
             </div>
             <ul className="space-y-1.5 mt-1">
-              <li className="text-[11px] text-muted-foreground">• Select a model and a mode for different results</li>
-              <li className="text-[11px] text-muted-foreground">• Thinking: See chain-of-thought reasoning</li>
-              <li className="text-[11px] text-muted-foreground">• Deep Research: Get comprehensive reports</li>
+              <li className="text-[11px] text-muted-foreground">• Select a model for different response styles</li>
+              <li className="text-[11px] text-muted-foreground">• Arete: Deep strategic thinking</li>
+              <li className="text-[11px] text-muted-foreground">• Tsubame: Fast, concise answers</li>
             </ul>
           </div>
         </div>
