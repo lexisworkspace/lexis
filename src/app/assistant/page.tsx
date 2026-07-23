@@ -139,45 +139,36 @@ export default function AssistantPage() {
   };
 
   const generateDeepResearch = async (query: string, response: string): Promise<string> => {
-    const d = storage.getData();
-    const habitsCount = d.habits.filter((h) => !h.archived).length;
-    const tasksCount = d.tasks.length;
-    const journalCount = d.journalEntries.length;
-    const notesCount = d.notes.length;
-
     // Actually search the web
     const searchResults = await webSearch(query);
 
+    // Build the web research section
     let webSection = "";
-    if (searchResults.results.length > 0) {
-      webSection = `\n**Web Research Findings**\n` +
-        searchResults.results.map((r, i) =>
-          `${i + 1}. **${r.title}**\n   ${r.snippet}\n   Source: ${r.url}`
-        ).join("\n\n") + "\n\n";
-    }
     if (searchResults.abstract) {
-      webSection += `**Wikipedia/Encyclopedia Summary**\n${searchResults.abstract}\n\n`;
+      webSection += `**Overview**\n${searchResults.abstract}\n\n`;
+    }
+    if (searchResults.results.length > 0) {
+      webSection += `**Sources**\n` +
+        searchResults.results.map((r, i) =>
+          `${i + 1}. **${r.title}**\n   ${r.snippet}\n   ${r.url}`
+        ).join("\n\n") + "\n\n";
     }
     if (searchResults.relatedTopics.length > 0) {
       webSection += `**Related Topics**\n${searchResults.relatedTopics.map(t => `• ${t}`).join("\n")}\n\n`;
     }
 
+    // If we got web results, use them as the primary answer
+    if (webSection) {
+      return `🔬 **Deep Research Report**\n\n` +
+        `**Research Topic:** ${query}\n\n` +
+        webSection;
+    }
+
+    // Fallback: no web results found, use the AI response directly
     return `🔬 **Deep Research Report**\n\n` +
       `**Research Topic:** ${query}\n\n` +
-      `**Executive Summary**\n` +
-      `After comprehensive analysis of your workspace across ${habitsCount} habits, ${tasksCount} tasks, ${journalCount} journal entries, and ${notesCount} notes — combined with real-time web research — here are the key findings.\n\n` +
-      (webSection ? webSection + "\n" : "") +
-      `**Your Workspace Analysis**\n` +
       `${response}\n\n` +
-      `**Cross-Domain Patterns**\n` +
-      `${habitsCount > 0 ? "• Your habit consistency directly impacts your task completion rate. Days with higher habit completion show better task productivity." : "• No habit data yet — starting habits will create a foundation for cross-domain insights."}\n` +
-      `${journalCount > 0 ? "• Journal entries reveal that mood correlates with task completion. On days you write, you're more likely to complete your priorities." : "• Journal data not available — regular journaling will unlock mood-tracking insights."}\n` +
-      `${notesCount > 0 ? "• Your notes contain recurring themes that align with your habit goals and task priorities, suggesting strong focus alignment." : "• Notes data not available — creating notes will help identify knowledge patterns."}\n\n` +
-      `**Recommendations**\n` +
-      `1. Focus on maintaining consistency in your strongest habits — they're the foundation of your productivity.\n` +
-      `2. Review and reprioritize pending tasks to reduce overwhelm.\n` +
-      `3. Consider daily journaling to build a richer data set for pattern recognition.\n` +
-      `4. Use notes to capture insights from this research for future reference.`;
+      `_No web results were found for this query. The response above is from the AI model._`;
   };
 
   const sendMessage = async () => {

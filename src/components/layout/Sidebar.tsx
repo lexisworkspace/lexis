@@ -129,13 +129,7 @@ export function Sidebar() {
                         <span className="text-[10px] text-muted-foreground/30">{item.shortcut}</span>
                       </>
                     )}
-                    {isActive && !collapsed && (
-                      <motion.div
-                        layoutId="sidebar-indicator"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-full bg-primary-500"
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      />
-                    )}
+
                   </Link>
                 </li>
               );
