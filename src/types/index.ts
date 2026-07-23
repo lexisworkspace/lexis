@@ -248,6 +248,45 @@ export interface AISuggestion {
 // App State
 // ============================================================
 
+// ============================================================
+// Mind Map Types
+// ============================================================
+
+export interface MindMapNode {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  data: {
+    label: string;
+    description: string;
+    color: string;
+    emoji?: string;
+    isRoot?: boolean;
+    [key: string]: unknown;
+  };
+}
+
+export interface MindMapEdge {
+  id: string;
+  source: string;
+  target: string;
+  animated?: boolean;
+  style?: Record<string, unknown>;
+}
+
+export interface MindMap {
+  id: string;
+  name: string;
+  nodes: MindMapNode[];
+  edges: MindMapEdge[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
+// App State
+// ============================================================
+
 export interface AppData {
   theme: ThemeConfig;
   habits: Habit[];
@@ -262,6 +301,7 @@ export interface AppData {
   aiConversations: AIConversation[];
   aiSuggestions: AISuggestion[];
   selectedModel: AIModel;
+  mindMaps: MindMap[];
 
   onboardingCompleted: boolean;
   lastSync: string | null;

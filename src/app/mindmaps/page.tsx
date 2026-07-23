@@ -19,8 +19,9 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Plus, Trash2, Sparkles, X, FileText } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { generateId } from "@/lib/utils";
+import { cn, generateId } from "@/lib/utils";
+import { storage } from "@/lib/storage";
+import { MindMap } from "@/types";
 
 // ============================================================
 // Types
@@ -382,29 +383,14 @@ function MindMapToolbar({
 // Main Mind Map Component
 // ============================================================
 
-const STORAGE_KEY = "lexis-mindmap";
-
-function loadMindMap(): { nodes: Node<MindMapNodeData>[]; edges: Edge[] } | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.nodes && parsed.edges) return parsed;
-    }
-  } catch { /* ignore */ }
-  return null;
-}
-
-function saveMindMap(nodes: Node<MindMapNodeData>[], edges: Edge[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
-  } catch { /* ignore */ }
-}
-
 function MindMapFlow() {
-  const saved = useRef(loadMindMap());
-  const [nodes, setNodes, onNodesChange] = useNodesState(saved.current?.nodes || DEFAULT_NODES);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(saved.current?.edges || DEFAULT_EDGES);
+  const mapRef = useRef<MindMap | null>(storage.getMindMaps()[0] || null);
+  const [nodes, setNodes, onNodesChange] = useNodesState(
+    (mapRef.current?.nodes as Node<MindMapNodeData>[]) || DEFAULT_NODES
+  );
+  const [edges, setEdges, onEdgesChange] = useEdgesState(
+    (mapRef.current?.edges as Edge[]) || DEFAULT_EDGES
+  );
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [descriptionNode, setDescriptionNode] = useState<Node<MindMapNodeData> | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -412,7 +398,19 @@ function MindMapFlow() {
 
   // Auto-save whenever nodes or edges change
   useEffect(() => {
-    saveMindMap(nodes, edges);
+    if (mapRef.current) {
+      storage.updateMindMap(mapRef.current.id, {
+        nodes: nodes as any,
+        edges: edges as any,
+      });
+    } else if (nodes.length > 0) {
+      const map = storage.createMindMap("My Mind Map");
+      storage.updateMindMap(map.id, {
+        nodes: nodes as any,
+        edges: edges as any,
+      });
+      mapRef.current = storage.getMindMap(map.id) || null;
+    }
   }, [nodes, edges]);
 
   // Listen for label changes from custom node (double-click rename)
