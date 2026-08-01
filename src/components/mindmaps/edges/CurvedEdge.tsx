@@ -20,7 +20,7 @@ function CurvedEdgeComponent({ id, sourceX, sourceY, targetX, targetY, sourcePos
   return (
     <>
       <path d={edgePath} fill="none" stroke={edgeColor} strokeWidth={strokeWidth + 4} strokeOpacity={selected ? 0.15 : 0.05} style={{ filter: "blur(4px)" }} />
-      <BaseEdge id={id} path={edgePath} style={{ ...style, stroke: edgeColor, strokeWidth, strokeLinecap: "round" }} className={isAnimated ? "animate-pulse" : ""} />
+      <BaseEdge id={id} path={edgePath} style={{ ...style, stroke: edgeColor, strokeWidth, strokeLinecap: "round" }} />
       {isAnimated && <circle r="2" fill={edgeColor} opacity="0.6"><animateMotion dur="3s" repeatCount="indefinite" path={edgePath} /></circle>}
       {data?.label && (
         <EdgeLabelRenderer>
