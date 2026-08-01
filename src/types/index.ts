@@ -208,13 +208,14 @@ export interface WeeklySummary {
 // AI Types
 // ============================================================
 
-export type AIModel = "arete-1.5" | "thallo-1.0" | "tsubame-0.7";
+export type AIModel = "arete-1.5" | "thallo-1.0" | "tsubame-0.7" | "jarvis-1.0";
 
 
 export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
   { id: "arete-1.5", name: "Arete 1.5", description: "Most complex and reasonable", tagline: "Deep analysis & strategic thinking", contextWindow: 20, responseStyle: "thorough" },
   { id: "thallo-1.0", name: "Thallo 1.0", description: "Best for everyday tasks", tagline: "Balanced, practical, actionable", contextWindow: 12, responseStyle: "balanced" },
   { id: "tsubame-0.7", name: "Tsubame 0.7", description: "Best for quick answers", tagline: "Fast, concise, to the point", contextWindow: 6, responseStyle: "concise" },
+  { id: "jarvis-1.0", name: "Jarvis 1.0", description: "Your personal AI assistant", tagline: "Anticipatory, polished, and attentive", contextWindow: 25, responseStyle: "anticipatory" },
 ];
 
 

@@ -29,6 +29,7 @@ const MODEL_META: Record<string, { icon: typeof Cpu; color: string; label: strin
   "arete-1.5": { icon: Layers, color: "text-violet-400", label: "Arete 1.5" },
   "thallo-1.0": { icon: Cpu, color: "text-emerald-400", label: "Thallo 1.0" },
   "tsubame-0.7": { icon: Gauge, color: "text-amber-400", label: "Tsubame 0.7" },
+  "jarvis-1.0": { icon: Bot, color: "text-blue-400", label: "Jarvis 1.0" },
 };
 
 const SAFE_MODEL: AIModel = "thallo-1.0";
