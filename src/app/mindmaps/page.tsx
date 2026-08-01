@@ -27,4 +27,3 @@ export default function MindMapsPage() {
     </div>
   );
 }
-dummy change
