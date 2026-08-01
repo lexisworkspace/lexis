@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef, useEffect, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import React, { memo, useState, useRef, useEffect, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { cn } from "@/lib/utils";
 

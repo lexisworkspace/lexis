@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus, Trash2, Download, Upload, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, LayoutGrid, GitBranch, Sparkles, Circle, FileText, Box, Type } from "lucide-react";
 import { cn } from "@/lib/utils";
 interface MindMapToolbarProps {
