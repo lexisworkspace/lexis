@@ -77,7 +77,7 @@ export function MindMapFlow({ mapId, onMapUpdate }: Props) {
             <MiniMap nodeStrokeColor="#3f3f46" nodeColor="#27272a" maskColor="rgba(0,0,0,0.7)" className="!bg-zinc-900 !border-zinc-800 !shadow-lg !rounded-lg" position="bottom-right" pannable zoomable />
           </ReactFlow>
         </div>
-        {sp && sel && <PropertiesPanel node={sel} onUpdate={(d) => updateNode(sel.id, d)} onClose={() => { setSp(false); setSel(null); }} />}
+        {sp && sel && <PropertiesPanel node={sel} onUpdate={(id, updates) => updateNode(id, updates as any)} onDelete={(id) => { setNodes(nds => nds.filter(n => n.id !== id)); setEdges(eds => eds.filter(e => e.source !== id && e.target !== id)); setSel(null); setSp(false); }} onDuplicate={(id) => { const n = nodes.find(x => x.id === id); if (n) { const nn = { ...n, id: generateId(), position: { x: n.position.x + 50, y: n.position.y + 50 } }; setNodes(nds => [...nds, nn]); } }} onChangeType={(id, type) => { setNodes(nds => nds.map(n => n.id === id ? { ...n, type, data: { ...n.data, nodeType: type } } : n)); }} onClose={() => { setSp(false); setSel(null); }} />}
       </div>
     </div>
   );
