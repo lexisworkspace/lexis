@@ -24,7 +24,7 @@ export function MindMapFlow({ mapId, onMapUpdate }: Props) {
   const [sel, setSel] = useState<Node | null>(null);
   const [sp, setSp] = useState(false);
   const [mn, setMn] = useState("Untitled Map");
-  const hRef = useRef<{ n: Node[]; e: Edge[] }[]>([[], []]);
+  const hRef = useRef<{ n: Node[]; e: Edge[] }[]>([] as { n: Node[]; e: Edge[] }[]);
   const [hi, setHi] = useState(0);
   const pushH = useCallback((n: Node[], e: Edge[]) => { hRef.current = [...hRef.current.slice(0, hi + 1), { n, e }]; setHi(hi + 1); }, [hi]);
   useEffect(() => {
