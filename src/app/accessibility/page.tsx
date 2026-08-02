@@ -20,7 +20,6 @@ export default function AccessibilityPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. Accessibility Features</h2>
         <p className="mb-3">Lexis incorporates the following accessibility features:</p>
         <ul className="list-disc pl-6 space-y-1.5">
-          <li><strong>Keyboard Navigation</strong> - Full keyboard shortcuts for all major features (Cmd+1-8)</li>
           <li><strong>Focus Indicators</strong> - Visible focus rings on all interactive elements</li>
           <li><strong>Font Size Options</strong> - Adjustable font sizes in Settings (Small, Medium, Large)</li>
           <li><strong>ARIA Labels</strong> - Semantic HTML and ARIA attributes where appropriate</li>
