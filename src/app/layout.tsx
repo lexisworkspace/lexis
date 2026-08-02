@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 
@@ -23,11 +24,23 @@ export const viewport: Viewport = {
   ],
 };
 
+function isLandingDomain() {
+  try {
+    const h = headers();
+    const host = h.get("x-forwarded-host") || h.get("host") || "";
+    return host.includes("lexis-suite") || host.includes("lexis-landing");
+  } catch {
+    return false;
+  }
+}
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const landing = isLandingDomain();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -55,7 +68,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background antialiased">
-        <ClientLayout>{children}</ClientLayout>
+        landing ? children : <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
