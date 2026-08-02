@@ -20,7 +20,6 @@ export default function AcceptableUsePage() {
           <li>Journaling and self-reflection</li>
           <li>Note-taking and knowledge management</li>
           <li>Task management and planning</li>
-          <li>Mind mapping and visual thinking</li>
           <li>Any lawful purpose that does not violate these terms</li>
         </ul>
       </section>

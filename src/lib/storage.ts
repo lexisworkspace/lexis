@@ -1,6 +1,6 @@
 "use client";
 
-import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage, MindMap, MindMapNode, MindMapEdge } from "@/types";
+import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage } from "@/types";
 import { generateId, getToday, calculateStreak } from "./utils";
 import { loadFromIDB, saveToIDB, clearIDB } from "./db";
 
@@ -39,7 +39,6 @@ const DEFAULT_DATA: AppData = {
   aiConversations: [],
   aiSuggestions: [],
   selectedModel: "thallo-1.0" as const,
-  mindMaps: [],
 
   onboardingCompleted: false,
   lastSync: null,
@@ -480,51 +479,7 @@ class Storage {
   }
 
   // ============================================================
-  // Mind Maps
   // ============================================================
-
-  getMindMaps(): MindMap[] {
-    return this.getData().mindMaps;
-  }
-
-  getMindMap(id: string): MindMap | undefined {
-    return this.getData().mindMaps.find((m) => m.id === id);
-  }
-
-  createMindMap(name: string = "Untitled Map"): MindMap {
-    const data = this.getData();
-    const now = new Date().toISOString();
-    const map: MindMap = {
-      id: generateId(),
-      name,
-      nodes: [],
-      edges: [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    data.mindMaps.push(map);
-    this.saveData();
-    return map;
-  }
-
-  updateMindMap(id: string, updates: { name?: string; nodes?: MindMapNode[]; edges?: MindMapEdge[] }): MindMap | undefined {
-    const data = this.getData();
-    const idx = data.mindMaps.findIndex((m) => m.id === id);
-    if (idx === -1) return undefined;
-    data.mindMaps[idx] = {
-      ...data.mindMaps[idx],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-    this.saveData();
-    return data.mindMaps[idx];
-  }
-
-  deleteMindMap(id: string): void {
-    const data = this.getData();
-    data.mindMaps = data.mindMaps.filter((m) => m.id !== id);
-    this.saveData();
-  }
 
   // ============================================================
   // Mode
@@ -570,7 +525,6 @@ class Storage {
     localStorage.removeItem(SYNC_KEY);
     localStorage.removeItem("lexis-password");
     localStorage.removeItem("lexis-tutorial-pending");
-    localStorage.removeItem("lexis-mindmap");
     await clearIDB();
     this.data = null;
   }

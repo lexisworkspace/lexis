@@ -20,7 +20,7 @@ export default function GDPRPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. Data We Collect</h2>
         <p>
           <strong>We collect no personal data.</strong> Lexis has no servers, databases, accounts, or analytics.
-          All data you enter - habits, journal entries, notes, tasks, mind maps, and settings - is stored exclusively in
+          All data you enter - habits, journal entries, notes, tasks and settings - is stored exclusively in
           your browser's IndexedDB and localStorage on your device.
         </p>
       </section>
@@ -66,7 +66,7 @@ export default function GDPRPage() {
           <li>OpenRouter acts as a data processor when you send prompts</li>
           <li>Prompts are not stored by OpenRouter after processing</li>
           <li>You can avoid this processing entirely by not using AI features</li>
-          <li>All core tools (habits, journal, notes, tasks, mind maps) work fully offline without AI</li>
+          <li>All core tools (habits, journal, notes, tasks) work fully offline without AI</li>
         </ul>
       </section>
 

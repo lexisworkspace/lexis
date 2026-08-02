@@ -40,7 +40,7 @@ export default function DisclaimerPage() {
         <p>
           Since all Lexis data is stored in your browser's IndexedDB and localStorage, it is subject to deletion if you clear
           your browser data, switch devices, or use private browsing modes. This includes habits, journal entries,
-          notes, tasks, mind maps, and all other workspace data. We strongly recommend using the
+          notes, tasks and all other workspace data. We strongly recommend using the
           built-in export feature to maintain regular backups. Lexis is not responsible for data loss.
         </p>
       </section>

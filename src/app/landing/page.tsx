@@ -10,7 +10,6 @@ import {
   FileText,
   ListTodo,
   Sparkles,
-  Brain,
   BarChart3,
   Clock,
   Shield,
@@ -63,13 +62,9 @@ const tools = [
     color: "text-zinc-400",
   },
   {
-    icon: Brain,
-    label: "Mind Maps",
     desc: "Visualize your thinking",
     detail:
-      "Create interactive mind maps to connect ideas, map concepts, and explore relationships. Drag nodes, draw connections, rename inline, and add descriptions - all saved automatically.",
     color: "text-zinc-400",
-  },
   {
     icon: Sparkles,
     label: "Lexis AI",
@@ -123,9 +118,8 @@ const roadmap = [
   {
     phase: "SHIPPED",
     title: "Lexis v1.0",
-    desc: "Habits, Journal, Notes, Tasks, Mind Maps, Lexis AI, Analytics Dashboard, Streak System, Export/Import - the complete core experience.",
+    desc: "Habits, Journal, Notes, Tasks, Lexis AI, Analytics Dashboard, Streak System, Export/Import - the complete core experience.",
     icon: Sparkles,
-  },
   {
     phase: "UPCOMING",
     title: "Calendar Integration",
@@ -152,7 +146,7 @@ const faqs = [
     a: "Yes, completely. No freemium, no premium tiers, no hidden features behind a paywall. Lexis is built as a non-profit tool - productivity shouldn't require a subscription. If you find it valuable, you can support via Buy Me a Coffee, but there's never any pressure.",
   },
   {
-    q: "Where is my data stored?",        a: "Entirely in your browser using IndexedDB and localStorage. Nothing is sent to any server. Your habits, journal entries, notes, tasks, and mind maps never leave your device. This means no accounts, no passwords, and no data breaches - but also means clearing your browser data will remove everything, so export backups are recommended.",
+    q: "Where is my data stored?",        a: "Entirely in your browser using IndexedDB and localStorage. Nothing is sent to any server. Your habits, journal entries, notes, tasks and leave your device. This means no accounts, no passwords, and no data breaches - but also means clearing your browser data will remove everything, so export backups are recommended.",
   },
   {
     q: "How does the AI work if everything is local?",
@@ -308,7 +302,7 @@ export default function LandingPage() {
                   LEXIS
                 </h1>
                 <p className="mt-6 text-lg md:text-xl text-muted-foreground leading-relaxed max-w-md font-body">
-                  An AI-powered productivity suite for habits, journaling, notes, tasks, and mind maps - built for clarity and momentum.
+                  An AI-powered productivity suite for habits, journaling, notes, tasks - built for clarity and momentum.
                 </p>
                 <div className="mt-10 flex flex-wrap items-center gap-4">
                   <a
@@ -392,8 +386,6 @@ export default function LandingPage() {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mt-12">
               {[
                 { value: "100", unit: "%", label: "Local", desc: "Everything lives in your browser. No servers, no cloud, no copies of your data anywhere else." },
-                { value: "8", unit: "", label: "Tools", desc: "Habits, Journal, Notes, Tasks, Mind Maps, AI, Analytics, Export - all connected and working together seamlessly." },
-                { value: "0", unit: "", label: "Tracking", desc: "Zero analytics, zero cookies, zero tracking. We don't collect a single byte of your personal data." },
                 { value: "0", unit: "", label: "Dollars", desc: "Completely free. No subscriptions, no premium tiers, no hidden fees. Productivity should be accessible." },
               ].map((stat, i) => (
                 <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08, duration: 0.5 }} className="card text-center">
@@ -412,8 +404,8 @@ export default function LandingPage() {
             <span className="inline-block text-[11px] font-mono tracking-[0.3em] text-muted-foreground/40 mb-6">HOW IT WORKS</span>
             <div className="grid gap-12 md:grid-cols-3 mt-12">
               {[
-                { step: "01", title: "Track Everything", desc: "Log habits, write journal entries, take notes, manage tasks, and create mind maps - all in one place, all connected.", icon: Target },
-                { step: "02", title: "Let AI Learn", desc: "The more you use Lexis, the smarter it gets. Lexis AI understands your patterns and offers relevant insights.", icon: Brain },
+                { step: "01", title: "Track Everything", desc: "Log habits, write journal entries, take notes, manage tasks - all in one place, all connected.", icon: Target },
+                { step: "02", title: "Let AI Learn", desc: "The more you use Lexis, the smarter it gets. Lexis AI understands your patterns and offers relevant insights.", icon: Sparkles },
                 { step: "03", title: "Watch It Compound", desc: "Daily streaks, productivity scores, and analytics show your growth. Small actions turn into measurable progress.", icon: BarChart3 },
               ].map((item, i) => (
                 <motion.div key={item.step} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1, duration: 0.5 }} className="group">

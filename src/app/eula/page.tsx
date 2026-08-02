@@ -19,7 +19,7 @@ export default function EulaPage() {
           This license does not grant you any ownership rights to the application itself.
         </p>
         <p>
-          Content you create within Lexis - including habits, journal entries, notes, tasks, mind maps, and settings - remains
+          Content you create within Lexis - including habits, journal entries, notes, tasks and settings - remains
           your sole property. Lexis claims no ownership over your data or content.
         </p>
       </section>
