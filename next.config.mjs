@@ -2,6 +2,30 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async rewrites() {
+    return [
+      {
+        source: "/",
+        destination: "/landing",
+        has: [
+          {
+            type: "host",
+            value: "lexis-suite.vercel.app",
+          },
+        ],
+      },
+      {
+        source: "/",
+        destination: "/landing",
+        has: [
+          {
+            type: "host",
+            value: "lexis-landing.vercel.app",
+          },
+        ],
+      },
+    ];
+  },
   async headers() {
     return [
       {
