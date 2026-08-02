@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -27,7 +27,31 @@ import { cn, formatDate, getToday, calculateStreak, truncate } from "@/lib/utils
 import { Habit, Task, JournalEntry, Note } from "@/types";
 import Link from "next/link";
 
+const LandingPage = lazy(() => import("./landing/page"));
+
+function useIsLandingDomain() {
+  const [isLanding, setIsLanding] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname;
+      setIsLanding(
+        host.includes("lexis-suite") ||
+        host.includes("lexis-landing")
+      );
+    }
+  }, []);
+  return isLanding;
+}
+
 export default function DashboardPage() {
+  const isLanding = useIsLandingDomain();
+  if (isLanding) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" /> }>
+        <LandingPage />
+      </Suspense>
+    );
+  }
   const [data, setData] = useState(storage.getData());
   const [greeting, setGreeting] = useState("Good morning");
   const [focusSuggestion, setFocusSuggestion] = useState("");
