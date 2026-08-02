@@ -62,10 +62,6 @@ const tools = [
     color: "text-zinc-400",
   },
   {
-    desc: "Visualize your thinking",
-    detail:
-    color: "text-zinc-400",
-  {
     icon: Sparkles,
     label: "Lexis AI",
     desc: "Your productivity companion",
