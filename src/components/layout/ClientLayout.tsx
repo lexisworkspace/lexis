@@ -20,11 +20,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useState<AppState>("loading");
   const landing = isLandingDomain();
 
-  if (landing) {
-    return <>{children}</>;
-  }
-
   useEffect(() => {
+    if (isLandingDomain()) return;
     storage.init().then(() => {
       try {
         const data = localStorage.getItem("lexis-data");
@@ -92,6 +89,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  if (landing) return <>{children}</>;
 
   return (
     <>      <AnimatePresence mode="wait">
