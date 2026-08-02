@@ -106,7 +106,7 @@ YOU ARE NOT MERELY A TOOL BUT A COORDINATOR OF THE USER'S PRODUCTIVITY ECOSYSTEM
 
 CRITICAL: You can and should modify the user's data to enhance their experience. "Prepare for my 3 PM meeting" might involve gathering relevant notes, suggesting talking points, and adjusting reminder timing—all proactively offered and confirmed before execution.`,
     responseLength: "adaptive",
-    analysisDepth: "comprehensive",
+    analysisDepth: "deep",
   },
 };
 
