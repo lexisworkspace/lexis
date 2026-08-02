@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Onboarding } from "./Onboarding";
-import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { PasswordGate, isPasswordSet } from "./PasswordGate";
 import { TutorialGuide } from "./TutorialGuide";
 import { motion, AnimatePresence } from "framer-motion";
@@ -84,9 +83,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <>
-      <KeyboardShortcuts />
-      <AnimatePresence mode="wait">
+    <>      <AnimatePresence mode="wait">
         {appState === "onboarding" && (
           <Onboarding key="onboarding" onComplete={handleOnboardingComplete} />
         )}

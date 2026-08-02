@@ -24,14 +24,14 @@ import { cn } from "@/lib/utils";
 import { storage } from "@/lib/storage";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "⌘1" },
-  { href: "/habits", label: "Habits", icon: CheckCircle2, shortcut: "⌘2" },
-  { href: "/notes", label: "Notes", icon: FileText, shortcut: "⌘3" },
-  { href: "/journal", label: "Journal", icon: BookOpen, shortcut: "⌘4" },
-  { href: "/tasks", label: "Tasks", icon: ListTodo, shortcut: "⌘5" },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, shortcut: "⌘7" },
-  { href: "/assistant", label: "Lexis AI", icon: Bot, shortcut: "⌘8" },
-  { href: "/settings", label: "Settings", icon: Settings, shortcut: "⌘9" },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/habits", label: "Habits", icon: CheckCircle2 },
+  { href: "/notes", label: "Notes", icon: FileText },
+  { href: "/journal", label: "Journal", icon: BookOpen },
+  { href: "/tasks", label: "Tasks", icon: ListTodo },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/assistant", label: "Lexis AI", icon: Bot },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
@@ -126,7 +126,6 @@ export function Sidebar() {
                     {!collapsed && (
                       <>
                         <span className="flex-1">{item.label}</span>
-                        <span className="text-[10px] text-muted-foreground/30">{item.shortcut}</span>
                       </>
                     )}
 
