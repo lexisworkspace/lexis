@@ -37,3 +37,4 @@ nul
 WhatsApp*
 .npmrc
 .env.local
+.vercel/
