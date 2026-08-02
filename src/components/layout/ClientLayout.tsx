@@ -8,10 +8,21 @@ import { TutorialGuide } from "./TutorialGuide";
 import { motion, AnimatePresence } from "framer-motion";
 import { storage } from "@/lib/storage";
 
+function isLandingDomain() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host.includes("lexis-suite") || host.includes("lexis-landing");
+}
+
 type AppState = "loading" | "onboarding" | "tutorial" | "password-setup" | "password-unlock" | "ready";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [appState, setAppState] = useState<AppState>("loading");
+  const landing = isLandingDomain();
+
+  if (landing) {
+    return <>{children}</>;
+  }
 
   useEffect(() => {
     storage.init().then(() => {
