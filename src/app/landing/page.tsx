@@ -116,6 +116,7 @@ const roadmap = [
     title: "Lexis v1.0",
     desc: "Habits, Journal, Notes, Tasks, Lexis AI, Analytics Dashboard, Streak System, Export/Import - the complete core experience.",
     icon: Sparkles,
+  },
   {
     phase: "UPCOMING",
     title: "Calendar Integration",
