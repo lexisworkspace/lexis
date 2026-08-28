@@ -46,3 +46,5 @@ desktop/dist
 public/downloads
 
 .env*.local
+
+desktop-artifacts/
