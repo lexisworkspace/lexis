@@ -2,9 +2,7 @@
 /node_modules
 /.pnp
 .pnp.js
-
-# testing
-/coverage
+desktop/node_modules
 
 # next.js
 /.next/
@@ -12,48 +10,28 @@
 
 # production
 /build
+desktop/dist
 
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
+# env files (NEVER commit secrets)
+.env
+.env.*
+!.env.example
 
 # vercel
-.vercel
+.vercel/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# misc
+.DS_Store
+*.pem
 nul
-WhatsApp*
-.npmrc
-.env.local
-.vercel/
 noor.png
-
-desktop/node_modules
-desktop/dist
-
+WhatsApp*
 public/downloads
-
-.env*.local
-
 desktop-artifacts/
 
+# workflows (token scope limitation)
 .github/workflows/
-
-.env*
-.env
-
-.env*
-.env
-scripts-test/lexis-env.txt
