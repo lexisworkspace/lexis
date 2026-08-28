@@ -2,13 +2,15 @@ import { LegalPage } from "@/components/legal-page";
 
 export default function DisclaimerPage() {
   return (
-    <LegalPage title="Disclaimer" lastUpdated="July 23, 2026">
+    <LegalPage title="Disclaimer" lastUpdated="August 21, 2026">
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. General Information</h2>
         <p>
           Lexis is provided as a free, non-profit productivity tool. The information and functionality within the
           application are provided for general informational and organizational purposes only. While we strive for
-          accuracy and reliability, we make no representations or warranties of any kind.
+          accuracy and reliability, we make no representations or warranties of any kind. Any optional personal
+          information you provide (such as the "about you" profile during setup) is used solely to personalize the
+          application and is stored only on your device.
         </p>
       </section>
 
@@ -24,11 +26,13 @@ export default function DisclaimerPage() {
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">3. AI-Generated Content</h2>
         <p className="mb-3">
-          Lexis uses AI models accessed through OpenRouter to provide suggestions, analysis, and reflections.
+          Lexis uses Noor, an AI assistant powered by NVIDIA’s NIM API, to provide suggestions, analysis, and reflections.
           AI-generated content:
         </p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li>May contain inaccuracies, errors, or omissions</li>
+          <li>Can produce confident-sounding but fabricated information (hallucinations)</li>
+          <li>Web search results are provided by third-party search engines and may be outdated, incomplete, or inaccurate</li>
           <li>Should not be taken as fact without verification</li>
           <li>Reflects patterns in training data, not objective truth</li>
           <li>Is provided as a productivity aid, not authoritative guidance</li>
@@ -39,8 +43,8 @@ export default function DisclaimerPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">4. Data Loss</h2>
         <p>
           Since all Lexis data is stored in your browser's IndexedDB and localStorage, it is subject to deletion if you clear
-          your browser data, switch devices, or use private browsing modes. This includes habits, journal entries,
-          notes, tasks and all other workspace data. We strongly recommend using the
+          your browser data, switch devices, or use private browsing modes. This includes habits, mindfulness journal entries,
+          notes, tasks, spreadsheets, widgets, and all other workspace data. We strongly recommend using the
           built-in export feature to maintain regular backups. Lexis is not responsible for data loss.
         </p>
       </section>
@@ -65,7 +69,7 @@ export default function DisclaimerPage() {
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">7. External Links</h2>
         <p>
-          Lexis may contain links to third-party websites (Buy Me a Coffee, OpenRouter). We have no control over
+          Lexis may contain links to third-party websites (Buy Me a Coffee, NVIDIA NIM API). We have no control over
           and assume no responsibility for the content, privacy policies, or practices of these sites.
         </p>
       </section>

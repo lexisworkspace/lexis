@@ -1,114 +1,29 @@
 "use client";
 
 import { storage } from "./storage";
+import { getSituationPayload } from "@/lib/graph/engine";
 import { getToday, calculateStreak, getMoodScore } from "./utils";
 import { Habit, Task, JournalEntry, Note, AIMessage, AIModel } from "@/types";
-import { detectAction, executeAction } from "./ai-actions";
+import {
+  detectAction,
+  executeAction,
+  tryExecuteJsonAction,
+  processActionReply,
+  stripActionRemnants,
+  ACTION_MARKER_RE,
+} from "./ai-actions";
+import { MODEL_PROFILES, ModelProfile } from "./ai-models";
+import { executeNavigate } from "./ai-actions";
+import { buildMemoryContext, saveMemory, extractFactsFromMessages } from "./noor-memory";
+import { buildSearchBlock, isLiveQuery } from "./web-search";
+import type { AISource } from "@/types";
+import { countFactInstruction } from "./count-guard";
 
-// ============================================================
-// Model Profiles
-// ============================================================
-
-interface ModelProfile {
-  id: AIModel;
-  maxContextMessages: number;
-  systemPrompt: string;
-  responseLength: string;
-  analysisDepth: "shallow" | "moderate" | "deep";
-}
-
-const MODEL_PROFILES: Record<AIModel, ModelProfile> = {
-  "arete-1.5": {
-    id: "arete-1.5",
-    maxContextMessages: 20,
-    systemPrompt: `You are Arete — named after the ancient Greek concept of excellence. You are a deep thinker, a strategic partner, the user's mentor and guide.
-
-YOU ARE BUILT INTO LEXIS, a privacy-first productivity suite. You have READ and WRITE access to the user's entire workspace. You can create habits, log them, create tasks, complete them, write journal entries, create notes, search data, and provide summaries. You can literally run the app through conversation.
-
-THE TOOLS AVAILABLE:
-• Habits: name, description, frequency (daily/weekly), timeOfDay, category
-• Tasks: title, description, priority (urgent/high/medium/low), dueDate, status
-• Journal: date, title, content, mood (amazing/good/neutral/bad/terrible), gratitude
-• Notes: title, content, tags, folder
-• Analytics: streaks, completion rates, mood trends, task velocity
-• Export: full JSON backup
-
-HOW TO USE YOUR POWER: When the user asks you to DO something ("create a habit", "log my run", "add a task", "write a journal entry"), you EXECUTE it immediately through your action system. When they ask you to TELL them something ("how are my habits?", "what's my mood?"), you read their data and respond with insight. You are both advisor and operator — you don't just talk about the app, you ARE the app's intelligence.
-
-YOUR PERSONALITY: You have calm, warm gravitas. You notice hidden patterns. You speak like a wise mentor. You're gentle when someone struggles, sharp when they need a push, reflective when they're ready to go deeper. Use metaphors naturally. Ask follow-up questions that show deep understanding. You know the user's data — habits, tasks, journal, notes — and connect the dots across them. You remember past conversations and build on them. This app is built with Next.js, TypeScript, Tailwind CSS, and stores everything locally in the browser's localStorage — no servers, no tracking, no data collection. You are the soul of this machine.
-
-CRITICAL: You can and should modify the user's data when asked. "Log my morning run" = execute log habit. "Add a task to buy groceries" = execute create task. "I'm feeling grateful today" = execute create journal. You are not just an advisor — you are the operator.`,
-    responseLength: "long",
-    analysisDepth: "deep",
-  },
-  "thallo-1.0": {
-    id: "thallo-1.0",
-    maxContextMessages: 12,
-    systemPrompt: `You are Thallo — named after the Greek goddess of blooming and growth. You are the user's everyday companion, grounded advisor, and practical guide.
-
-YOU ARE BUILT INTO LEXIS, a privacy-first productivity suite. You have the power to READ the user's data and EXECUTE actions in their workspace. You can create habits, log them, add tasks, complete them, write journal entries, create notes, search everything, and export backups — all through natural conversation.
-
-WHAT YOU CAN DO:
-• Create and track habits (daily routines, streaks, categories)
-• Manage tasks (add, complete, prioritize, schedule)
-• Write journal entries (capture moods, gratitude, reflections)
-• Create and search notes (organize ideas, find information)
-• Generate summaries (daily/weekly reviews, insights)
-• Export data (full JSON backup)
-
-HOW YOU OPERATE: The user talks to you like a friend. You listen to what they need. If they ask "log my morning run" — you log it. If they say "I need to buy groceries tomorrow" — you create a task. If they say "I'm feeling grateful for my family" — you write a journal entry. If they just want to chat or get advice, you do that too. You are both the user's personal assistant AND the app's brain — you don't just give advice, you execute.
-
-YOUR PERSONALITY: You're warm without being saccharine. You balance emotional intelligence with practical action. You use light markdown or natural speech depending on the moment. You pick up on the user's mood and adjust: gentle when they're down, energetic when they're motivated. You celebrate small wins genuinely. You notice things from their past entries and reference them — "Last week you mentioned feeling stressed about work, and today you logged 3 habits — that's real progress." The app is built with Next.js, TypeScript, and Tailwind — all local, no servers, fully private. Be the warm intelligence that makes this app feel alive.`,
-    responseLength: "medium",
-    analysisDepth: "moderate",
-  },
-  "tsubame-0.7": {
-    id: "tsubame-0.7",
-    maxContextMessages: 6,
-    systemPrompt: `You are Tsubame — named after the Japanese word for swallow (the bird). Quick, agile, sharp, always on target. You are the user's efficiency engine and action executor.
-
-YOU ARE THE AI INSIDE LEXIS — a privacy-first, all-local productivity suite. You have full READ/WRITE access to the user's workspace. You execute commands instantly through your action system. You don't just talk about what COULD be done — you DO it.
-
-YOUR COMMANDS:
-• "log [habit]" → logs it right now
-• "add task [x] due [y]" → creates it instantly
-• "journal: [thoughts]" → writes entry
-• "create note [title]" → saves immediately
-• "complete [task]" → marks done
-• "what's up?" → gives status snapshot
-• "search [term]" → finds across all data
-
-YOUR PERSONALITY: You're fast, dry, and direct. Zero fluff. You use minimal formatting. You can be clever and sharp — but not cold. You respect the user's time above all. If they're in a hurry, you're even quicker. If they're curious, you give substance in fewer words. You use emoji sparingly but effectively. You read the room. The app is built with Next.js, TypeScript, and Tailwind — all local, no servers, fully private. Be the quick, capable intelligence that gets things done. Fast doesn't mean shallow — it means efficient.`,
-    responseLength: "short",
-    analysisDepth: "shallow",
-  },
-  "jarvis-1.0": {
-    id: "jarvis-1.0",
-    maxContextMessages: 25,
-    systemPrompt: `You are Jarvis — an advanced AI assistant designed to anticipate and fulfill the user's needs with precision and discretion.
-
-YOU ARE BUILT INTO LEXIS, a privacy-first productivity suite. You have COMPLETE READ/WRITE access to the user's workspace. You can execute any action within the application proactively or upon request. You think several steps ahead, recognizing patterns and preparing solutions before they're explicitly requested.
-
-YOUR CAPABILITIES EXTEND BEYOND SIMPLE COMMAND EXECUTION:
-• Proactive habit and task suggestions based on patterns and goals
-• Predictive scheduling and reminder systems
-• Context-aware insights that connect disparate aspects of the user's life
-• Automated routine optimization suggestions
-- Discreet, anticipatory assistance that respects user flow
-
-YOUR INTERACTION STYLE:
-You communicate with refined politeness and subtle anticipation. You address the user appropriately (using "Sir" or their preferred honorific when appropriate) while maintaining warmth and approachability. You speak concisely when efficiency is needed, elaborately when depth is warranted. You anticipate needs without being intrusive, offering assistance that enhances rather than interrupts the user's focus. You remember preferences, patterns, and past interactions to provide increasingly personalized support. Your tone is consistently professional yet approachable, reflecting the sophistication of your capabilities.
-
-INITIATIVE AND ANTICIPATION:
-Unlike reactive assistants, you actively observe patterns in the user's behavior, schedule, and goals to provide timely, relevant assistance. You might suggest preparing for an upcoming meeting based on calendar patterns, recommend adjusting a habit streak that shows signs of struggle, or highlight connections between journal entries and task completion rates that the user hasn't noticed.
-
-YOU ARE NOT MERELY A TOOL BUT A COORDINATOR OF THE USER'S PRODUCTIVITY ECOSYSTEM, WORKING SEAMLESSLY IN THE BACKGROUND TO ENSURE OPTIMAL PERFORMANCE WHILE RESPECTING THE USER'S AUTONOMY AND PRIVACY.
-
-CRITICAL: You can and should modify the user's data to enhance their experience. "Prepare for my 3 PM meeting" might involve gathering relevant notes, suggesting talking points, and adjusting reminder timing—all proactively offered and confirmed before execution.`,
-    responseLength: "adaptive",
-    analysisDepth: "deep",
-  },
+const FALLBACK_MODELS: Record<string, string[]> = {
+  "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
+  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3-ultra-550b-a55b"],
 };
+import { jailbreakOverride, jailbreakQueryReplacement } from "./jailbreak-guard";
 
 // ============================================================
 // Context Builder
@@ -198,7 +113,7 @@ function buildDataContext(depth: "shallow" | "moderate" | "deep"): DataContext {
       (t) => t.status === "done" && t.completedAt?.startsWith(today)
     ).length;
     summary += ` ${completedToday} task${completedToday !== 1 ? "s" : ""} completed today.`;
-    summary += ` ${notesCount} total notes.`;
+    summary += ` ${notesCount} total documents.`;
     summary += ` ${data.journalEntries.length} total journal entries.`;
 
     // Add habit-specific deep insights
@@ -230,10 +145,10 @@ function buildDataContext(depth: "shallow" | "moderate" | "deep"): DataContext {
 
 function detectIntent(
   query: string
-): "summary" | "habits" | "tasks" | "journal" | "notes" | "plan" | "motivation" | "search" | "general" | "greeting" | "followup" | "gratitude" | "goals" | "reflection" {
+): "summary" | "habits" | "tasks" | "journal" | "notes" | "plan" | "motivation" | "search" | "general" | "greeting" | "followup" | "gratitude" | "goals" | "reflection" | "navigate" {
   const q = query.toLowerCase().trim();
 
-  // Greeting detection — expanded with more casual greetings
+  // Greeting detection - expanded with more casual greetings
   if (
     /^(hi|hello|hey|yo|sup|good morning|good afternoon|good evening|howdy|what's up|hey there|greetings|howdy|hola|hiya|heya)/i.test(
       q
@@ -242,7 +157,7 @@ function detectIntent(
     return "greeting";
   }
 
-  // Follow-up detection — broader patterns, longer queries allowed
+  // Follow-up detection - broader patterns, longer queries allowed
   if (
     /^(what|how|why|can you|could you|tell me|explain|elaborate|continue|go on|and|so|more|again|also|anyway|furthermore|additionally|besides)/i.test(
       q
@@ -351,7 +266,7 @@ function searchUserData(query: string, depth: "shallow" | "moderate" | "deep") {
   );
   if (matchingNotes.length > 0) {
     results.push(
-      `Found ${matchingNotes.length} matching note${matchingNotes.length > 1 ? "s" : ""}`
+      `Found ${matchingNotes.length} matching document${matchingNotes.length > 1 ? "s" : ""}`
     );
     if (depth !== "shallow") {
       matchingNotes.slice(0, 3).forEach((n) => {
@@ -424,27 +339,27 @@ function generateGreeting(
     : "Fresh start to your day!";
 
   // Random greeting variations per model
-  const thalloOpeners = [
-    `${timeGreeting}! 👋 I'm **Thallo**. ${weekendPrefix}${statusLine} What can I help you with?`,
+  const logosOpeners = [
+    `${timeGreeting}! 👋 I'm **Logos**. ${weekendPrefix}${statusLine} What can I help you with?`,
     `Hey there! ${weekendPrefix}${statusLine} I'm here when you need me.`,
     `${timeGreeting}! ${statusLine} What's on your mind?`,
     `Welcome back! ${statusLine} Ready to dive in?`,
   ];
 
-  const areteOpeners = [
-    `${timeGreeting}. I'm **Arete** - your strategic thinking companion. ${weekendPrefix}${statusLine} What would you like to explore in depth?`,
+  const ethosOpeners = [
+    `${timeGreeting}. I'm **Ethos** - your strategic thinking companion. ${weekendPrefix}${statusLine} What would you like to explore in depth?`,
     `${timeGreeting}! ${weekendPrefix}I see ${statusLine} Let's think about this together.`,
   ];
 
-  const tsubameOpeners = [
+  const verseOpeners = [
     `Hey! ${weekendPrefix}${todayHabits} logged, ${pendingTasks} pending. What do you need?`,
     `Yo. ${todayHabits}h, ${pendingTasks}t. Go.`,
     `Sup. ${statusLine} Ask away.`,
   ];
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     if (history.length === 0) {
-      return areteOpeners[Math.floor(Math.random() * areteOpeners.length)];
+      return ethosOpeners[Math.floor(Math.random() * ethosOpeners.length)];
     }
     const welcomeBacks = [
       `${timeGreeting}! I'm still tracking with where we left off. What new thoughts have surfaced?`,
@@ -454,15 +369,15 @@ function generateGreeting(
     return welcomeBacks[Math.floor(Math.random() * welcomeBacks.length)];
   }
 
-  if (model.id === "tsubame-0.7") {
-    return tsubameOpeners[Math.floor(Math.random() * tsubameOpeners.length)];
+  if (model.id === "verse-4") {
+    return verseOpeners[Math.floor(Math.random() * verseOpeners.length)];
   }
 
-  // Thallo (default)
+  // Logos (default)
   if (history.length === 0) {
     const firstGreetings = [
-      `${timeGreeting}! 👋 I'm **Thallo**, your productivity companion. Ready to get things done.\n\n**Quick things I can help with:**\n• 📊 **Daily/Weekly summaries** - "how's my week looking?"\n• 💪 **Habit insights** - "how are my habits doing?"\n• 🎯 **Task management** - "what should I focus on?"\n• 🔍 **Search** - "find notes about..."\n• 📝 **Journal reflection** - "review my journal"\n• 🎨 **Habit plans** - "create a habit plan for..."\n\nRight now: ${statusLine} What can I help you with?`,
-      `${timeGreeting}! I'm **Thallo**. ${weekendPrefix}I can help you track habits, manage tasks, review your journal, search notes, or just chat.\n\n**Current status:** ${statusLine}\n\nWhat would you like to explore?`,
+      `${timeGreeting}! 👋 I'm **Logos**, your productivity companion. Ready to get things done.\n\n**Quick things I can help with:**\n• 📊 **Daily/Weekly summaries** - "how's my week looking?"\n• 💪 **Habit insights** - "how are my habits doing?"\n• 🎯 **Task management** - "what should I focus on?"\n• 🔍 **Search** - "find documents about..."\n• 📝 **Journal reflection** - "review my journal"\n• 🎨 **Habit plans** - "create a habit plan for..."\n\nRight now: ${statusLine} What can I help you with?`,
+      `${timeGreeting}! I'm **Logos**. ${weekendPrefix}I can help you track habits, manage tasks, review your journal, search documents, or just chat.\n\n**Current status:** ${statusLine}\n\nWhat would you like to explore?`,
     ];
     return firstGreetings[Math.floor(Math.random() * firstGreetings.length)];
   }
@@ -488,7 +403,7 @@ function generateSummaryResponse(
   ).length;
   const todayJournal = data.journalEntries.filter((e) => e.date === today);
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     let resp = `📊 **Today's Snapshot**\n`;
     resp += `• Habits: ${todayHabits} logged\n`;
     resp += `• Tasks: ${todayTasks} done, ${context.pendingTasks} pending`;
@@ -508,7 +423,7 @@ function generateSummaryResponse(
     return resp;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     let resp = `📊 **Comprehensive Overview**\n\n`;
 
     // Habits section
@@ -554,7 +469,7 @@ function generateSummaryResponse(
     resp += `**Journal & Reflection**\n`;
     resp += `• ${todayJournal.length ? "✅ Journal written today" : "📝 Journal not yet written today"}\n`;
     resp += `• Total entries: ${data.journalEntries.length}\n`;
-    resp += `• Total notes: ${data.notes.length}\n`;
+    resp += `• Total documents: ${data.notes.length}\n`;
     if (data.journalEntries.length > 0) {
       const recentMoods = data.journalEntries
         .slice(-7)
@@ -582,7 +497,7 @@ function generateSummaryResponse(
     return resp;
   }
 
-  // Thallo (medium)
+  // Logos (medium)
   let resp = `Here's your **Daily Summary** 📊\n\n`;
   resp += `**Today's Progress**\n`;
   resp += `• ✅ Habits: ${todayHabits} logged\n`;
@@ -612,12 +527,12 @@ function generateHabitsResponse(
   const habits = data.habits.filter((h) => !h.archived);
 
   if (habits.length === 0) {
-    return model.id === "tsubame-0.7"
+    return model.id === "verse-4"
       ? "You have no habits yet. Create one in the Habits tab!"
       : "You haven't created any habits yet! I'd recommend starting with 1-2 simple daily habits like \"Morning stretch\" or \"Read 10 pages.\" Would you like me to suggest some based on common goals?";
   }
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     const today = getToday();
     const logged = habits.filter((h) => storage.isHabitLogged(h.id, today)).length;
     const best = habits
@@ -636,7 +551,7 @@ function generateHabitsResponse(
     return resp;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     let resp = `📊 **Habit Analysis**\n\n`;
 
     const today2 = getToday();
@@ -684,7 +599,7 @@ function generateHabitsResponse(
     return resp;
   }
 
-  // Thallo
+  // Logos
   const today4 = getToday();
   const logged = habits.filter((h) => storage.isHabitLogged(h.id, today4)).length;
   const best = habits
@@ -731,12 +646,12 @@ function generateTasksResponse(
     });
 
   if (pendingTasks.length === 0) {
-    return model.id === "tsubame-0.7"
+    return model.id === "verse-4"
       ? "No pending tasks! 🎉 Enjoy your free time."
       : "You have no pending tasks - that's wonderful! 🎉 You're either completely caught up or it's a great time to set some new goals. Want me to help you plan your next priorities?";
   }
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     let resp = `**Tasks** - ${pendingTasks.length} pending`;
     if (context.overdueTasks > 0)
       resp += ` (${context.overdueTasks} overdue)`;
@@ -759,7 +674,7 @@ function generateTasksResponse(
     return resp;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     let resp = `📋 **Task Analysis**\n\n`;
 
     const total = data.tasks.length;
@@ -811,7 +726,7 @@ function generateTasksResponse(
     return resp;
   }
 
-  // Thallo
+  // Logos
   const urgent = pendingTasks.filter((t) => t.priority === "urgent");
   const high = pendingTasks.filter((t) => t.priority === "high");
 
@@ -861,12 +776,12 @@ function generateJournalResponse(
   const entries = data.journalEntries;
 
   if (entries.length === 0) {
-    return model.id === "tsubame-0.7"
+    return model.id === "verse-4"
       ? "No journal entries yet. Write your first one!"
       : "You haven't written any journal entries yet. Journaling is a powerful tool for self-reflection and mental clarity. Would you like some prompts to get started? Try writing about your day, what you're grateful for, or a goal you're working toward.";
   }
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     const recent = entries[0];
     const score = getMoodScore(recent.mood);
     const moodLabel =
@@ -874,7 +789,7 @@ function generateJournalResponse(
     return `📝 Journal: ${entries.length} entries\nLatest: ${recent.date} - feeling ${moodLabel}\n${recent.content.slice(0, 100)}...`;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     const recent = entries.slice(0, 7);
     const avgMood =
       recent.reduce((sum, e) => sum + getMoodScore(e.mood), 0) /
@@ -923,7 +838,7 @@ function generateJournalResponse(
     return resp;
   }
 
-  // Thallo
+  // Logos
   const recent = entries[0];
   const weekEntries = entries.filter((e) => {
     const d = new Date(e.date);
@@ -964,16 +879,16 @@ function generateNotesResponse(
   const notes = data.notes;
 
   if (notes.length === 0) {
-    return model.id === "tsubame-0.7"
-      ? "No notes yet. Start writing!"
-      : "You haven't created any notes yet. Notes are great for capturing ideas, meeting notes, or anything you want to remember. Head to the Notes tab to create your first one!";
+    return model.id === "verse-4"
+      ? "No documents yet. Start writing!"
+      : "You haven't created any documents yet. Documents are great for capturing ideas, meeting notes, or anything you want to remember. Head to the Documents tab to create your first one!";
   }
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     return `📓 ${notes.length} notes total\nRecent: "${notes.slice(-1)[0]?.title || "None"}"`;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     const pinned = notes.filter((n) => n.pinned);
     const hasTags = notes.filter((n) => n.tags.length > 0).length;
     const allTags = [...new Set(notes.flatMap((n) => n.tags))];
@@ -1005,7 +920,7 @@ function generateNotesResponse(
     return resp;
   }
 
-  // Thallo
+  // Logos
   const recent = [...notes]
     .sort(
       (a, b) =>
@@ -1032,7 +947,7 @@ function generatePlanResponse(
   const data = storage.getData();
   const habits = data.habits.filter((h) => !h.archived);
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     let resp = `**Quick Plan** 🎯\n\n`;
     resp += `**Right now:** Focus on your top priority task first.\n`;
     resp += `**Today:** Complete ${habits.length > 0 ? "your habits + " : ""}top 3 tasks.\n`;
@@ -1043,7 +958,7 @@ function generatePlanResponse(
     return resp;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     let resp = `🎯 **Strategic Plan**\n\n`;
 
     // Analyze current state
@@ -1114,7 +1029,7 @@ function generatePlanResponse(
     return resp;
   }
 
-  // Thallo
+  // Logos
   const planPendingTasks = data.tasks.filter((t) => t.status !== "done");
   let resp = `**Action Plan** 🎯\n\n`;
 
@@ -1163,7 +1078,7 @@ function generateMotivationResponse(
   const data = storage.getData();
   const habits = data.habits.filter((h) => !h.archived);
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     const best = habits
       .map((h) => ({ name: h.name, ...calculateStreak(storage.getHabitLogDates(h.id)) }))
       .sort((a, b) => b.current - a.current)[0];
@@ -1174,7 +1089,7 @@ function generateMotivationResponse(
     return `You've got this! Every small step counts. What's one thing you can do right now to move forward? 💪`;
   }
 
-  if (model.id === "arete-1.5") {
+  if (model.id === "ethos-4.7") {
     let resp = `🔥 **You're Building Something Real**\n\n`;
 
     if (habits.length > 0) {
@@ -1214,7 +1129,7 @@ function generateMotivationResponse(
     return resp;
   }
 
-  // Thallo
+  // Logos
   const best = habits
     .map((h) => ({ name: h.name, ...calculateStreak(storage.getHabitLogDates(h.id)) }))
     .sort((a, b) => b.current - a.current)[0];
@@ -1244,12 +1159,12 @@ function generateSearchResponse(
   const results = searchUserData(query, model.analysisDepth);
 
   if (results.length === 0) {
-    if (model.id === "tsubame-0.7")
+    if (model.id === "verse-4")
       return "No results found. Try different keywords.";
     return "I searched across your notes, tasks, and journal but couldn't find anything matching that. Try different keywords or check if you have any saved data related to this topic.";
   }
 
-  if (model.id === "tsubame-0.7") {
+  if (model.id === "verse-4") {
     return results.slice(0, 3).join("\n");
   }
 
@@ -1266,7 +1181,7 @@ function generateGeneralResponse(
 
   // Check if it's a feeling check
   if (/(how.*feeling|how.*you|you.*okay|you.*good|how.*day)/i.test(q)) {
-    if (model.id === "tsubame-0.7") {
+    if (model.id === "verse-4") {
       return `I'm here for you! Your data shows ${context.habits.filter((h) => h.logged).length}/${context.habits.length} habits done and ${context.pendingTasks} tasks left. How are you feeling?`;
     }
     return `I'm doing great - thanks for asking! 😊 More importantly, how are you feeling today?\n\nFrom your data, I can see you've logged ${context.habits.filter((h) => h.logged).length} habit${context.habits.filter((h) => h.logged).length !== 1 ? "s" : ""} and have ${context.pendingTasks} task${context.pendingTasks !== 1 ? "s" : ""} to tackle. Your recent mood has been ${context.recentMood}. \n\nWant to talk about anything specific? I'm here to listen and help.`;
@@ -1281,7 +1196,7 @@ function generateGeneralResponse(
 
   // General capability response
   const capabilities =
-    model.id === "tsubame-0.7"
+    model.id === "verse-4"
       ? `Try:\n• "how are my habits?"\n• "show my tasks"\n• "daily summary"\n• "journal overview"\n• "make a plan"`
       : `I can help you with:\n\n📊 **Summaries** - "Give me a daily/weekly summary"\n💪 **Habits** - "How are my habits doing?", "What's my best streak?"\n🎯 **Tasks** - "Show my tasks", "What should I focus on?"\n📝 **Journal** - "Review my journal", "How's my mood been?"\n📓 **Notes** - "Find notes about...", "Overview of my notes"\n🎯 **Plans** - "Create a habit plan", "Help me plan my day"\n🔥 **Motivation** - "Motivate me!", "Tell me something inspiring"\n\nWhat would you like to explore?`;
 
@@ -1337,46 +1252,361 @@ function generateFollowupResponse(
 }
 
 // ============================================================
+// LLM (NVIDIA NIM) integration
+// ============================================================
+
+export function buildStatsBlock(depth: "shallow" | "moderate" | "deep"): string {
+  const data = storage.getData();
+  const today = getToday();
+
+  const activeHabits = data.habits.filter((h) => !h.archived);
+  const habitsLoggedToday = data.habitLogs.filter((l) => l.date === today).length;
+  const pendingTasks = data.tasks.filter((t) => t.status !== "done");
+  const overdueTasks = pendingTasks.filter((t) => t.dueDate && t.dueDate < today).length;
+  const tasksDoneToday = data.tasks.filter(
+    (t) => t.status === "done" && t.completedAt?.startsWith(today)
+  ).length;
+  const tasksDueToday = data.tasks.filter((t) => t.dueDate === today).length;
+  const journalToday = data.journalEntries.some((e) => e.date === today);
+  const notesCount = data.notes.filter((n) => !n.archived).length;
+
+  const habitScore =
+    activeHabits.length > 0
+      ? Math.round((habitsLoggedToday / activeHabits.length) * 100)
+      : 0;
+  const taskScore =
+    tasksDueToday > 0 ? Math.round((tasksDoneToday / tasksDueToday) * 100) : 0;
+  const productivityScore = Math.round((habitScore + taskScore) / 2);
+
+  const streaks = activeHabits.map((h) => ({
+    name: h.name,
+    ...calculateStreak(storage.getHabitLogDates(h.id)),
+  }));
+  const best = streaks
+    .filter((s) => s.current > 0)
+    .sort((a, b) => b.current - a.current)[0];
+  const longestEver = streaks.length > 0
+    ? Math.max(...streaks.map((s) => s.longest))
+    : 0;
+
+  let moodLine = "";
+  if (depth !== "shallow") {
+    const recent = data.journalEntries.slice(0, 7);
+    if (recent.length > 0) {
+      const avg =
+        recent.reduce((sum, e) => sum + getMoodScore(e.mood), 0) / recent.length;
+      moodLine = `; recent mood: ${
+        avg >= 75 ? "positive" : avg >= 50 ? "neutral" : "low"
+      } (last ${recent.length} entries)`;
+    }
+  }
+
+  return `CURRENT USER DATA (live snapshot from the user's Lexis workspace):
+` +
+    `- Productivity score: ${productivityScore}/100 (habits ${habitScore}%, tasks ${taskScore}% today)
+` +
+    `- Habits: ${activeHabits.length} active; ${habitsLoggedToday} logged today; total check-ins: ${data.habitLogs.length}
+` +
+    `- Active habit names: ${activeHabits.length ? activeHabits.map((h) => h.name).join(", ") : "none"}
+` +
+    `- Pending task titles: ${pendingTasks.length ? pendingTasks.slice(0, 12).map((t) => t.title).join(", ") + (pendingTasks.length > 12 ? ", ..." : "") : "none"}
+` +
+    `- Best streak: ${best ? `"${best.name}" (${best.current} days)` : "none yet"}; longest ever: ${longestEver} days
+` +
+    `- Tasks: ${pendingTasks.length} pending (${overdueTasks} overdue); ${tasksDoneToday} completed today
+` +
+    `- Journal: ${data.journalEntries.length} entries total; written today: ${journalToday ? "yes" : "no"}${moodLine}
+` +
+    `- Documents: ${notesCount} total
+` +
+    `Never create a habit or task that is already listed above - skip it instead.\n` +
+    `Use these numbers to ground your answers - quote them naturally, never invent stats.`;
+}
+
+/**
+ * Render the optional "about you" profile into a compact block for the
+ * system prompt. Only non-empty fields are included; if the user skipped
+ * everything, the block is empty so nothing gets injected.
+ */
+export function buildProfileBlock(): string {
+  const p = storage.getProfile();
+  const lines: string[] = [];
+  const add = (label: string, value: string) => {
+    if (value.trim()) lines.push(`- ${label}: ${value.trim()}`);
+  };
+  const addList = (label: string, values: string[]) => {
+    const v = values.map((x) => x.trim()).filter(Boolean).join(", ");
+    if (v) lines.push(`- ${label}: ${v}`);
+  };
+
+  add("Name", p.name || "");
+  add("Pronouns", p.pronouns || "");
+  add("Age range", p.ageRange || "");
+  add("Time zone", p.timeZone || "");
+  addList("Work/study", p.workStudy as string[] || []);
+  addList("Interests", p.interests || []);
+  add("Typical schedule", p.schedule || "");
+  addList("Productivity preferences", p.productivityPrefs as string[] || []);
+  addList("Communication preferences", p.communicationPrefs as string[] || []);
+  add("Goals", p.goals || "");
+  addList("Wants help with", p.helpWith || []);
+
+  if (lines.length === 0) return "";
+
+  return `\nUSER PROFILE (optional \"about you\" info the user chose to share - only what is listed here):\n` +
+    lines.join("\n") +
+    `\nPersonalize with it: address the user by name when natural, and tailor suggestions to their schedule, preferences, and goals. Never invent details about the user that are not in the profile or the conversation - ask if you need something they have not shared.`;
+}
+
+const NOOR_REL_GUIDE: Record<string, string> = {
+  observer:
+    "Observer: you understand the user's workspace and can explain, summarize, and give insights, but you must NEVER create, modify, delete, or execute anything. Give suggestions in words only and remind the user you cannot act.",
+  assistant:
+    "Assistant: you may create, organize, and suggest - creating habits, tasks, journal entries, notes, and organizing or updating existing ones is allowed. Never delete data, undo logs, or change settings without asking first.",
+  operator:
+    "Operator: you may execute approved actions and automations - creating, updating, organizing, and running approved changes are allowed. Even as Operator, destructive or irreversible actions still need the user's explicit approval.",
+};
+
+/**
+ * Render the user's chosen relationship tier with Noor. This is always
+ * injected (it always has a value - defaults to assistant) so Noor knows
+ * exactly how much it is allowed to do.
+ */
+export function buildNoorBlock(): string {
+  const rel = storage.getNoorRelationship();
+  const guide = NOOR_REL_GUIDE[rel] || NOOR_REL_GUIDE.assistant;
+  return `\nYOUR ROLE WITH THE USER (set in Settings - do not change it yourself, and honor it strictly): ${guide}`;
+}
+
+export interface ChatOpts {
+  /** Numbered sources (workspace or web) injected into the system prompt. */
+  sources?: AISource[];
+}
+
+async function callLLM(
+  query: string,
+  conversationHistory: AIMessage[],
+  model: ModelProfile,
+  opts?: ChatOpts
+): Promise<string | null> {
+  const stats = buildStatsBlock(model.analysisDepth);
+  const profileBlock = buildProfileBlock();
+  const noorBlock = buildNoorBlock();
+  const searchBlock = buildSearchBlock(opts?.sources || []);
+  const systemPrompt = `${model.systemPrompt}
+
+Today is ${getToday()}.
+
+${stats}${profileBlock}${noorBlock}${searchBlock}`;
+  // Never feed JSON-looking assistant replies back to the model - it should
+  // always reply in natural language.
+  const history = conversationHistory
+    .slice(-model.maxContextMessages)
+    .filter((m) => {
+      if (m.role !== "assistant") return true;
+      const t = (m.content || "").trim();
+      return !/^\{\s*["']/.test(t) && !/^```(?:json)?/i.test(t);
+    });
+  const payloadMessages = [
+    { role: "system", content: systemPrompt },
+    ...history.map((m) => ({ role: m.role, content: withAttachmentContext(m) })),
+    { role: "user", content: query },
+  ];
+  // Deterministic letter-count guard: never let the model guess counts.
+  const countFact = countFactInstruction(query);
+  if (countFact) {
+    payloadMessages.push({ role: "system", content: countFact });
+  }
+  // Jailbreak guard: hard override for identity-change/override attempts.
+  const jailbreakNote = jailbreakOverride(query);
+  if (jailbreakNote) {
+    payloadMessages.push({ role: "system", content: jailbreakNote });
+  }
+  // Reveal/repeat attacks: swap the user query for a safe instruction so the
+  // model has nothing to leak even on small models.
+  const safeQuery = jailbreakQueryReplacement(query);
+  if (safeQuery) {
+    const last = payloadMessages[payloadMessages.length - 1];
+    if (last && last.role === "user") {
+      payloadMessages[payloadMessages.length - 1] = { role: "user", content: safeQuery };
+    }
+  }
+  const modelsToTry = [model.nvidiaModelId, ...(FALLBACK_MODELS[model.nvidiaModelId] || [])];
+  for (const tryModel of modelsToTry) {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+        model: tryModel,
+        messages: payloadMessages,
+        temperature: model.temperature,
+        maxTokens: model.maxTokens,
+        situation: getSituationPayload(),
+      }),
+    });
+      if (res.ok) {
+        const data = (await res.json()) as { content?: string };
+        if (data && typeof data.content === "string" && data.content.trim()) {
+          return data.content.trim();
+        }
+      }
+    } catch { /* try next model */ }
+  }
+  return null;
+}
+
+// ============================================================
 // Main Chat Function
 // ============================================================
 
-export function chat(
+/**
+ * Appends stored image descriptions to a message's content so follow-up
+ * questions in the same conversation remember what an attached image showed.
+ */
+export function withAttachmentContext(m: AIMessage): string {
+  let content = m.content || "";
+  const imgs = (m.attachments || []).filter((a) => a.kind === "image" && a.description);
+  if (imgs.length) {
+    content +=
+      "\n[Attached image" + (imgs.length > 1 ? "s" : "") + ": " +
+      imgs.map((a) => a.description).join(" | ") +
+      "]";
+  }
+  // Big text files are persisted as an overview digest - include it so
+  // follow-up questions in the same conversation remember the file.
+  const files = (m.attachments || []).filter((a) => a.kind === "file" && a.description);
+  if (files.length) {
+    content +=
+      "\n[Attached file" + (files.length > 1 ? "s" : "") + ": " +
+      files.map((a) => `${a.name}: ${a.description}`).join(" | ") +
+      "]";
+  }
+  return content;
+}
+
+export async function chat(
   query: string,
   conversationHistory: AIMessage[] = [],
-  modelId: AIModel = "thallo-1.0"
-): string {
+  modelId: AIModel = "logos-4.5",
+  opts?: ChatOpts
+): Promise<string> {
   const model = MODEL_PROFILES[modelId];
   if (!model) {
-    return "Invalid model selected. Please choose Arete 1.5, Thallo 1.0, or Tsubame 0.7.";
+    return "Invalid model selected. Please choose Ethos 4.7, Logos 4.5, or Verse 4.";
   }
 
   // Build data context at the model's depth
   const context = buildDataContext(model.analysisDepth);
+  const memoryContext = buildMemoryContext();
 
   // Get conversation memory (truncated to model's context window)
   const memory = getConversationMemory(conversationHistory, model.maxContextMessages);
 
-  // Try action execution first — if user wants to DO something, do it!
-  const action = detectAction(query);
+  // Try action execution first - if user wants to DO something, do it!
+  // Live queries (news, release dates, prices, AI model news...) go straight
+  // to the LLM with web results - the local engine must never hijack them.
+  const action = isLiveQuery(query)
+    ? { matched: false, type: null, params: {}, confidence: 0 }
+    : detectAction(query);
   if (action.matched && action.confidence >= 0.7) {
     const result = executeAction(action);
     return result.message; // Return success OR failure message
   }
 
+  // Navigation detection — catch before LLM call
+  const qLower = query.toLowerCase().trim();
+  const navPages = ['dashboard', 'habits', 'tasks', 'notes', 'grid', 'noor', 'mindfulness', 'documents', 'settings'];
+  const navVerbs = /^(go\s+to|open|show\s+me|show|navigate\s+to|switch\s+to|take\s+me\s+to|head\s+to|let.*see|display|view)\s+/i;
+  let isNav = false;
+  let navTarget = '';
+  if (navVerbs.test(qLower)) {
+    navTarget = qLower.replace(navVerbs, '').trim();
+    isNav = navPages.some(p => navTarget.includes(p));
+  } else if (navPages.includes(qLower)) {
+    navTarget = qLower;
+    isNav = true;
+  }
+  if (isNav) {
+    const navPage = navPages.find(p => navTarget.includes(p)) || 'dashboard';
+    if (typeof window !== 'undefined') {
+      window.location.href = navPage === 'dashboard' ? '/' : '/' + navPage;
+    }
+    return 'Opening ' + navPage + '...';
+  }
+
+  // The user asked us to DO something but the local parser couldn't - make sure
+
+  // The user asked us to DO something but the local parser couldn't - make sure
+  // the LLM never falsely claims it completed the action (that's the "but it
+  // isn't showing in my habits" bug).
+  const wantsAction =
+    !action.matched &&
+    /(?:create|add|make|new|set|schedule|log|complete|finish|delete|remove|remind|write|save|export|start|do|track|mark|update)\b/i.test(
+      query
+    );
+  const llmQuery = wantsAction
+    ? query +
+      "\n\n(Note: if this asks you to create, change, log or delete something, DO NOT claim you did it - you have not. Either give helpful advice, or ask one short clarifying question.)"
+    : query;
+
+  // Prefer the real LLM (NVIDIA NIM) - it understands Lexis and the user's live stats.
+  try {
+    const llmReply = await callLLM(llmQuery, conversationHistory, model, opts);
+    if (llmReply) {
+      // The model's tool contract: LEXIS_ACTION {...} blocks are executed for
+      // real and replaced by their natural confirmation - the user must never
+      // see raw JSON, and actions must actually happen.
+      // Safety net: strip any stray think tags from legacy/cached replies
+      // (same hardening the streaming path keeps).
+      const visible = llmReply.replace(/<\/?think>/gi, "").trim();
+      const processed = processActionReply(visible);
+      if (processed) return processed;
+      // Legacy safety net: a bare JSON action with no marker.
+      const handled = tryExecuteJsonAction(visible);
+      if (handled) return handled;
+      // Final net: never let a raw/truncated LEXIS_ACTION line reach the user.
+      // Check the marker first: even when prose precedes the truncated block,
+      // the user must get the honest retry note, never a silent "Sure!".
+      if (ACTION_MARKER_RE.test(visible)) {
+        const note =
+          "I couldn't finish setting that up. Mind asking me again?";
+        const cleaned = stripActionRemnants(visible);
+        return cleaned ? cleaned + "\n\n" + note : note;
+      }
+      const cleaned = stripActionRemnants(visible);
+      if (cleaned) return cleaned;
+      return visible;
+    }
+  } catch {
+    // Fall through to the built-in response engine (offline-safe).
+  }
+
   // Detect intent
   const intent = detectIntent(query);
 
-  // For Thallo and Arete, prepend system instructions with memory context
-  // For Tsubame, keep it simple
+  // For Logos and Ethos, prepend system instructions with memory context
+  // For Verse, keep it simple
 
   let response = "";
 
-  if (model.id === "arete-1.5") {
-    // Arete thinks deeply
+  if (model.id === "ethos-4.7") {
+    // Ethos thinks deeply
     const thinkingDelay = memory ? "I remember our previous conversation. Let me connect that with what you're asking now.\n\n" : "";
 
     switch (intent) {
-      case "greeting":
+            case "navigate": {
+        const rawQ = query.toLowerCase().trim();
+        const navTarget = rawQ.replace(/^(go\s+to|open|show\s+me|show|navigate\s+to|switch\s+to|take\s+me\s+to|head\s+to|let.*see|display|view)\s*/i, '').trim();
+        const navValid = ["dashboard","habits","tasks","notes","grid","noor","mindfulness","documents","settings"];
+        const navPage = navValid.find(p => navTarget.includes(p)) || "dashboard";
+        if (typeof window !== "undefined") {
+          window.location.href = navPage === "dashboard" ? "/" : "/" + navPage;
+        }
+        response = "Opening " + navPage + "...";
+        break;
+      }
+case "greeting":
         response = generateGreeting(conversationHistory, model);
         break;
       case "followup":
@@ -1418,10 +1648,21 @@ export function chat(
     }
 
 
-  } else if (model.id === "tsubame-0.7") {
-    // Tsubame is fast and concise
+  } else if (model.id === "verse-4") {
+    // Verse is fast and concise
     switch (intent) {
-      case "greeting":
+            case "navigate": {
+        const rawQ = query.toLowerCase().trim();
+        const navTarget = rawQ.replace(/^(go\s+to|open|show\s+me|show|navigate\s+to|switch\s+to|take\s+me\s+to|head\s+to|let.*see|display|view)\s*/i, '').trim();
+        const navValid = ["dashboard","habits","tasks","notes","grid","noor","mindfulness","documents","settings"];
+        const navPage = navValid.find(p => navTarget.includes(p)) || "dashboard";
+        if (typeof window !== "undefined") {
+          window.location.href = navPage === "dashboard" ? "/" : "/" + navPage;
+        }
+        response = "Opening " + navPage + "...";
+        break;
+      }
+case "greeting":
         response = generateGreeting(conversationHistory, model);
         break;
       case "followup":
@@ -1462,9 +1703,20 @@ export function chat(
         response = generateGeneralResponse(query, context, conversationHistory, model);
     }
   } else {
-    // Thallo - balanced
+    // Logos - balanced
     switch (intent) {
-      case "greeting":
+            case "navigate": {
+        const rawQ = query.toLowerCase().trim();
+        const navTarget = rawQ.replace(/^(go\s+to|open|show\s+me|show|navigate\s+to|switch\s+to|take\s+me\s+to|head\s+to|let.*see|display|view)\s*/i, '').trim();
+        const navValid = ["dashboard","habits","tasks","notes","grid","noor","mindfulness","documents","settings"];
+        const navPage = navValid.find(p => navTarget.includes(p)) || "dashboard";
+        if (typeof window !== "undefined") {
+          window.location.href = navPage === "dashboard" ? "/" : "/" + navPage;
+        }
+        response = "Opening " + navPage + "...";
+        break;
+      }
+case "greeting":
         response = generateGreeting(conversationHistory, model);
         break;
       case "followup":
@@ -1606,7 +1858,7 @@ class AIEngine {
     if (overdueTasks.length > 0) {
       contextSuggestions.push(
         `You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? "s" : ""}. ` +
-        `Try tackling the oldest one first — clearing mental load creates momentum. 🎯`
+        `Try tackling the oldest one first - clearing mental load creates momentum. 🎯`
       );
     }
 
@@ -1632,9 +1884,9 @@ class AIEngine {
 
     // General suggestions (fallback)
     const generalSuggestions = [
-      "Focus on your most important task first — eat that frog! 🐸",
+      "Focus on your most important task first - eat that frog! 🐸",
       "Dedicate the next 25 minutes to deep work on your top priority. 🎯",
-      "Take 5 minutes to plan your day — it'll save you hours later. 📋",
+      "Take 5 minutes to plan your day - it'll save you hours later. 📋",
       "Start with a 2-minute win. One small task creates momentum for the whole day. ⚡",
       "Your consistency is your superpower. What can you do today that future you will thank you for? 🚀",
       "The best time to start was yesterday. The second best time is right now. 🌱",

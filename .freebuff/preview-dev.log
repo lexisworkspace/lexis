@@ -1,0 +1,11 @@
+
+> mindflow@2.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:51847
+   - Network:      http://192.168.0.231:51847
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 10.4s

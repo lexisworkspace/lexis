@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/legal-page";
 
 export default function AcceptableUsePage() {
   return (
-    <LegalPage title="Acceptable Use Policy" lastUpdated="July 23, 2026">
+    <LegalPage title="Acceptable Use Policy" lastUpdated="August 21, 2026">
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Purpose</h2>
         <p>
@@ -35,18 +35,20 @@ export default function AcceptableUsePage() {
           <li>Using AI features for generating harmful, abusive, or deceptive content</li>
           <li>Overloading or disrupting the application's functionality</li>
           <li>Misrepresenting your identity or affiliation with Lexis</li>
+          <li>Using Lexis if you are under 13 years of age</li>
         </ul>
       </section>
 
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">4. AI Feature Usage</h2>
         <p className="mb-3">
-          The AI assistant accessed through OpenRouter is provided as a productivity aid. When using AI features:
+          Noor, the AI assistant accessed through NVIDIA’s NIM API, is provided as a productivity aid. When using AI features:
         </p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li>Do not use AI to generate content that violates any laws</li>
           <li>Do not input sensitive personal data of others without consent</li>
           <li>AI responses are suggestions, not authoritative guidance</li>
+          <li>Web search results may be outdated, incomplete, or inaccurate - always verify important information</li>
           <li>You are responsible for how you use AI-generated content</li>
         </ul>
       </section>
@@ -55,7 +57,7 @@ export default function AcceptableUsePage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">5. Enforcement</h2>
         <p>
           As a local-first application with no accounts or centralized usage tracking, enforcement of this policy
-          relies on your good faith. Abusive use of AI features may result in rate limiting by OpenRouter.
+          relies on your good faith. Abusive use of AI features may result in rate limiting by the AI provider.
         </p>
       </section>
 

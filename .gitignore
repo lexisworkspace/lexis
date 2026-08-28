@@ -38,3 +38,11 @@ WhatsApp*
 .npmrc
 .env.local
 .vercel/
+noor.png
+
+desktop/node_modules
+desktop/dist
+
+public/downloads
+
+.env*.local

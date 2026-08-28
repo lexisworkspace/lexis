@@ -1,0 +1,15 @@
+
+> mindflow@2.0.0 dev
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:49556
+   - Network:      http://172.30.144.1:49556
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 9.7s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 2.9s (115 modules)
+ ○ Compiling / ...
+[?25h

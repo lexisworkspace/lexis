@@ -1,0 +1,298 @@
+"use client";
+
+// ============================================================
+// In-app Reminder Center
+// A bell + panel + toast surface for the same situation-model
+// reminders that browser notifications use - but it works on
+// EVERY device (including iOS Safari, where the Notification
+// API doesn't exist). Fully local, zero servers.
+// ============================================================
+
+import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, Check, X, Flame, Clock, MessageSquare, BellOff, Wind } from "lucide-react";
+import { storage } from "@/lib/storage";
+import { getGraph, ensureWired } from "@/lib/graph/engine";
+import {
+  pendingReminders,
+  dismissReminder,
+  dismissAllReminders,
+  getReminderSettings,
+  type ReminderItem,
+  checkAndNotify,
+} from "@/lib/reminders";
+import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+
+const KIND_ICON: Record<ReminderItem["kind"], typeof Flame> = {
+  habit: Flame,
+  task: Clock,
+  mention: MessageSquare,
+  wellness: Wind,
+};
+
+const KEY_OF = (i: ReminderItem) => `${i.kind}:${i.id}`;
+
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
+export function ReminderCenter() {
+  const router = useRouter();
+  const { t } = useI18n();
+  const [items, setItems] = useState<ReminderItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const [toast, setToast] = useState<ReminderItem | null>(null);
+  const [toastMore, setToastMore] = useState(0);
+  const seenRef = useRef<Set<string>>(new Set());
+  const bootRef = useRef(true);
+  const toastTimer = useRef<number | null>(null);
+
+  const showToast = (item: ReminderItem, more: number) => {
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    setToast(item);
+    setToastMore(more);
+    toastTimer.current = window.setTimeout(() => setToast(null), 7000);
+  };
+
+  const refresh = () => {
+    try {
+      ensureWired();
+      const list = pendingReminders(storage.getData(), getGraph());
+      setItems(list);
+      window.dispatchEvent(new CustomEvent("lexis:reminders-count", { detail: list.length }));
+      checkAndNotify();
+      const keys = new Set(list.map(KEY_OF));
+      if (bootRef.current) {
+        // First pass after entering the app: welcome them with a toast if
+        // something is waiting, but don't treat existing items as "new".
+        bootRef.current = false;
+        seenRef.current = keys;
+        if (list.length > 0) showToast(list[0], list.length - 1);
+      } else {
+        const fresh = list.find((i) => !seenRef.current.has(KEY_OF(i)));
+        if (fresh) showToast(fresh, list.length - 1);
+      }
+      seenRef.current = keys;
+    } catch {
+      // storage not ready yet - next pass will handle it
+    }
+  };
+
+  // Bootstrap + keep in sync with data changes, a periodic re-check,
+  // and tab visibility.
+  useEffect(() => {
+    const unsub = storage.subscribe(refresh);
+    const t0 = window.setTimeout(refresh, 4000);
+    const iv = window.setInterval(refresh, 5 * 60 * 1000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    const onToggle = () => setOpen((o) => !o);
+    window.addEventListener("lexis:toggle-reminders", onToggle);
+    return () => {
+      unsub();
+      window.clearTimeout(t0);
+      window.clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("lexis:toggle-reminders", onToggle);
+      if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pathname = usePathname();
+
+  const navigate = (item: ReminderItem) => {
+    dismissReminder(item);
+    refresh();
+    setOpen(false);
+    setToast(null);
+    router.push(item.href);
+  };
+
+  const settingsOff = !getReminderSettings().enabled;
+
+  return (
+    <>
+      {/* Mobile floating bell (desktop uses the sidebar bell). Hidden on
+          Noor - it's a full-screen interface and the bell would float over
+          the composer. NOTE: only `fixed` - never mix with `relative`, that
+          pulls it into the flex row and shoves the whole page off-center. */}
+      {pathname !== "/noor" && (
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="fixed bottom-24 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-lg transition-all duration-200 active:scale-95 md:hidden"
+        aria-label={t("reminders.bell")}
+      >
+        <Bell className="h-5 w-5" />
+        <Badge count={items.length} />
+      </button>
+      )}
+
+      {/* Panel - right drawer. Pure CSS slide: framer's touch-device
+          animation kill-switch would otherwise snap it open/closed on
+          phones/tablets. Respects data-reduced-motion via the global CSS. */}
+      <aside
+        aria-hidden={!open}
+        role="dialog"
+        aria-label={t("reminders.title")}
+        className={cn(
+          "fixed inset-y-0 right-0 z-[70] flex w-80 max-w-[calc(100vw-1rem)] flex-col border-l border-border bg-card shadow-2xl",
+          "transition-[transform,visibility] duration-300 ease-out will-change-transform",
+          open
+            ? "translate-x-0 visible"
+            : "pointer-events-none translate-x-full invisible"
+        )}
+      >
+            <div className="flex items-center gap-3 border-b border-border px-4 py-4">
+              <Bell className="h-5 w-5 text-primary-500" />
+              <h2 className="flex-1 font-semibold">{t("reminders.title")}</h2>
+              {items.length > 0 && (
+                <button
+                  onClick={() => {
+                    dismissAllReminders();
+                    refresh();
+                  }}
+                  className="rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {t("reminders.markAll")}
+                </button>
+              )}
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t("reminders.dismiss")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3">
+              {settingsOff ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-center px-6">
+                  <BellOff className="h-8 w-8 text-muted-foreground/40" />
+                  <p className="text-sm font-medium">{t("reminders.off")}</p>
+                  <p className="text-xs text-muted-foreground">{t("reminders.offHint")}</p>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      router.push("/settings");
+                    }}
+                    className="btn-secondary mt-1 text-xs"
+                  >
+                    {t("reminders.toSettings")}
+                  </button>
+                </div>
+              ) : items.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 text-center px-6">
+                  <Check className="h-8 w-8 text-emerald-400/70" />
+                  <p className="text-sm text-muted-foreground">{t("reminders.empty")}</p>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {items.map((item) => {
+                    const Icon = KIND_ICON[item.kind];
+                    return (
+                      <li key={KEY_OF(item)}>
+                        <div className="group relative flex items-start gap-3 rounded-2xl border border-border/70 bg-secondary/30 p-3 transition-colors hover:border-muted-foreground/30">
+                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
+                          <button
+                            onClick={() => navigate(item)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <span className="block truncate text-sm font-medium">{item.title}</span>
+                            <span className="mt-0.5 block text-xs text-muted-foreground leading-snug">
+                              {item.body}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              dismissReminder(item);
+                              refresh();
+                            }}
+                            className="shrink-0 rounded-lg p-1 text-muted-foreground/50 opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover:opacity-100"
+                            aria-label={t("reminders.dismiss")}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+      </aside>
+
+      {/* Toast (hidden on Noor - it would float over the composer). Pure CSS
+          slide-up like the drawer, so it animates on touch devices too. */}
+      <div
+        onClick={() => toast && navigate(toast)}
+        className={cn(
+          "fixed bottom-28 right-4 z-[75] flex max-w-[calc(100vw-2rem)] cursor-pointer items-start gap-3 rounded-2xl border border-border bg-card p-4 text-left shadow-xl md:bottom-6 md:right-6 md:max-w-sm",
+          "transition-[transform,opacity] duration-300 ease-out",
+          toast && pathname !== "/noor"
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-4 opacity-0"
+        )}
+      >
+            <Bell className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">{toast?.title}</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground leading-snug">
+                {toast?.body}
+                {toast && toastMore > 0 ? ` · +${toastMore} ${t("reminders.more")}` : ""}
+              </span>
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setToast(null);
+              }}
+              className="shrink-0 rounded-lg p-1 text-muted-foreground/60 hover:bg-muted hover:text-foreground"
+              aria-label={t("reminders.dismiss")}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+      </div>
+    </>
+  );
+}
+
+/** Sidebar bell - presentational; badge count comes from ReminderCenter. */
+export function ReminderBell({ collapsed }: { collapsed: boolean }) {
+  const { t } = useI18n();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const onCount = (e: Event) => setCount((e as CustomEvent<number>).detail || 0);
+    window.addEventListener("lexis:reminders-count", onCount);
+    return () => window.removeEventListener("lexis:reminders-count", onCount);
+  }, []);
+
+  return (
+    <button
+      onClick={() => window.dispatchEvent(new CustomEvent("lexis:toggle-reminders"))}
+      className={cn(
+        "relative hidden md:flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs text-muted-foreground/60 transition-all duration-200 hover:text-foreground hover:bg-sidebar-hover",
+        collapsed && "justify-center px-2"
+      )}
+      aria-label={t("reminders.bell")}
+    >
+      <Bell className="h-3.5 w-3.5 shrink-0" />
+      {!collapsed && <span className="flex-1 text-left">{t("reminders.bell")}</span>}
+      {count > 0 && (
+        <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
+          {count > 9 ? "9+" : count}
+        </span>
+      )}
+    </button>
+  );
+}

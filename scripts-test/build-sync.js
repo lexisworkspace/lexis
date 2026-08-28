@@ -1,0 +1,2 @@
+var fs=require("fs");var b64=fs.readFileSync("scripts-test/b64-sync.txt","utf8").trim();var content=Buffer.from(b64,"base64").toString("utf8");fs.writeFileSync("src/components/SyncSettings.tsx",content);console.log("Written",content.split("
+").length,"lines");

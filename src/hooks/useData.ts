@@ -13,6 +13,9 @@ export function useData() {
     setLoading(false);
   }, []);
 
+  // Live-sync: re-read whenever storage changes (Noor actions, other tabs).
+  useEffect(() => storage.subscribe(() => setData({ ...storage.getData() })), []);
+
   const refresh = useCallback(() => {
     setData({ ...storage.getData() });
   }, []);

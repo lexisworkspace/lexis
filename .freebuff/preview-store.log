@@ -1,0 +1,17 @@
+
+> lexis-store@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.2 (Turbopack)
+- Local:         http://localhost:50718
+- Network:       http://192.168.0.231:50718
+✓ Ready in 2.5s
+✓ Running next.config.ts took 40ms
+
+○ Compiling / ...
+○ Compiling /_error ...
+ GET / 500 in 21ms (next.js: 11ms, application-code: 11ms)
+ GET / 500 in 148ms (next.js: 139ms, application-code: 9ms)
+✓ Compiled in 116ms
+✓ Compiled in 202ms
+[?25h

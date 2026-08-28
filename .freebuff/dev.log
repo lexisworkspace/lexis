@@ -1,0 +1,871 @@
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:50485
+   - Network:      http://192.168.0.231:50485
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 6s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 894ms (115 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 9.1s (1786 modules)
+ GET / 200 in 9918ms
+ ✓ Compiled in 1997ms (790 modules)
+ GET / 200 in 69ms
+ GET / 200 in 80ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ○ Compiling /documents ...
+ ✓ Compiled /documents in 3.9s (2061 modules)
+ GET /documents 200 in 4532ms
+ ✓ Compiled in 2.4s (2075 modules)
+ GET /documents 200 in 169ms
+ GET /documents 200 in 472ms
+ ✓ Compiled in 959ms (933 modules)
+ GET /documents 200 in 652ms
+ ✓ Compiled in 724ms (933 modules)
+ GET /documents 200 in 38ms
+ ✓ Compiled in 1654ms (2075 modules)
+ GET /documents 200 in 159ms
+ ✓ Compiled in 1928ms (2075 modules)
+ GET /documents 200 in 163ms
+ ✓ Compiled in 2.2s (2081 modules)
+ GET /documents 200 in 116ms
+ ✓ Compiled in 903ms (936 modules)
+ GET /documents 200 in 691ms
+ ✓ Compiled in 798ms (936 modules)
+ GET /documents 200 in 44ms
+ ✓ Compiled in 2.3s (2081 modules)
+ GET /documents 200 in 161ms
+ ✓ Compiled in 1617ms (2081 modules)
+ GET /documents 200 in 164ms
+ ✓ Compiled in 1780ms (2081 modules)
+ GET /documents 200 in 115ms
+ ✓ Compiled in 1626ms (2081 modules)
+ GET /documents 200 in 115ms
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Unexpected eof
+     ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:687:49]
+ [2m685[0m |           </AnimatePresence>
+ [2m686[0m | 
+ [2m687[0m |           {/* Lock screen - setup or unlock */}
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 2269ms
+ GET /documents 200 in 33ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 719ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 41ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 167ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 149ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 117ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 645ms
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ GET /documents 200 in 37ms
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:64:1]
+ [2m61[0m | // ============================================================
+ [2m62[0m | // Pattern storage
+ [2m63[0m | // ============================================================
+ [2m64[0m | function isPatternSet(): boolean {
+    : [35;1m^[0m
+ [2m65[0m |   if (typeof window === "undefined") return false;
+ [2m66[0m |   try { return localStorage.getItem(PATTERN_KEY) !== null; } catch { return false; }
+ [2m67[0m | }
+    `----
+  [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:83:1]
+ [2m80[0m |     return hash === stored;
+ [2m81[0m |   } catch { return false; }
+ [2m82[0m | }
+ [2m83[0m | function clearPattern(): void { localStorage.removeItem(PATTERN_KEY); } catch {
+    : [35;1m                                                                        ^^^^^[0m
+ [2m84[0m |     // silently fail
+ [2m85[0m |   }
+ [2m85[0m | }
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:67:1]
+ [2m64[0m |     localStorage.removeItem(PASSWORD_KEY);
+ [2m65[0m |   }
+ [2m66[0m | // Pattern storage
+ [2m67[0m | function isPatternSet(): boolean {
+    : [35;1m^[0m
+ [2m68[0m |   if (typeof window === "undefined") return false;
+ [2m69[0m |   try { return localStorage.getItem(PATTERN_KEY) !== null; } catch { return false; }
+ [2m69[0m | }
+    `----
+  [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:87:1]
+ [2m84[0m |   } catch { return false; }
+ [2m85[0m | }
+ [2m86[0m | function clearPattern(): void { localStorage.removeItem(PATTERN_KEY); }
+ [2m87[0m |  catch {
+    : [35;1m ^^^^^[0m
+ [2m88[0m |     // silently fail
+ [2m89[0m |   }
+ [2m89[0m | }
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'E:\System Volume Information'
+ ○ Compiling /_error ...
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'E:\System Volume Information'
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:67:1]
+ [2m64[0m |     localStorage.removeItem(PASSWORD_KEY);
+ [2m65[0m |   }
+ [2m66[0m | // Pattern storage
+ [2m67[0m | function isPatternSet(): boolean {
+    : [35;1m^[0m
+ [2m68[0m |   if (typeof window === "undefined") return false;
+ [2m69[0m |   try { return localStorage.getItem(PATTERN_KEY) !== null; } catch { return false; }
+ [2m69[0m | }
+    `----
+  [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:87:1]
+ [2m84[0m |   } catch { return false; }
+ [2m85[0m | }
+ [2m86[0m | function clearPattern(): void { localStorage.removeItem(PATTERN_KEY); }
+ [2m87[0m |  catch {
+    : [35;1m ^^^^^[0m
+ [2m88[0m |     // silently fail
+ [2m89[0m |   }
+ [2m89[0m | }
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ GET /documents 500 in 4930ms
+Watchpack Error (initial scan): Error: EINVAL: invalid argument, lstat 'E:\System Volume Information'
+ GET /documents 500 in 16ms
+ GET /documents 500 in 16ms
+ GET /documents 500 in 16ms
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:67:1]
+ [2m64[0m |     localStorage.removeItem(PASSWORD_KEY);
+ [2m65[0m |   }
+ [2m66[0m | // Pattern storage
+ [2m67[0m | function isPatternSet(): boolean {
+    : [35;1m^[0m
+ [2m68[0m |   if (typeof window === "undefined") return false;
+ [2m69[0m |   try { return localStorage.getItem(PATTERN_KEY) !== null; } catch { return false; }
+ [2m69[0m | }
+    `----
+  [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:87:1]
+ [2m84[0m |   } catch { return false; }
+ [2m85[0m | }
+ [2m86[0m | function clearPattern(): void { localStorage.removeItem(PATTERN_KEY); }
+ [2m87[0m |  catch {
+    : [35;1m ^^^^^[0m
+ [2m88[0m |     // silently fail
+ [2m89[0m |   }
+ [2m89[0m | }
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected a semicolon
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:89:1]
+ [2m86[0m |   } catch { return false; }
+ [2m87[0m | }
+ [2m88[0m | function clearPattern(): void { localStorage.removeItem(PATTERN_KEY); }
+ [2m89[0m |  catch {
+    : [35;1m ^^^^^[0m
+ [2m90[0m |     // silently fail
+ [2m91[0m |   }
+ [2m91[0m | }
+    `----
+  [31mx[0m Expression expected
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:92:1]
+ [2m89[0m |  catch {
+ [2m90[0m |     // silently fail
+ [2m91[0m |   }
+ [2m92[0m | }
+    : [35;1m^[0m
+ [2m93[0m | 
+ [2m94[0m | // ============================================================
+ [2m94[0m | // PasswordGate Component
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ GET /documents 200 in 646ms
+ GET / 200 in 89ms
+ ✓ Compiled /_error in 2.6s (2427 modules)
+ ✓ Compiled in 1451ms (2427 modules)
+ ✓ Compiled in 1057ms (1088 modules)
+ ✓ Compiled in 655ms (1088 modules)
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'isUnlockedThisSession' is not exported from './PasswordGate' (imported as 'isUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'markUnlockedThisSession' is not exported from './PasswordGate' (imported as 'markUnlockedThisSession').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ ⚠ ./src/components/layout/ClientLayout.tsx
+Attempted import error: 'PasswordGate' is not exported from './PasswordGate' (imported as 'PasswordGate').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'PasswordGate' is not exported from './PasswordGate' (imported as 'PasswordGate').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'PasswordGate' is not exported from './PasswordGate' (imported as 'PasswordGate').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+
+./src/components/layout/ClientLayout.tsx
+Attempted import error: 'PasswordGate' is not exported from './PasswordGate' (imported as 'PasswordGate').
+
+Import trace for requested module:
+./src/components/layout/ClientLayout.tsx
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected '}', got '<eof>'
+    ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:73:1]
+ [2m70[0m |   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+ [2m71[0m |   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+ [2m72[0m |   const [biometricsLoading, setBiometricsLoading] = useState(false);
+ [2m73[0m |   const isSetup = mode === "setup";
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected '}', got '<eof>'
+     ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:179:1]
+ [2m176[0m |         </AnimatePresence>
+ [2m177[0m |       </div>
+ [2m178[0m |     );
+ [2m179[0m |   }
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ⨯ ./src/components/layout/PasswordGate.tsx
+Error:   [31mx[0m Expected '}', got '<eof>'
+     ,-[[36;1;4mE:\lexis\src\components\layout\PasswordGate.tsx[0m:226:1]
+ [2m223[0m |         </motion.div>
+ [2m224[0m |       </div>
+ [2m225[0m |     );
+ [2m226[0m |   }
+     : [35;1m   ^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/PasswordGate.tsx
+./src/components/layout/ClientLayout.tsx
+ ✓ Compiled in 2.2s (2433 modules)
+ ✓ Compiled in 2.1s (2433 modules)
+ ✓ Compiled in 2.2s (2433 modules)
+ ✓ Compiled in 1373ms (2433 modules)
+ ✓ Compiled in 2.4s (2433 modules)
+ ✓ Compiled in 1897ms (2433 modules)
+ ✓ Compiled in 1723ms (2433 modules)
+ ✓ Compiled in 2.1s (2433 modules)
+ ✓ Compiled in 1843ms (2433 modules)
+ ✓ Compiled in 1984ms (2433 modules)
+ ⨯ ./src/components/widgets/WidgetCatalog.tsx
+Error:   [31mx[0m Expression expected
+     ,-[[36;1;4mE:\lexis\src\components\widgets\WidgetCatalog.tsx[0m:132:1]
+ [2m129[0m |       </div>
+ [2m130[0m |     </div>
+ [2m131[0m |   );
+ [2m132[0m |   , document.body);
+     : [35;1m  ^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/widgets/WidgetCatalog.tsx
+./src/app/page.tsx
+ ⨯ ./src/components/widgets/WidgetCatalog.tsx
+Error:   [31mx[0m Expression expected
+     ,-[[36;1;4mE:\lexis\src\components\widgets\WidgetCatalog.tsx[0m:132:1]
+ [2m129[0m |       </div>
+ [2m130[0m |     </div>
+ [2m131[0m |   );
+ [2m132[0m |   , document.body);
+     : [35;1m  ^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/widgets/WidgetCatalog.tsx
+./src/app/page.tsx
+ ⨯ ./src/components/widgets/WidgetCatalog.tsx
+Error:   [31mx[0m Expected '}', got '<eof>'
+     ,-[[36;1;4mE:\lexis\src\components\widgets\WidgetCatalog.tsx[0m:131:1]
+ [2m128[0m |         </div>
+ [2m129[0m |       </div>
+ [2m130[0m |     </div>
+ [2m131[0m |   , document.body);
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/widgets/WidgetCatalog.tsx
+./src/app/page.tsx
+ ⨯ ./src/components/widgets/WidgetCatalog.tsx
+Error:   [31mx[0m Expected '}', got '<eof>'
+     ,-[[36;1;4mE:\lexis\src\components\widgets\WidgetCatalog.tsx[0m:132:1]
+ [2m129[0m |       </div>
+ [2m130[0m |     </div>,
+ [2m131[0m |     document.body
+ [2m132[0m |   );
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/widgets/WidgetCatalog.tsx
+./src/app/page.tsx
+ ✓ Compiled in 2.5s (2433 modules)
+ ✓ Compiled in 2.4s (2433 modules)
+ ✓ Compiled in 1803ms (2433 modules)
+ ✓ Compiled in 847ms (1091 modules)
+ ✓ Compiled in 1378ms (2419 modules)
+ ✓ Compiled in 1400ms (2419 modules)
+ ✓ Compiled in 3s (2433 modules)
+ ✓ Compiled in 2.3s (2433 modules)
+ ✓ Compiled in 723ms (1091 modules)
+ ✓ Compiled in 1616ms (2433 modules)
+ ✓ Compiled in 3.5s (2433 modules)
+ ✓ Compiled in 1719ms (2433 modules)
+ ✓ Compiled in 3.1s (2433 modules)
+ ✓ Compiled in 1447ms (2433 modules)
+ ✓ Compiled in 4s (2470 modules)
+ ✓ Compiled in 3.1s (2443 modules)
+ ✓ Compiled in 1539ms (1098 modules)
+ ✓ Compiled in 783ms (1098 modules)
+[Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\2.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\2.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\2.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\2.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\2.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\2.pack.gz'
+}
+[Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\9.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\9.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\9.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\9.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\9.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\9.pack.gz'
+}
+[Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\14.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\14.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\14.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\14.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\14.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'E:\\lexis\\.next\\cache\\webpack\\server-development\\14.pack.gz'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, stat 'E:\lexis\.next\cache\webpack\server-development\2.pack.gz'
+ ✓ Compiled in 830ms (1098 modules)
+ ✓ Compiled in 701ms (1098 modules)
+ ✓ Compiled in 854ms (1098 modules)
+ ✓ Compiled in 988ms (1098 modules)
+ ✓ Compiled in 755ms (1098 modules)
+ ✓ Compiled in 793ms (1098 modules)
+ ✓ Compiled in 876ms (1098 modules)
+ ✓ Compiled in 900ms (1098 modules)
+ ✓ Compiled in 731ms (1098 modules)
+ ✓ Compiled in 805ms (1098 modules)
+ ✓ Compiled in 747ms (1098 modules)
+ ✓ Compiled in 2.6s (2443 modules)
+ ✓ Compiled in 941ms (1098 modules)
+ ✓ Compiled in 728ms (1098 modules)
+ ✓ Compiled in 938ms (1098 modules)
+ ✓ Compiled in 754ms (1098 modules)
+ ✓ Compiled in 766ms (1098 modules)
+ ✓ Compiled in 848ms (1098 modules)
+ ✓ Compiled in 2.3s (2443 modules)
+ ✓ Compiled in 791ms (1098 modules)
+ ✓ Compiled in 837ms (1098 modules)
+ ✓ Compiled in 778ms (1098 modules)
+[?25h

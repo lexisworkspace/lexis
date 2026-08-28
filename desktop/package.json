@@ -1,0 +1,129 @@
+{
+  "name": "lexis-desktop",
+  "productName": "Lexis",
+  "version": "2.0.0",
+  "description": "Lexis - the local-first AI productivity suite, as a desktop app. Same app as the browser, all data stays on your device.",
+  "main": "main.js",
+  "author": "Lexis",
+  "homepage": "https://lexisapp.xyz",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "xyz.lexisapp.desktop",
+    "productName": "Lexis",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "preload.js",
+      "pair-server.js",
+      "pair-page.html",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "fileAssociations": [
+        {
+          "ext": "md",
+          "name": "Markdown Document",
+          "description": "Lexis Note",
+          "role": "Editor"
+        },
+        {
+          "ext": "csv",
+          "name": "CSV File",
+          "description": "Lexis Grid Data",
+          "role": "Editor"
+        }
+      ],
+      "entitlements": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "fileAssociations": [
+        {
+          "ext": "md",
+          "name": "Markdown Document",
+          "description": "Lexis Note",
+          "icon": "build/icon.png",
+          "role": "Editor"
+        },
+        {
+          "ext": "csv",
+          "name": "CSV File",
+          "description": "Lexis Grid Data",
+          "icon": "build/icon.png",
+          "role": "Editor"
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "maintainer": "Lexis <support@lexisapp.xyz>"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true
+    }
+  },
+  "dependencies": {
+    "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.9"
+  }
+}

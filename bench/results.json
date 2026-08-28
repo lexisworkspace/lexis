@@ -1,0 +1,29 @@
+{
+  "ethos-1.5": {
+    "label": "Ethos 1.5 (Nemotron 3 Super 120B)",
+    "tasks": [],
+    "passes": 9,
+    "fails": 1,
+    "errors": 0,
+    "totalMs": 57333,
+    "firstTokenSum": 45054
+  },
+  "nemotron-ultra-550b": {
+    "label": "Nemotron 3 Ultra 550B (reference)",
+    "tasks": [],
+    "passes": 8,
+    "fails": 2,
+    "errors": 0,
+    "totalMs": 40784,
+    "firstTokenSum": 37689
+  },
+  "llama-3.3-70b": {
+    "label": "Llama 3.3 70B (reference)",
+    "tasks": [],
+    "passes": 8,
+    "fails": 2,
+    "errors": 0,
+    "totalMs": 186727,
+    "firstTokenSum": 164814
+  }
+}

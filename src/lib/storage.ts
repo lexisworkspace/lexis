@@ -1,6 +1,6 @@
 "use client";
 
-import { AppData, Note, Task, Habit, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage } from "@/types";
+import { AppData, Note, Task, Habit, UserProfile, NoorRelationship, LexisMode, WidgetId, Spreadsheet, AIModel as AIModelType, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage } from "@/types";
 import { generateId, getToday, calculateStreak } from "./utils";
 import { loadFromIDB, saveToIDB, clearIDB } from "./db";
 
@@ -8,7 +8,7 @@ const STORAGE_KEY = "lexis-data";
 const SYNC_KEY = "lexis-sync";
 
 const DEFAULT_DATA: AppData = {
-  theme: { theme: "system", primaryColor: "#6366f1", fontSize: "md", reducedMotion: false },
+  theme: { theme: "system", primaryColor: "#6366f1", accentColor: "slate", fontSize: "md", reducedMotion: false, dyslexiaFriendly: false, highContrast: false, language: "en", voiceId: null, remindersEnabled: true, remindHabits: true, remindTasks: true, remindMentions: true, remindWellness: false, desktopNotifications: true, wellnessTime: "15:00" },
   habits: [],
   habitCategories: [
     { id: "health", name: "Health", color: "#22c55e", icon: "heart", createdAt: new Date().toISOString() },
@@ -38,16 +38,24 @@ const DEFAULT_DATA: AppData = {
   ],
   aiConversations: [],
   aiSuggestions: [],
-  selectedModel: "thallo-1.0" as const,
+  selectedModel: "logos-4.5" as const,
 
+  profile: {},
+  noorRelationship: "assistant" as const,
+  lexisMode: "workspace" as const,
   onboardingCompleted: false,
   lastSync: null,
+  links: [],
+  reminderDismissed: {},
+  dashboardWidgets: ["productivity", "stats", "tasks", "habits", "notes"],
+  spreadsheets: [],
 };
 
 class Storage {
   private data: AppData | null = null;
   private initialized = false;
   private initPromise: Promise<void> | null = null;
+  private listeners = new Set<() => void>();
 
   /**
    * Initialize storage — loads from IndexedDB, falls back to localStorage, then defaults.
@@ -64,24 +72,19 @@ class Storage {
           return;
         }
 
-        // Try IndexedDB first (async, non-blocking)
+        // Load from both sources — merge with localStorage winning on conflicts
+        // (localStorage is updated more frequently by success pages, OAuth flows, etc.)
         const idbData = await loadFromIDB();
-        if (idbData) {
-          this.data = { ...DEFAULT_DATA, ...idbData };
-          // Sync to localStorage as backup
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const lsData = raw ? JSON.parse(raw) : null;
+
+        if (idbData || lsData) {
+          // localStorage wins on any conflicting keys
+          this.data = { ...DEFAULT_DATA, ...idbData, ...lsData };
+          // Sync merged result to both stores
           try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
           } catch {}
-          this.initialized = true;
-          return;
-        }
-
-        // Fallback: migrate from localStorage
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          this.data = { ...DEFAULT_DATA, ...parsed };
-          // Migrate to IndexedDB
           await saveToIDB(this.data!);
           this.initialized = true;
           return;
@@ -137,6 +140,9 @@ class Storage {
     } catch (e) {
       console.error("Failed to save data", e);
     }
+
+    // Notify subscribers (relay sync, React re-renders, etc.)
+    this.notify();
   }
 
   // ============================================================
@@ -517,6 +523,147 @@ class Storage {
     } catch {
       return false;
     }
+  }
+
+
+  // ============================================================
+  // Subscribe
+  // ============================================================
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify() {
+    this.listeners.forEach((l) => l());
+  }
+
+  // ============================================================
+  // Profile
+  // ============================================================
+  getProfile(): UserProfile {
+    return this.getData().profile || {};
+  }
+
+  updateProfile(profile: Partial<UserProfile>): UserProfile {
+    const data = this.getData();
+    data.profile = { ...data.profile, ...profile };
+    this.saveData();
+    return data.profile;
+  }
+
+  // ============================================================
+  // Noor Relationship
+  // ============================================================
+  getNoorRelationship(): NoorRelationship {
+    return this.getData().noorRelationship || "assistant";
+  }
+
+  updateNoorRelationship(rel: NoorRelationship): void {
+    const data = this.getData();
+    data.noorRelationship = rel;
+    this.saveData();
+  }
+
+  // ============================================================
+  // Lexis Mode
+  // ============================================================
+  getLexisMode(): LexisMode {
+    return this.getData().lexisMode || "workspace";
+  }
+
+  updateLexisMode(mode: LexisMode): void {
+    const data = this.getData();
+    data.lexisMode = mode;
+    this.saveData();
+  }
+
+  // ============================================================
+  // Dashboard Widgets
+  // ============================================================
+  updateDashboardWidgets(widgets: WidgetId[]): void {
+    const data = this.getData();
+    data.dashboardWidgets = widgets;
+    this.saveData();
+  }
+
+  // ============================================================
+  // Spreadsheets (Grid)
+  // ============================================================
+  getSpreadsheets(): Spreadsheet[] {
+    return this.getData().spreadsheets;
+  }
+
+  getSpreadsheet(id: string): Spreadsheet | undefined {
+    return this.getData().spreadsheets.find((s) => s.id === id);
+  }
+
+  addSpreadsheet(name: string): Spreadsheet {
+    const sheetId = generateId();
+    const ss: Spreadsheet = {
+      id: generateId(), name, activeSheetId: sheetId,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      sheets: [{ id: sheetId, name: "Sheet 1", cells: {}, colWidths: {}, rowHeights: {}, rowCount: 100, colCount: 26, frozenRows: 0, frozenCols: 0, createdAt: new Date().toISOString() }],
+    };
+    const data = this.getData();
+    data.spreadsheets.push(ss);
+    this.saveData();
+    return ss;
+  }
+
+  updateSpreadsheet(id: string, patch: Partial<Spreadsheet>): void {
+    const data = this.getData();
+    const idx = data.spreadsheets.findIndex((s) => s.id === id);
+    if (idx === -1) return;
+    data.spreadsheets[idx] = { ...data.spreadsheets[idx], ...patch, updatedAt: new Date().toISOString() };
+    this.saveData();
+  }
+
+  deleteSpreadsheet(id: string): void {
+    const data = this.getData();
+    data.spreadsheets = data.spreadsheets.filter((s) => s.id !== id);
+    this.saveData();
+  }
+
+  updateCell(ssId: string, sheetId: string, cellKey: string, cell: import("@/types").Cell): void {
+    const data = this.getData();
+    const ss = data.spreadsheets.find((s) => s.id === ssId);
+    if (!ss) return;
+    const sheet = ss.sheets.find((s) => s.id === sheetId);
+    if (!sheet) return;
+    sheet.cells[cellKey] = cell;
+    ss.updatedAt = new Date().toISOString();
+    this.saveData();
+  }
+
+  // ============================================================
+  // Conversation Messages
+  // ============================================================
+  updateConversation(id: string, patch: Partial<AIConversation>): void {
+    const data = this.getData();
+    const idx = data.aiConversations.findIndex((c) => c.id === id);
+    if (idx === -1) return;
+    data.aiConversations[idx] = { ...data.aiConversations[idx], ...patch, updatedAt: new Date().toISOString() };
+    this.saveData();
+  }
+
+  replaceConversationMessages(convId: string, messages: AIMessage[]): void {
+    const data = this.getData();
+    const conv = data.aiConversations.find((c) => c.id === convId);
+    if (!conv) return;
+    conv.messages = messages;
+    conv.updatedAt = new Date().toISOString();
+    this.saveData();
+  }
+
+  // ============================================================
+  // Link Entities (Graph)
+  // ============================================================
+  linkEntities(source: string, target: string, type: string = "related"): void {
+    const data = this.getData();
+    const id = generateId();
+    data.links.push({ id, source, target, type });
+    this.saveData();
   }
 
   async clearAll(): Promise<void> {

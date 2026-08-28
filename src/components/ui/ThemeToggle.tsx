@@ -46,7 +46,7 @@ export function ThemeToggle() {
           className={cn(
             "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-200",
             theme === value
-              ? "bg-primary-500 text-white shadow-sm"
+              ? "bg-primary text-primary-foreground shadow-sm"
               : "text-muted-foreground hover:text-foreground hover:bg-secondary"
           )}
           title={label}

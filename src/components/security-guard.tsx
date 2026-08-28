@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * SecurityGuard — privacy-first client-side hardening.
+ * SecurityGuard - privacy-first client-side hardening.
  *
  * - Disables right-click context menu (casual copy attempts)
  * - Warns in console if devtools are suspected
@@ -52,22 +52,22 @@ export default function SecurityGuard() {
 
     // 4. Disable print (shortcut guarding)
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+P / Cmd+P — print
+      // Ctrl+P / Cmd+P - print
       if ((e.ctrlKey || e.metaKey) && e.key === "p") {
         e.preventDefault();
       }
-      // Ctrl+Shift+I / Cmd+Option+I — devtools
+      // Ctrl+Shift+I / Cmd+Option+I - devtools
       if (
         (e.ctrlKey && e.shiftKey && e.key === "i") ||
         (e.metaKey && e.altKey && e.key === "i")
       ) {
         e.preventDefault();
       }
-      // Ctrl+U — view source
+      // Ctrl+U - view source
       if ((e.ctrlKey || e.metaKey) && e.key === "u") {
         e.preventDefault();
       }
-      // Ctrl+S / Cmd+S — save (page source)
+      // Ctrl+S / Cmd+S - save (page source)
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
       }
@@ -80,7 +80,7 @@ export default function SecurityGuard() {
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
       const heightThreshold = window.outerHeight - window.innerHeight > threshold;
       if (widthThreshold || heightThreshold) {
-        document.title = "LEXIS — Privacy Protected";
+        document.title = "LEXIS - Privacy Protected";
         console.log(
           "%c[LEXIS] 🔒 DevTools detected. All data remains encrypted in your browser.",
           "color: #a1a1aa; font-size: 12px; font-weight: bold;"
@@ -89,14 +89,14 @@ export default function SecurityGuard() {
     };
     const devToolsInterval = setInterval(detectDevTools, 2000);
 
-    // 6. Console warning — privacy notice
+    // 6. Console warning - privacy notice
     const styles = [
       "color: #a1a1aa; font-size: 14px; font-weight: bold;",
       "color: #71717a; font-size: 12px;",
       "color: #a1a1aa; font-size: 11px;",
     ];
     console.log(
-      "%c🔒 LEXIS — Privacy Protected\n%cAll data is stored locally in your browser. No servers, no tracking, no data collection.\n%cIf someone asked you to paste something here, it's a scam. Keep your data safe.",
+      "%c🔒 LEXIS - Privacy Protected\n%cAll data is stored locally in your browser. No servers, no tracking, no data collection.\n%cIf someone asked you to paste something here, it's a scam. Keep your data safe.",
       styles[0],
       styles[1],
       styles[2]

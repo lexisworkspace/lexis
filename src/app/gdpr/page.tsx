@@ -1,11 +1,12 @@
 import { LegalPage } from "@/components/legal-page";
+import { LEXIS_EMAIL, GMAIL_COMPOSE_HREF } from "@/lib/contact";
 
 export default function GDPRPage() {
   return (
     <LegalPage
       title="GDPR & Data Processing"
       subtitle="General Data Protection Regulation compliance information for users in the European Economic Area."
-      lastUpdated="July 23, 2026"
+      lastUpdated="August 21, 2026"
     >
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Data Controller</h2>
@@ -20,8 +21,9 @@ export default function GDPRPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. Data We Collect</h2>
         <p>
           <strong>We collect no personal data.</strong> Lexis has no servers, databases, accounts, or analytics.
-          All data you enter - habits, journal entries, notes, tasks and settings - is stored exclusively in
-          your browser's IndexedDB and localStorage on your device.
+          All data you enter - habits, journal entries, notes, tasks, spreadsheets, widgets, and settings - is stored exclusively in
+          your browser's IndexedDB and localStorage on your device. Lexis is intended for users aged 16 and
+          over, and we do not process personal data relating to minors.
         </p>
       </section>
 
@@ -29,7 +31,7 @@ export default function GDPRPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">3. Lawful Basis for Processing</h2>
         <p>
           As we process no personal data, there is no lawful basis required. The data you create is processed
-          locally by your own browser for the sole purpose of providing the application's functionality.
+          locally by your own browser for the sole purpose of providing the application's functionality. Where you choose to use Noor’s AI features, your prompts are sent to NVIDIA’s NIM API on the basis of your consent (Article 6(1)(a) GDPR), given through the explicit act of sending a message. You can withdraw consent at any time by simply not using AI features.
         </p>
       </section>
 
@@ -50,7 +52,7 @@ export default function GDPRPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">5. International Transfers</h2>
         <p>
           No personal data is transferred internationally because no personal data leaves your device. If you use
-          AI features via OpenRouter, your prompts are sent to OpenRouter's servers which may be located outside
+          AI features via Noor, your prompts are sent to NVIDIA's NIM API servers which may be located outside
           the EEA. This is done with your explicit action (sending a message) and can be avoided by not using
           AI features.
         </p>
@@ -60,11 +62,12 @@ export default function GDPRPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">6. Data Processing Agreement (DPA)</h2>
         <p className="mb-3">
           As Lexis processes no personal data on its servers, a formal Data Processing Agreement is not required.
-          For AI features via OpenRouter, the processing is governed by OpenRouter's own DPA.
+          For AI features via Noor, the processing is governed by NVIDIA's own terms. Optional profile information
+          you provide (name, preferences, etc.) stays on your device and is not processed by us.
         </p>
         <ul className="list-disc pl-6 space-y-1.5">
-          <li>OpenRouter acts as a data processor when you send prompts</li>
-          <li>Prompts are not stored by OpenRouter after processing</li>
+          <li>NVIDIA acts as a data processor when you send prompts to Noor</li>
+          <li>Prompts are handled under NVIDIA’s own API terms after processing; Lexis cannot control NVIDIA’s internal logging</li>
           <li>You can avoid this processing entirely by not using AI features</li>
           <li>All core tools (habits, journal, notes, tasks) work fully offline without AI</li>
         </ul>
@@ -73,7 +76,11 @@ export default function GDPRPage() {
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">7. Contact for GDPR Inquiries</h2>
         <p>
-          For GDPR-related questions, reach out via the Buy Me a Coffee page. Since we process no personal data,
+          For GDPR-related questions, email us at{" "}
+          <a href={GMAIL_COMPOSE_HREF} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-primary transition-colors">
+            {LEXIS_EMAIL}
+          </a>{" "}
+          (opens Gmail) or reach out via the Buy Me a Coffee page. Since we process no personal data,
           formal Data Subject Access Requests are not applicable, but we are happy to address any concerns.
         </p>
       </section>

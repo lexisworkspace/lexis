@@ -73,9 +73,9 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["Sora", "system-ui", "sans-serif"],
-        serif: ["Fraunces", "Georgia", "serif"],
-        heading: ["Sora", "system-ui", "sans-serif"],
+        sans: ["var(--font-instrument)", "system-ui", "sans-serif"],
+        serif: ["var(--font-fraunces)", "Georgia", "serif"],
+        heading: ["var(--font-instrument)", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
       },
       borderRadius: {

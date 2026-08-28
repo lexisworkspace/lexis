@@ -2,7 +2,7 @@ import { LegalPage } from "@/components/legal-page";
 
 export default function EulaPage() {
   return (
-    <LegalPage title="End User License Agreement" lastUpdated="July 23, 2026">
+    <LegalPage title="End User License Agreement" lastUpdated="August 21, 2026">
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Grant of License</h2>
         <p>
@@ -19,7 +19,7 @@ export default function EulaPage() {
           This license does not grant you any ownership rights to the application itself.
         </p>
         <p>
-          Content you create within Lexis - including habits, journal entries, notes, tasks and settings - remains
+          Content you create within Lexis - including habits, journal entries, notes, tasks, spreadsheets, widgets, Noor chats, and settings - remains
           your sole property. Lexis claims no ownership over your data or content.
         </p>
       </section>
@@ -36,7 +36,15 @@ export default function EulaPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">4. Restrictions</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">4. Age Requirement</h2>
+        <p>
+          By accepting this license and using Lexis, you confirm that you are at least 13 years old.
+          The application is not directed at, and may not be used by, anyone under 13.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">5. Restrictions</h2>
         <p className="mb-3">You may not:</p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li>Sell, redistribute, or sublicense the Lexis application</li>
@@ -48,7 +56,7 @@ export default function EulaPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">5. Updates and Modifications</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">6. Updates and Modifications</h2>
         <p>
           Lexis may be updated from time to time. Updates are provided at no cost. The project maintainer reserves
           the right to modify, suspend, or discontinue the application at any time without notice.
@@ -56,7 +64,7 @@ export default function EulaPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">6. Termination</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">7. Termination</h2>
         <p>
           This license is effective until terminated. It terminates automatically if you violate any terms. Upon
           termination, you must cease all use of the application. Your data remains on your device.
@@ -64,7 +72,7 @@ export default function EulaPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">7. Open Source Status</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">8. Open Source Status</h2>
         <p>
           While Lexis is shared as an open, non-profit project, specific open source licensing terms may apply to
           the source code. The application is provided "as visible" - users are encouraged to explore, learn from,
@@ -73,7 +81,7 @@ export default function EulaPage() {
       </section>
 
       <section>
-        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">8. Governing Law</h2>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">9. Governing Law</h2>
         <p>
           This EULA shall be governed by applicable local laws. Any disputes shall be resolved in the competent
           courts of the jurisdiction.

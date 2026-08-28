@@ -24,22 +24,22 @@ export const viewport: Viewport = {
   ],
 };
 
-function isLandingDomain() {
+async function isLandingDomain() {
   try {
-    const h = headers();
+    const h = await headers();
     const host = h.get("x-forwarded-host") || h.get("host") || "";
-    return host.includes("lexis-suite") || host.includes("lexis-landing");
+    return host.includes("lexis-suite") || host.includes("lexis-landing") || host === "lexisapp.xyz" || host === "www.lexisapp.xyz";
   } catch {
     return false;
   }
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const landing = isLandingDomain();
+  const landing = await isLandingDomain();
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -48,7 +48,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Sora:wght@300..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=Sora:wght@300..800&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=JetBrains+Mono:wght@400;500;600&display=swap"
         />
         <script
           dangerouslySetInnerHTML={{
@@ -68,7 +68,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-background antialiased">
-        landing ? children : <ClientLayout>{children}</ClientLayout>
+        {landing ? children : <ClientLayout>{children}</ClientLayout>}
       </body>
     </html>
   );

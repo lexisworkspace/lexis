@@ -1,0 +1,32 @@
+name: lexis-desktop
+version: '2.0.0'
+summary: Local-first AI productivity suite
+description: |
+  Lexis is a local-first AI productivity suite combining habits, notes,
+  journal, tasks, spreadsheets, and AI-powered insights.
+grade: stable
+confinement: strict
+base: core24
+architectures:
+  - build-on: amd64
+
+apps:
+  lexis-desktop:
+    command: lexis-desktop --no-sandbox
+    extensions: [gnome]
+    plugs:
+      - browser-support
+      - desktop
+      - desktop-legacy
+      - home
+      - network
+      - opengl
+      - wayland
+      - x11
+
+parts:
+  lexis-desktop:
+    plugin: dump
+    source: dist/Lexis-2.0.0-linux-x86_64.AppImage
+    organize:
+      '*.AppImage': bin/lexis-desktop

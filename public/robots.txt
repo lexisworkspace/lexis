@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Block nothing - the whole site is public and indexable.
+# Note: the app pages sit behind a local password gate and are client-rendered;
+# the marketing domain (lexis-suite) serves the landing + policy pages publicly.
+
+Sitemap: https://lexisapp.xyz/sitemap.xml

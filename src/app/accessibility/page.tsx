@@ -5,7 +5,7 @@ export default function AccessibilityPage() {
     <LegalPage
       title="Accessibility Statement"
       subtitle="Our commitment to making Lexis usable for everyone."
-      lastUpdated="July 19, 2026"
+      lastUpdated="August 21, 2026"
     >
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Our Commitment</h2>
@@ -21,9 +21,11 @@ export default function AccessibilityPage() {
         <p className="mb-3">Lexis incorporates the following accessibility features:</p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li><strong>Focus Indicators</strong> - Visible focus rings on all interactive elements</li>
+          <li><strong>Accessible Onboarding</strong> - The setup flow (age confirmation, language, appearance, and the optional profile) is fully keyboard-navigable, with labels and focus states on every control</li>
           <li><strong>Font Size Options</strong> - Adjustable font sizes in Settings (Small, Medium, Large)</li>
           <li><strong>ARIA Labels</strong> - Semantic HTML and ARIA attributes where appropriate</li>
           <li><strong>Color Contrast</strong> - High-contrast dark theme as default with custom theme support</li>
+          <li><strong>Reduced Motion</strong> - Animations respect your system’s reduce-motion setting and stay light on mobile</li>
           <li><strong>Semantic Structure</strong> - Proper heading hierarchy and landmark regions</li>
         </ul>
       </section>
@@ -52,7 +54,7 @@ export default function AccessibilityPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">5. Ongoing Improvements</h2>
         <p>
           We are committed to improving accessibility with each update. Planned improvements include better screen
-          reader support for charts and analytics, improved focus management in modals, and enhanced keyboard
+          reader support for charts and analytics, improved focus management in modals and spreadsheets, and enhanced keyboard
           navigation for complex interfaces.
         </p>
       </section>

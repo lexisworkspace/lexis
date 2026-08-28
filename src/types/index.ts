@@ -4,12 +4,41 @@
 
 export type Theme = "light" | "dark" | "system";
 export type ViewMode = "list" | "grid" | "kanban" | "calendar";
+export type AccentColor = "slate" | "amber" | "emerald" | "sky" | "violet" | "rose" | "orange";
+export type LexisMode = "workspace" | "canvas" | "clone";
+export type NoorRelationship = "observer" | "assistant" | "operator";
+
+export interface UserProfile {
+  name?: string;
+  pronouns?: string;
+  ageRange?: string;
+  timeZone?: string;
+  workStudy?: string | string[];
+  interests?: string[];
+  schedule?: string;
+  productivityPrefs?: string | string[];
+  communicationPrefs?: string | string[];
+  goals?: string;
+  helpWith?: string[];
+}
 
 export interface ThemeConfig {
   theme: Theme;
   primaryColor: string;
+  accentColor: AccentColor;
   fontSize: "sm" | "md" | "lg";
   reducedMotion: boolean;
+  dyslexiaFriendly: boolean;
+  highContrast: boolean;
+  language: string;
+  voiceId: string | null;
+  remindersEnabled: boolean;
+  remindHabits: boolean;
+  remindTasks: boolean;
+  remindMentions: boolean;
+  remindWellness: boolean;
+  desktopNotifications: boolean;
+  wellnessTime: string;
 }
 
 // ============================================================
@@ -98,12 +127,15 @@ export interface Note {
 }
 
 export interface Attachment {
-  id: string;
+  id?: string;
   name: string;
-  type: "image" | "file" | "link";
-  url: string;
+  type?: "image" | "file" | "link" | string;
+  url?: string;
+  dataUrl?: string;
+  description?: string;
+  kind?: string;
   size?: number;
-  createdAt: string;
+  createdAt?: string;
 }
 
 // ============================================================
@@ -208,17 +240,44 @@ export interface WeeklySummary {
 // AI Types
 // ============================================================
 
-export type AIModel = "arete-1.5" | "thallo-1.0" | "tsubame-0.7" | "jarvis-1.0";
+export type AIModel = "ethos-4.7" | "logos-4.5" | "verse-4";
 
+export type AISource = {
+  id?: string;
+  kind: "document" | "journal" | "task" | "habit" | "web";
+  title: string;
+  url?: string;
+  href?: string;
+  snippet: string;
+};
+
+export type BriefAction = {
+  id?: string;
+  type?: string;
+  label?: string;
+  detail?: string;
+  action?: string;
+  params?: Record<string, unknown>;
+};
+
+export const MODEL_ALIASES: Record<string, AIModel> = {
+  ethos: "ethos-4.7",
+  logos: "logos-4.5",
+  verse: "verse-4",
+  "ethos-4.7": "ethos-4.7",
+  "logos-4.5": "logos-4.5",
+  "verse-4": "verse-4",
+  // Legacy aliases for migration
+  "ethos-1.5": "ethos-4.7",
+  "logos-1.2": "logos-4.5",
+  "verse-0.8": "verse-4",
+};
 
 export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
-  { id: "arete-1.5", name: "Arete 1.5", description: "Most complex and reasonable", tagline: "Deep analysis & strategic thinking", contextWindow: 20, responseStyle: "thorough" },
-  { id: "thallo-1.0", name: "Thallo 1.0", description: "Best for everyday tasks", tagline: "Balanced, practical, actionable", contextWindow: 12, responseStyle: "balanced" },
-  { id: "tsubame-0.7", name: "Tsubame 0.7", description: "Best for quick answers", tagline: "Fast, concise, to the point", contextWindow: 6, responseStyle: "concise" },
-  { id: "jarvis-1.0", name: "Jarvis 1.0", description: "Your personal AI assistant", tagline: "Anticipatory, polished, and attentive", contextWindow: 25, responseStyle: "anticipatory" },
+  { id: "ethos-4.7", name: "Ethos 4.7", description: "Most complex and reasonable", tagline: "Deep analysis & strategic thinking", contextWindow: 40, responseStyle: "thorough" },
+  { id: "logos-4.5", name: "Logos 4.5", description: "Best for everyday tasks", tagline: "Balanced, practical, actionable", contextWindow: 24, responseStyle: "balanced" },
+  { id: "verse-4", name: "Verse 4", description: "Best for quick answers", tagline: "Fast, concise, to the point", contextWindow: 12, responseStyle: "concise" },
 ];
-
-
 
 export interface AIMessage {
   id: string;
@@ -226,12 +285,19 @@ export interface AIMessage {
   content: string;
   timestamp: string;
   model?: AIModel;
+  pinned?: boolean;
+  attachments?: Attachment[];
+  image?: string | { dataUrl: string; prompt: string; };
+  sources?: AISource[];
+  actions?: BriefAction[];
+  branch?: string | boolean;
 }
 
 export interface AIConversation {
   id: string;
   title: string;
   messages: AIMessage[];
+  pinned?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -246,12 +312,74 @@ export interface AISuggestion {
 }
 
 // ============================================================
+// Graph Types
+// ============================================================
+
+export interface GraphLink {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+}
+
+// ============================================================
+// Widget Types
+// ============================================================
+
+export type WidgetId =
+  | "productivity" | "stats" | "tasks" | "habits" | "notes"
+  | "streak" | "quote" | "quick-note" | "pomodoro" | "mood";
+
+export interface WidgetDef {
+  id: WidgetId;
+  name: string;
+  description: string;
+  icon: string;
+  default: boolean;
+}
+
+// ============================================================
+// Grid (Spreadsheet) Types
+// ============================================================
+
+export type CellFormat = {
+  bold?: boolean;
+  italic?: boolean;
+  align?: "left" | "center" | "right";
+  bgColor?: string;
+  textColor?: string;
+};
+
+export interface Cell {
+  value: string;
+  formula?: string;
+  format?: CellFormat;
+}
+
+export interface Sheet {
+  id: string;
+  name: string;
+  cells: Record<string, Cell>;
+  colWidths: Record<string, number>;
+  rowHeights: Record<string, number>;
+  rowCount: number;
+  colCount: number;
+  frozenRows: number;
+  frozenCols: number;
+  createdAt: string;
+}
+
+export interface Spreadsheet {
+  id: string;
+  name: string;
+  sheets: Sheet[];
+  activeSheetId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ============================================================
 // App State
-// ============================================================
-
-// ============================================================
-// ============================================================
-
 // ============================================================
 
 export interface AppData {
@@ -268,9 +396,15 @@ export interface AppData {
   aiConversations: AIConversation[];
   aiSuggestions: AISuggestion[];
   selectedModel: AIModel;
-
+  profile: UserProfile;
+  noorRelationship: NoorRelationship;
+  lexisMode: LexisMode;
   onboardingCompleted: boolean;
   lastSync: string | null;
+  links: GraphLink[];
+  reminderDismissed: Record<string, string>;
+  dashboardWidgets: WidgetId[];
+  spreadsheets: Spreadsheet[];
 }
 
 export const PRIORITY_CONFIG = {

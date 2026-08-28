@@ -16,6 +16,7 @@ import {
   Repeat,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   MoreHorizontal,
   AlertCircle,
   ArrowUp,
@@ -26,17 +27,22 @@ import {
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { cn, getToday, formatDate, generateId } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { Task, TaskPriority, TaskStatus, RecurringType, ViewMode, PRIORITY_CONFIG, STATUS_CONFIG, DAYS_OF_WEEK } from "@/types";
 
 export default function TasksPage() {
+  const { t } = useI18n();
   const [data, setData] = useState(storage.getData());
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
+  const [quickAdd, setQuickAdd] = useState("");
+  const [justCompleted, setJustCompleted] = useState<string | null>(null);
 
   const refresh = () => setData({ ...storage.getData() });
+  useEffect(() => storage.subscribe(() => setData({ ...storage.getData() })), []);
 
   const tasks = data.tasks
     .filter((t) => t.status !== "archived")
@@ -58,17 +64,33 @@ export default function TasksPage() {
 
   const kanbanColumns: TaskStatus[] = ["todo", "in_progress", "done"];
 
+  // Manual order only applies to undated tasks (the "Other" group).
+  const otherTasks = tasks
+    .filter((t) => !t.dueDate && t.status !== "done")
+    .sort((a, b) => a.order - b.order);
+
+  const moveTask = (id: string, dir: -1 | 1) => {
+    const idx = otherTasks.findIndex((t) => t.id === id);
+    const swap = idx + dir;
+    if (idx < 0 || swap < 0 || swap >= otherTasks.length) return;
+    const a = otherTasks[idx];
+    const b = otherTasks[swap];
+    storage.updateTask(a.id, { order: b.order });
+    storage.updateTask(b.id, { order: a.order });
+    refresh();
+  };
+
   const getPriorityIcon = (p: TaskPriority) => {
     switch (p) {
-      case "urgent": return <AlertCircle className="h-4 w-4 text-zinc-400" />;
-      case "high": return <ArrowUp className="h-4 w-4 text-zinc-400" />;
-      case "medium": return <Minus className="h-4 w-4 text-zinc-400" />;
+      case "urgent": return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+      case "high": return <ArrowUp className="h-4 w-4 text-muted-foreground" />;
+      case "medium": return <Minus className="h-4 w-4 text-muted-foreground" />;
       case "low": return <ArrowDown className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
   return (
-    <div className="relative space-y-8">
+    <div className="relative space-y-6 md:space-y-8">
 
       {/* Header */}
       <motion.div
@@ -78,16 +100,17 @@ export default function TasksPage() {
         className="flex flex-wrap items-start justify-between gap-3 relative"
       >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight leading-none">Tasks</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-none">Tasks</h1>
           <p className="text-sm text-muted-foreground leading-relaxed mt-2 max-w-xs">
             {overdueTasks.length > 0
-              ? `${overdueTasks.length} overdue`
-              : `${tasks.filter((t) => t.status !== "done").length} pending`}
+              ? `${overdueTasks.length} ${t("tasks.overdue")}`
+              : `${tasks.filter((t) => t.status !== "done").length} ${t("tasks.pending")}`}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* View Toggle */}
-          <div className="flex items-center rounded-md border border-border p-0.5">
+          {/* View Toggle - desktop-only (list is the mobile view; kanban &
+              calendar need a wide screen) */}
+          <div className="hidden md:flex items-center rounded-md border border-border p-0.5">
             {[
               { mode: "list" as ViewMode, icon: List },
               { mode: "kanban" as ViewMode, icon: Columns },
@@ -107,7 +130,7 @@ export default function TasksPage() {
           </div>
           <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Task</span>
+            <span className="hidden sm:inline">{t("tasks.addTask")}</span>
           </button>
         </div>
       </motion.div>
@@ -130,7 +153,7 @@ export default function TasksPage() {
                   filterStatus === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {s === "all" ? "All" : STATUS_CONFIG[s as TaskStatus]?.label || s}
+                {s === "all" ? t("tasks.all") : t(s === "todo" ? "tasks.toDo" : s === "in_progress" ? "tasks.inProgress" : "tasks.done")}
               </button>
             ))}
           </div>
@@ -144,12 +167,55 @@ export default function TasksPage() {
                   filterPriority === p ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {p === "all" ? "All" : p}
+                {p === "all" ? t("tasks.all") : t("tasks." + p)}
               </button>
             ))}
           </div>
         </div>
       </motion.div>
+
+      {/* Quick Add */}
+      {viewMode === "list" && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const title = quickAdd.trim();
+            if (!title) return;
+            storage.createTask({
+              title,
+              description: "",
+              status: "todo",
+              priority: "medium",
+              dueDate: null,
+              dueTime: null,
+              tags: [],
+              listId: null,
+              recurring: "none",
+              recurringEndDate: null,
+              estimatedMinutes: null,
+              completedAt: null,
+            });
+            setQuickAdd("");
+            refresh();
+          }}
+          className="flex gap-2"
+        >
+          <input
+            value={quickAdd}
+            onChange={(e) => setQuickAdd(e.target.value)}
+            placeholder={t("tasks.quickAdd")}
+            className="input-field"
+          />
+          <button
+            type="submit"
+            disabled={!quickAdd.trim()}
+            className="btn-primary shrink-0 px-4"
+            title={t("tasks.addTask")}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+        </form>
+      )}
 
       {/* List View */}
       {viewMode === "list" && (
@@ -157,9 +223,9 @@ export default function TasksPage() {
           {/* Overdue */}
           {overdueTasks.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-zinc-400 mb-2 flex items-center gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" />
-                Overdue ({overdueTasks.length})
+                {t("tasks.overdue")} ({overdueTasks.length})
               </h3>
               <div className="space-y-2">
                 {overdueTasks.map((task) => (
@@ -173,7 +239,7 @@ export default function TasksPage() {
           <div>
             <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
               <CalendarIcon className="h-4 w-4 text-primary-500" />
-              Today
+              {t("tasks.today")}
             </h3>
             {todayTasks.length > 0 ? (
               <div className="space-y-2">
@@ -182,7 +248,7 @@ export default function TasksPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-3 px-4">No tasks due today</p>
+              <p className="text-sm text-muted-foreground py-3 px-4">{t("tasks.noTasksDueToday")}</p>
             )}
           </div>
 
@@ -191,7 +257,7 @@ export default function TasksPage() {
             <div>
               <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                Upcoming
+                {t("tasks.upcoming")}
               </h3>
               <div className="space-y-2">
                 {upcomingTasks.map((task) => (
@@ -201,16 +267,22 @@ export default function TasksPage() {
             </div>
           )}
 
-          {/* Remaining (no due date) */}
-          {tasks.filter((t) => !t.dueDate && t.status !== "done").length > 0 && (
+          {/* Remaining (no due date) - manually ordered */}
+          {otherTasks.length > 0 && (
             <div>
               <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-muted-foreground" />
-                Other
+                {t("tasks.other")}
               </h3>
               <div className="space-y-2">
-                {tasks.filter((t) => !t.dueDate && t.status !== "done").map((task) => (
-                  <TaskCard key={task.id} task={task} onRefresh={refresh} />
+                {otherTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onRefresh={refresh}
+                    onMoveUp={() => moveTask(task.id, -1)}
+                    onMoveDown={() => moveTask(task.id, 1)}
+                  />
                 ))}
               </div>
             </div>
@@ -222,7 +294,7 @@ export default function TasksPage() {
               <details className="group">
                 <summary className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer py-2">
                   <ChevronRight className="h-4 w-4 group-open:rotate-90 transition-transform" />
-                  Completed ({tasks.filter((t) => t.status === "done").length})
+                  {t("tasks.completed")} ({tasks.filter((t) => t.status === "done").length})
                 </summary>
                 <div className="space-y-2 mt-2">
                   {tasks.filter((t) => t.status === "done").map((task) => (
@@ -245,7 +317,7 @@ export default function TasksPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className="h-3 w-3 rounded-full" style={{ backgroundColor: STATUS_CONFIG[status].color }} />
-                    <h3 className="font-medium text-sm">{STATUS_CONFIG[status].label}</h3>
+                    <h3 className="font-medium text-sm">{t(status === "todo" ? "tasks.toDo" : status === "in_progress" ? "tasks.inProgress" : "tasks.done")}</h3>
                   </div>
                   <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
                     {columnTasks.length}
@@ -277,13 +349,13 @@ export default function TasksPage() {
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); storage.deleteTask(task.id); refresh(); }}
-                          className="text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
+                          className="touch-reveal text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       {task.dueDate && (
-                        <p className={cn("text-xs mt-2",                          task.dueDate < getToday() && task.status !== "done" ? "text-zinc-400" : "text-muted-foreground")}>
+                        <p className={cn("text-xs mt-2",                          task.dueDate < getToday() && task.status !== "done" ? "text-muted-foreground" : "text-muted-foreground")}>
                           {formatDate(task.dueDate)}
                         </p>
                       )}
@@ -291,7 +363,7 @@ export default function TasksPage() {
                   ))}
                   {columnTasks.length === 0 && (
                     <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                      Drop tasks here
+                      {t("tasks.dropHere")}
                     </div>
                   )}
                 </div>
@@ -315,8 +387,8 @@ export default function TasksPage() {
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-muted">
             <ListTodo className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-bold tracking-tight mb-1">No tasks yet</h3>
-          <p className="text-sm text-muted-foreground mb-6 leading-relaxed max-w-xs">Create your first task to get started!</p>
+          <h3 className="text-lg font-bold tracking-tight mb-1">{t("tasks.noTasksYet")}</h3>
+          <p className="text-sm text-muted-foreground mb-6 leading-relaxed max-w-xs">{t("tasks.createFirst")}</p>
           <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Task
@@ -347,7 +419,8 @@ export default function TasksPage() {
   );
 }
 
-function TaskCard({ task, onRefresh }: { task: Task; onRefresh: () => void }) {
+function TaskCard({ task, onRefresh, onMoveUp, onMoveDown }: { task: Task; onRefresh: () => void; onMoveUp?: () => void; onMoveDown?: () => void }) {
+  const { t } = useI18n();
   const today = getToday();
 
   return (
@@ -363,15 +436,22 @@ function TaskCard({ task, onRefresh }: { task: Task; onRefresh: () => void }) {
       <button
         onClick={() => { storage.toggleTask(task.id); onRefresh(); }}
         className="shrink-0"
+        aria-label={task.status === "done" ? t("tasks.markUndone") : t("tasks.markDone")}
       >
-        <div className={cn(
-          "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all",
-          task.status === "done"
-            ? "border-zinc-500 bg-zinc-500"
-            : "border-muted-foreground/30 hover:border-primary-500"
-        )}>
+        <motion.div
+          key={task.completedAt || "open"}
+          initial={task.status === "done" ? { scale: 0.4 } : false}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 18 }}
+          className={cn(
+            "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors",
+            task.status === "done"
+              ? "border-zinc-500 bg-zinc-500"
+              : "border-muted-foreground/30 hover:border-primary-500"
+          )}
+        >
           {task.status === "done" && <CheckCircle2 className="h-4 w-4 text-white" />}
-        </div>
+        </motion.div>
       </button>
 
       <div className="flex-1 min-w-0">
@@ -380,14 +460,14 @@ function TaskCard({ task, onRefresh }: { task: Task; onRefresh: () => void }) {
             {task.title}
           </p>
           {task.priority === "urgent" && (
-            <span className="tag bg-zinc-500/10 text-zinc-400 text-[10px]">Urgent</span>
+            <span className="tag bg-muted text-muted-foreground text-[10px]">{t("tasks.urgent")}</span>
           )}
         </div>
         <div className="flex items-center gap-3 mt-0.5">
           {task.dueDate && (
             <span className={cn(
               "text-xs flex items-center gap-1",
-              task.dueDate < today && task.status !== "done" ? "text-zinc-400" : "text-muted-foreground"
+              task.dueDate < today && task.status !== "done" ? "text-muted-foreground" : "text-muted-foreground"
             )}>
               <Clock className="h-3 w-3" />
               {formatDate(task.dueDate)}
@@ -397,28 +477,39 @@ function TaskCard({ task, onRefresh }: { task: Task; onRefresh: () => void }) {
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Repeat className="h-3 w-3" />
               {task.recurring === "weekly" && task.recurringDays?.length
-                ? `Weekly on ${task.recurringDays.map((d) => DAYS_OF_WEEK[d]).join(", ")}`
-                : task.recurring}
+                ? `${t("tasks.weeklyOn")} ${task.recurringDays.map((d) => DAYS_OF_WEEK[d]).join(", ")}`
+                : task.recurring === "daily" ? t("tasks.daily") : task.recurring === "weekly" ? t("tasks.weeklyPick") : t("tasks.monthly")}
             </span>
           )}
           <span className={cn(
             "text-xs px-1.5 py-0.5 rounded",
-            task.priority === "urgent" ? "bg-zinc-500/10 text-zinc-400" :
-            task.priority === "high" ? "bg-zinc-500/10 text-zinc-400" :
-            task.priority === "medium" ? "bg-zinc-500/10 text-zinc-400" :
+            task.priority === "urgent" ? "bg-muted text-muted-foreground" :
+            task.priority === "high" ? "bg-muted text-muted-foreground" :
+            task.priority === "medium" ? "bg-muted text-muted-foreground" :
             "bg-muted text-muted-foreground"
           )}>
-            {task.priority}
+            {t("tasks." + task.priority)}
           </span>
         </div>
-      </div>              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={(e) => { e.stopPropagation(); storage.deleteTask(task.id); onRefresh(); }} className="btn-ghost p-1 text-zinc-400 hover:text-foreground"><Trash2 className="h-3.5 w-3.5" /></button>
+      </div>              <div className="touch-reveal flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {onMoveUp && (
+                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} className="btn-ghost p-1 text-muted-foreground hover:text-foreground" title={t("tasks.moveUp")}>
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                {onMoveDown && (
+                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} className="btn-ghost p-1 text-muted-foreground hover:text-foreground" title={t("tasks.moveDown")}>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); storage.deleteTask(task.id); onRefresh(); }} className="btn-ghost p-1 text-muted-foreground hover:text-foreground"><Trash2 className="h-3.5 w-3.5" /></button>
               </div>
     </motion.div>
   );
 }
 
 function CalendarView({ tasks, onRefresh }: { tasks: Task[]; onRefresh: () => void }) {
+  const { t } = useI18n();
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
@@ -454,7 +545,7 @@ function CalendarView({ tasks, onRefresh }: { tasks: Task[]; onRefresh: () => vo
             }}
             className="btn-ghost text-sm"
           >
-            Today
+            {t("common.today")}
           </button>
           <button
             onClick={() => {
@@ -504,7 +595,7 @@ function CalendarView({ tasks, onRefresh }: { tasks: Task[]; onRefresh: () => vo
                     className={cn(
                       "text-[10px] px-1 py-0.5 rounded truncate cursor-pointer",
                       task.status === "done" ? "line-through text-muted-foreground bg-muted" :
-                      task.priority === "urgent" ? "bg-zinc-500/10 text-zinc-400" :
+                      task.priority === "urgent" ? "bg-muted text-muted-foreground" :
                       "bg-primary-500/10 text-primary-500"
                     )}
                     onClick={() => { storage.toggleTask(task.id); onRefresh(); }}
@@ -532,6 +623,7 @@ function TaskForm({
   onSave: (data: any) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(task?.title || "");
   const [description, setDescription] = useState(task?.description || "");
   const [priority, setPriority] = useState<TaskPriority>(task?.priority || "medium");
@@ -564,7 +656,7 @@ function TaskForm({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold">{task ? "Edit Task" : "New Task"}</h2>
+          <h2 className="text-lg font-bold">{task ? t("tasks.editTask") : t("tasks.newTask")}</h2>
           <button onClick={onClose} className="btn-ghost p-1">
             <X className="h-5 w-5" />
           </button>
@@ -572,49 +664,49 @@ function TaskForm({
 
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Title</label>
+            <label className="text-sm font-medium mb-1.5 block">{t("tasks.titleField")}</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="What needs to be done?"
+              placeholder={t("tasks.titleField")}
               className="input-field"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-1.5 block">Description (optional)</label>
+            <label className="text-sm font-medium mb-1.5 block">{t("tasks.descOptional")}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add details..."
+              placeholder={t("tasks.descOptional")}
               className="input-field min-h-[80px] resize-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Priority</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.priority")}</label>
               <select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} className="input-field">
-                <option value="urgent">🔴 Urgent</option>
-                <option value="high">🟠 High</option>
-                <option value="medium">🔵 Medium</option>
-                <option value="low">⚪ Low</option>
+                <option value="urgent">🔴 {t("tasks.urgent")}</option>
+                <option value="high">🟠 {t("tasks.high")}</option>
+                <option value="medium">🔵 {t("tasks.medium")}</option>
+                <option value="low">⚪ {t("tasks.low")}</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Status</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.status")}</label>
               <select value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)} className="input-field">
-                <option value="todo">📋 To Do</option>
-                <option value="in_progress">🔄 In Progress</option>
-                <option value="done">✅ Done</option>
+                <option value="todo">📋 {t("tasks.toDo")}</option>
+                <option value="in_progress">🔄 {t("tasks.inProgress")}</option>
+                <option value="done">✅ {t("tasks.done")}</option>
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Due Date</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.dueDate")}</label>
               <input
                 type="date"
                 value={dueDate}
@@ -623,7 +715,7 @@ function TaskForm({
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Due Time</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.dueTime")}</label>
               <input
                 type="time"
                 value={dueTime}
@@ -635,18 +727,18 @@ function TaskForm({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Recurring</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.recurring")}</label>
               <select value={recurring} onChange={(e) => { setRecurring(e.target.value as RecurringType); setRecurringDays([]); }} className="input-field">
-                <option value="none">Never</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly (Pick Days)</option>
-                <option value="monthly">Monthly</option>
+                <option value="none">{t("tasks.never")}</option>
+                <option value="daily">{t("tasks.daily")}</option>
+                <option value="weekly">{t("tasks.weeklyPick")}</option>
+                <option value="monthly">{t("tasks.monthly")}</option>
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">List</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.list")}</label>
               <select value={listId} onChange={(e) => setListId(e.target.value)} className="input-field">
-                <option value="">None</option>
+                <option value="">{t("common.none")}</option>
                 {taskLists.map((l) => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
@@ -656,7 +748,7 @@ function TaskForm({
 
           {recurring === "weekly" && (
             <div>
-              <label className="text-sm font-medium mb-1.5 block">Repeat on</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("tasks.repeatOn")}</label>
               <div className="flex gap-1.5">
                 {DAYS_OF_WEEK.map((day, idx) => (
                   <button
@@ -678,7 +770,7 @@ function TaskForm({
           )}
 
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{t("common.cancel")}</button>
             <button
               onClick={() => {
                 if (!title.trim()) return;
@@ -701,7 +793,7 @@ function TaskForm({
               disabled={!title.trim()}
               className="btn-primary flex-1"
             >
-              {task ? "Save Changes" : "Add Task"}
+              {task ? t("tasks.saveChanges") : t("tasks.addTask")}
             </button>
           </div>
         </div>
