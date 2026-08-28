@@ -50,3 +50,10 @@ public/downloads
 desktop-artifacts/
 
 .github/workflows/
+
+.env*
+.env
+
+.env*
+.env
+scripts-test/lexis-env.txt
