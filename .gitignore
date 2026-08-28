@@ -48,3 +48,5 @@ public/downloads
 .env*.local
 
 desktop-artifacts/
+
+.github/workflows/
