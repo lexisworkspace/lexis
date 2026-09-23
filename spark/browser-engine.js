@@ -179,6 +179,10 @@ class BrowserEngine {
     this.pageInputEnabled = true; // false while a chrome overlay owns the cursor
     this.uiTop = 0;      // px reserved at the top of the window for Spark chrome
     this.uiLeft = 0;     // px reserved at the left (sidebar)
+    this.cookiePolicy = opts.cookiePolicy || "third-party"; // settings-driven
+    this.doNotTrack = !!opts.doNotTrack;                    // settings-driven
+    this.zoomFactor = Number(opts.zoomFactor) || 1;         // settings-driven page zoom
+    this.newTabPosition = opts.newTabPosition || "afterActive";
     this.setDataDir(opts.dataDir || app.getPath("userData"));
   }
 
@@ -233,14 +237,19 @@ class BrowserEngine {
       callback({ cancel: false });
     });
 
-    // Third-party cookies: block in third-party contexts
+    // Third-party cookies: block in third-party contexts (or everywhere if
+    // the user chose the stricter policy). Cookie policy comes from settings:
+    //   "third-party" (default) | "all" | "none"
     ses.webRequest.onHeadersReceived({ urls: ["*://*/*"] }, (details, callback) => {
       const tab = [...this.tabs.values()].find((t) => t.view.webContents === details.webContents);
       if (!tab || tab.private) { callback({}); return; }
+      const policy = this.cookiePolicy || "third-party";
+      if (policy === "none") { callback({}); return; }
       const pageHost = hostOf(tab.url);
       const reqHost = hostOf(details.url);
       const headers = details.responseHeaders || {};
-      if (pageHost && reqHost && !reqHost.endsWith(pageHost) && !pageHost.endsWith(reqHost)) {
+      const isThirdParty = pageHost && reqHost && !reqHost.endsWith(pageHost) && !pageHost.endsWith(reqHost);
+      if (isThirdParty || policy === "all") {
         for (const k of Object.keys(headers)) {
           if (k.toLowerCase() === "set-cookie") {
             headers[k] = headers[k].map((c) => c + "; SameSite=Lax; Secure");
@@ -278,6 +287,8 @@ class BrowserEngine {
         // brand list must not advertise Electron, or UA/header mismatch is itself a bot tell
         if (k.toLowerCase() === "sec-ch-ua") details.requestHeaders[k] = `"Chromium";v="${process.versions.chrome}", "Google Chrome";v="${process.versions.chrome}"`;
       }
+      // Do Not Track: opt-in signal, honored only when the user asks for it.
+      if (this.doNotTrack) details.requestHeaders["DNT"] = "1";
       callback({ requestHeaders: details.requestHeaders });
     });
 
@@ -337,7 +348,7 @@ class BrowserEngine {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
-        spellcheck: true,
+        spellcheck: this.spellcheck !== false, // settings-driven, default on
         session: ses,
       },
     });
@@ -345,6 +356,8 @@ class BrowserEngine {
     // through it, so the NTP needs no background of its own. Websites set
     // their own backgrounds and are unaffected.
     view.setBackgroundColor("#00000000");
+    // Per-tab page zoom (settings-driven; new tabs inherit the current factor).
+    if (this.zoomFactor && this.zoomFactor !== 1) { try { view.webContents.setZoomFactor(this.zoomFactor); } catch {} }
     try { view.setVisible(this.pageInputEnabled); } catch {}
     const id = "tab_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     const tab = {
@@ -352,7 +365,13 @@ class BrowserEngine {
       loading: false, canBack: false, canFwd: false, blocked: 0, httpsUpgraded: 0, crashed: false,
     };
     this.tabs.set(id, tab);
-    this.order.push(id);
+    // Where new tabs land: right after the active tab (default) or at the end.
+    if (this.newTabPosition === "afterActive" && this.activeId) {
+      const at = this.order.indexOf(this.activeId);
+      this.order.splice(at + 1, 0, id);
+    } else {
+      this.order.push(id);
+    }
     this.wireTab(tab);
     this.injectTabScripts(tab);
 

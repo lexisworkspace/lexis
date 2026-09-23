@@ -48,6 +48,10 @@ contextBridge.exposeInMainWorld("spark", {
   // settings + shields
   getSettings: () => invoke("settings:get"),
   setSetting: (key, value) => invoke("settings:set", { key, value }),
+  applyAllSettings: () => invoke("settings:apply-all"),
+  onUiPrefs: (cb) => {
+    ipcRenderer.on("ui-prefs-changed", (_e, prefs) => cb(prefs));
+  },
   toggleShields: (host) => invoke("shields:toggle", host),
   shieldsState: (host) => invoke("shields:state", host),
   stats: () => invoke("stats:get"),

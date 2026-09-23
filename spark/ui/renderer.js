@@ -369,8 +369,14 @@ async function openClips() {
 
 async function openSettings() {
   state.settings = await window.spark.getSettings();
-  openPanel("Privacy settings", (body) => {
-    const mkSwitch = (label, key, desc) => {
+  openPanel("Settings", (body) => {
+    const sec = (title) => {
+      const h = document.createElement("div");
+      h.className = "set-section";
+      h.textContent = title;
+      body.appendChild(h);
+    };
+    const mkSwitch = (label, key, desc, onChange) => {
       const sw = document.createElement("button");
       sw.className = "switch" + (state.settings[key] ? " on" : "");
       sw.setAttribute("role", "switch");
@@ -379,21 +385,75 @@ async function openSettings() {
         state.settings = await window.spark.setSetting(key, !state.settings[key]);
         sw.classList.toggle("on", !!state.settings[key]);
         sw.setAttribute("aria-checked", state.settings[key] ? "true" : "false");
+        if (onChange) onChange(state.settings[key]);
       });
       const wrap = document.createElement("div");
       wrap.className = "panel-row";
       const left = document.createElement("div");
       left.style.flex = "1";
       const t = document.createElement("div"); t.className = "r-title"; t.textContent = label;
-      const s = document.createElement("div"); s.className = "r-sub"; s.textContent = desc;
-      left.append(t, s);
+      const s2 = document.createElement("div"); s2.className = "r-sub"; s2.textContent = desc;
+      left.append(t, s2);
       wrap.append(left, sw);
       body.appendChild(wrap);
     };
+    const mkSelect = (label, key, options, desc, onChange) => {
+      const row = document.createElement("div");
+      row.className = "panel-row";
+      const left = document.createElement("div");
+      left.style.flex = "1";
+      const t = document.createElement("div"); t.className = "r-title"; t.textContent = label;
+      const s2 = document.createElement("div"); s2.className = "r-sub"; s2.textContent = desc || "";
+      left.append(t, s2);
+      const sel = document.createElement("select");
+      sel.style.cssText = "background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;outline:none";
+      for (const [val, lab] of options) {
+        const o = document.createElement("option");
+        o.value = val; o.textContent = lab;
+        if (String(state.settings[key]) === String(val)) o.selected = true;
+        sel.appendChild(o);
+      }
+      sel.addEventListener("change", async () => {
+        state.settings = await window.spark.setSetting(key, sel.value);
+        if (onChange) onChange(sel.value);
+      });
+      row.append(left, sel);
+      body.appendChild(row);
+      return sel;
+    };
+    const mkText = (label, key, desc, saveLabel, onSave) => {
+      const wrap = document.createElement("div");
+      wrap.className = "panel-row";
+      const left = document.createElement("div");
+      left.style.flex = "1";
+      const t = document.createElement("div"); t.className = "r-title"; t.textContent = label;
+      const s2 = document.createElement("div"); s2.className = "r-sub"; s2.textContent = desc || "";
+      left.append(t, s2);
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = state.settings[key] || "";
+      input.placeholder = "https://";
+      input.style.cssText = "width:170px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;outline:none";
+      const btn = linkBtn(saveLabel || "Save", "Save", async () => {
+        state.settings = await window.spark.setSetting(key, input.value.trim());
+        btn.textContent = "Saved";
+        setTimeout(() => (btn.textContent = saveLabel || "Save"), 1200);
+        if (onSave) onSave(input.value.trim());
+      });
+      wrap.append(left, input, btn);
+      body.appendChild(wrap);
+    };
+
+    // ---------- Privacy ----------
+    sec("Privacy");
     mkSwitch("Shields", "shields", "Block trackers and ads on every site (per-site override in the shields panel)");
     mkSwitch("HTTPS-only", "httpsOnly", "Upgrade insecure connections automatically");
+    mkSwitch("Block third-party cookies", "blockThirdPartyCookies", "Off = cookies flow everywhere. On = third-party cookies are stripped");
+    mkSwitch("Do Not Track", "doNotTrack", "Send the DNT signal with every request (sites may ignore it)");
+    mkSwitch("Spellcheck", "spellcheck", "Check spelling in text fields on web pages");
 
-    // Search engine picker
+    // ---------- Browsing ----------
+    sec("Browsing");
     const engines = [
       ["duckduckgo", "DuckDuckGo"],
       ["brave", "Brave Search"],
@@ -401,28 +461,39 @@ async function openSettings() {
       ["mojeek", "Mojeek"],
       ["google", "Google"],
     ];
-    const engRow = document.createElement("div");
-    engRow.className = "panel-row";
-    const engLeft = document.createElement("div");
-    engLeft.style.flex = "1";
-    const engT = document.createElement("div"); engT.className = "r-title"; engT.textContent = "Search engine";
-    const engS = document.createElement("div"); engS.className = "r-sub"; engS.textContent = "Used by the address bar and the new-tab page";
-    engLeft.append(engT, engS);
-    const engSel = document.createElement("select");
-    engSel.style.cssText = "background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;outline:none";
-    for (const [val, label] of engines) {
-      const o = document.createElement("option");
-      o.value = val; o.textContent = label;
-      if (state.settings.searchEngine === val) o.selected = true;
-      engSel.appendChild(o);
-    }
-    engSel.addEventListener("change", async () => {
-      state.settings = await window.spark.setSetting("searchEngine", engSel.value);
+    mkSelect("Search engine", "searchEngine", engines, "Used by the address bar and the new-tab page");
+    mkSelect("Page zoom", "zoomLevel", [
+      ["0.8", "80%"], ["0.9", "90%"], ["1", "100%"], ["1.1", "110%"], ["1.25", "125%"], ["1.5", "150%"], ["1.75", "175%"], ["2", "200%"],
+    ], "Default zoom for pages", async (v) => {
+      const num = Number(v);
+      state.settings = await window.spark.setSetting("zoomLevel", isNaN(num) ? 1 : num);
     });
-    engRow.append(engLeft, engSel);
-    body.appendChild(engRow);
+    mkText("Homepage", "homepage", "Opened by the home button and on startup (optional)", "Set");
 
-    // Clear browsing data
+    // ---------- Appearance ----------
+    sec("Appearance");
+    mkSelect("Theme", "theme", [
+      ["dark", "Dark"], ["light", "Light"], ["system", "Match system"],
+    ], "Spark's own colors", async () => {
+      applyUiPrefs(state.settings);
+    });
+    mkSelect("Accent", "accent", [
+      ["violet", "Violet"], ["blue", "Blue"], ["green", "Green"], ["orange", "Orange"], ["pink", "Pink"], ["white", "White"],
+    ], "Tints active states and highlights", async () => applyUiPrefs(state.settings));
+    mkSelect("Interface size", "uiScale", [
+      ["85", "85%"], ["90", "90%"], ["95", "95%"], ["100", "100%"], ["105", "105%"], ["110", "110%"], ["115", "115%"],
+    ], "Scales the browser chrome text", async () => applyUiPrefs(state.settings));
+    mkSwitch("Compact tabs", "compactTabs", "Slimmer sidebar and tighter tab list", async () => applyUiPrefs(state.settings));
+
+    // ---------- Startup ----------
+    sec("Startup");
+    mkSwitch("Restore session", "restoreSession", "Reopen the tabs you had when Spark was last closed");
+    mkSelect("New tab position", "newTabPosition", [
+      ["afterActive", "Next to current tab"], ["end", "End of tab list"],
+    ], "Where a new tab lands in the sidebar");
+
+    // ---------- Data ----------
+    sec("Data");
     const clearRow = document.createElement("div");
     clearRow.className = "panel-row";
     const cLeft = document.createElement("div");
@@ -431,27 +502,39 @@ async function openSettings() {
     const cS = document.createElement("div"); cS.className = "r-sub"; cS.textContent = "History, cookies and cached files. Bookmarks, clips and settings stay.";
     cLeft.append(cT, cS);
     const cBtn = linkBtn("Clear", "Clear browsing data", async () => {
-      cBtn.disabled = true; cBtn.textContent = "…";
+      cBtn.disabled = true; cBtn.textContent = "...";
       await window.spark.clearBrowsingData();
-      state.bookmarks = state.bookmarks; // untouched by design
       cBtn.textContent = "Done";
       setTimeout(() => { cBtn.textContent = "Clear"; cBtn.disabled = false; }, 1500);
     });
     clearRow.append(cLeft, cBtn);
     body.appendChild(clearRow);
 
-    // About
+    const ioRow = document.createElement("div");
+    ioRow.className = "panel-row";
+    const ioLeft = document.createElement("div");
+    ioLeft.style.flex = "1";
+    const ioT = document.createElement("div"); ioT.className = "r-title"; ioT.textContent = "Bookmarks file";
+    const ioS = document.createElement("div"); ioS.className = "r-sub"; ioS.textContent = "Import or export as HTML (works with other browsers)";
+    ioLeft.append(ioT, ioS);
+    const ioWrap = document.createElement("div");
+    ioWrap.style.cssText = "display:flex;gap:10px";
+    const imp = linkBtn("Import", "Import bookmarks", () => window.spark.importBookmarks());
+    const exp = linkBtn("Export", "Export bookmarks", () => window.spark.exportBookmarks());
+    ioWrap.append(imp, exp);
+    ioRow.append(ioLeft, ioWrap);
+    body.appendChild(ioRow);
+
     const about = document.createElement("div");
     about.style.cssText = "margin-top:10px;font-size:11px;color:var(--text-faint)";
-    about.textContent = "Orleia Spark 1.0 — local-first browser. No telemetry, no account. History, bookmarks and clips live on this device only.";
+    about.textContent = "Orleia Spark 1.0 - local-first browser. No telemetry, no account. History, bookmarks and clips live on this device only.";
     body.appendChild(about);
   });
   const st = await window.spark.stats();
   const statsRow = document.createElement("div");
   statsRow.style.cssText = "margin-top:14px;padding:0 16px 14px";
-  statsRow.innerHTML = `
-    <div class="shield-stat"><span>Trackers blocked</span><b>${(st.blocked || 0).toLocaleString()}</b></div>
-    <div class="shield-stat"><span>HTTPS upgrades</span><b>${(st.httpsUpgradedTotal || 0).toLocaleString()}</b></div>`;
+  statsRow.innerHTML = '<div class="shield-stat"><span>Trackers blocked</span><b>' + (st.blocked || 0).toLocaleString() + '</b></div>' +
+    '<div class="shield-stat"><span>HTTPS upgrades</span><b>' + (st.httpsUpgradedTotal || 0).toLocaleString() + '</b></div>';
   $("panel-body").appendChild(statsRow);
 }
 
@@ -937,10 +1020,29 @@ window.addEventListener("unhandledrejection", (e) => { window.__errs.push("rejec
 
   try {
     state.settings = await window.spark.getSettings();
+    applyUiPrefs(state.settings);
     state.bookmarks = await window.spark.listBookmarks();
     await refreshTabs();
     sendInsets();
+    if (window.spark.onUiPrefs) window.spark.onUiPrefs(applyUiPrefs);
   } catch (err) {
     try { window.spark.logError("init", String((err && err.stack) || err)); } catch {}
   }
 })();
+
+// UI prefs -> body classes/vars (theme, accent, density, scale)
+function applyUiPrefs(prefs) {
+  if (!prefs) return;
+  const body = document.body;
+  // theme: light class comes from nativeTheme via matchMedia; system handled too
+  const sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const light = prefs.theme === "light" || (prefs.theme === "system" && !sysDark);
+  body.classList.toggle("light", light);
+  body.classList.remove("accent-violet", "accent-blue", "accent-green", "accent-orange", "accent-pink", "accent-white");
+  body.classList.add("accent-" + (prefs.accent || "violet"));
+  body.classList.toggle("compact-tabs", !!prefs.compactTabs);
+  document.documentElement.style.setProperty("--font-scale", String((Number(prefs.uiScale) || 100) / 100));
+}
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
+  if (state.settings && state.settings.theme === "system") applyUiPrefs(state.settings);
+});

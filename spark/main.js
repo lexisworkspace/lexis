@@ -143,11 +143,107 @@ const clips = {
 
 const settings = {
   data: readJson("settings.json", {
-    shields: true, httpsOnly: true, theme: "system", searchEngine: "duckduckgo",
+    // privacy
+    shields: true, httpsOnly: true, blockThirdPartyCookies: true, doNotTrack: false, safeBrowsingNotice: true,
+    // browsing
+    searchEngine: "duckduckgo", homepage: "", zoomLevel: 1, spellcheck: true,
+    // appearance
+    theme: "dark", uiScale: 100, accent: "violet", compactTabs: false,
+    // startup
+    restoreSession: true, newTabPosition: "afterActive",
   }),
   get(k) { return this.data[k]; },
   set(k, v) { this.data[k] = v; writeJson("settings.json", this.data); },
+  merge(patch) { Object.assign(this.data, patch); writeJson("settings.json", this.data); },
 };
+
+// Migrate silent v1 defaults: anything unset gets the new default once.
+(function migrateSettings() {
+  let touched = false;
+  for (const [k, v] of Object.entries({
+    blockThirdPartyCookies: true, doNotTrack: false, spellcheck: true,
+    theme: "dark", uiScale: 100, accent: "violet", compactTabs: false,
+    restoreSession: true, newTabPosition: "afterActive", homepage: "",
+  })) {
+    if (settings.data[k] === undefined) { settings.data[k] = v; touched = true; }
+  }
+  // zoomLevel stores a zoom FACTOR (1 = 100%). A stored 0 would blank pages.
+  if (!settings.data.zoomLevel || Number(settings.data.zoomLevel) < 0.5) { settings.data.zoomLevel = 1; touched = true; }
+  if (touched) writeJson("settings.json", settings.data);
+})();
+
+// ---------- theme ----------
+// The UI chrome reads nativeTheme; "system" follows the OS, dark/light force it.
+function applyTheme() {
+  const t = settings.get("theme");
+  nativeTheme.themeSource = t === "light" ? "light" : t === "dark" ? "dark" : "system";
+}
+applyTheme();
+ipcMain.on("theme:changed", () => applyTheme());
+
+// ---------- settings side effects ----------
+// A settings write fans out to every subsystem that honors it.
+function applySettingsSideEffects(key, value) {
+  switch (key) {
+    case "theme":
+      applyTheme();
+      break;
+    case "spellcheck":
+      if (engine) engine.spellcheck = value !== false;
+      break;
+    case "zoomLevel": {
+      const factor = Number(value) || 1;
+      if (engine) {
+        engine.zoomFactor = factor;
+        for (const t of engine.tabs.values()) {
+          try { t.view.webContents.setZoomFactor(factor); } catch {}
+        }
+      }
+      break;
+    }
+    case "newTabPosition":
+      if (engine) engine.newTabPosition = value || "afterActive";
+      break;
+    case "doNotTrack":
+      if (engine) engine.doNotTrack = !!value;
+      break;
+    case "blockThirdPartyCookies":
+      if (engine) engine.cookiePolicy = value === false ? "none" : "third-party";
+      break;
+    case "uiScale":
+    case "accent":
+    case "compactTabs":
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("ui-prefs-changed", {
+          uiScale: settings.get("uiScale"),
+          accent: settings.get("accent"),
+          compactTabs: settings.get("compactTabs"),
+          theme: settings.get("theme"),
+        });
+      }
+      break;
+  }
+}
+
+// Re-apply everything (used at UI boot and after engine restarts).
+function applyAllSettings() {
+  applyTheme();
+  if (engine) {
+    engine.spellcheck = settings.get("spellcheck") !== false;
+    engine.zoomFactor = Number(settings.get("zoomLevel")) || 1;
+    engine.doNotTrack = !!settings.get("doNotTrack");
+    engine.cookiePolicy = settings.get("blockThirdPartyCookies") === false ? "none" : "third-party";
+    engine.newTabPosition = settings.get("newTabPosition") || "afterActive";
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("ui-prefs-changed", {
+      uiScale: settings.get("uiScale"),
+      accent: settings.get("accent"),
+      compactTabs: settings.get("compactTabs"),
+      theme: settings.get("theme"),
+    });
+  }
+}
 
 // ------------------------------------------------------------
 // spark:// protocol — local pages (new tab, reader fallback)
@@ -294,12 +390,31 @@ function createMainWindow() {
     registerProtocol: (ses) => ses.protocol.handle("spark", handleSparkProtocol),
     dataDir: DATA_DIR,
     historyStore: history,
+    cookiePolicy: settings.get("blockThirdPartyCookies") === false ? "none" : "third-party",
+    doNotTrack: !!settings.get("doNotTrack"),
+    zoomFactor: Number(settings.get("zoomLevel")) || 1,
+    newTabPosition: settings.get("newTabPosition") || "afterActive",
     onEvent: (type, payload) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send("browser-event", { type, payload });
       }
     },
   });
+  engine.spellcheck = settings.get("spellcheck") !== false;
+  engine.zoomFactor = Number(settings.get("zoomLevel")) || 1;
+
+  // Startup: restore last session's tabs, or open the homepage if set.
+  (function restoreOrHomepage() {
+    try {
+      const saved = readJson("session.json", []);
+      if (settings.get("restoreSession") !== false && Array.isArray(saved) && saved.length) {
+        saved.slice(0, 20).forEach((u, i) => engine.createTab({ url: u, activate: i === 0 }));
+        return;
+      }
+    } catch {}
+    const home = String(settings.get("homepage") || "").trim();
+    if (home && /^https?:\/\//i.test(home)) engine.createTab({ url: home });
+  })();
 
   mainWindow.loadFile(path.join(__dirname, "ui", "index.html"));
   mainWindow.once("ready-to-show", () => mainWindow.show());
@@ -311,7 +426,15 @@ function createMainWindow() {
   mainWindow.on("unmaximize", relayout);
   mainWindow.on("enter-full-screen", relayout);
   mainWindow.on("leave-full-screen", relayout);
-  mainWindow.on("close", () => saveWindowState());
+  mainWindow.on("close", () => {
+    saveWindowState();
+    try {
+      if (engine) {
+        const urls = engine.publicTabs().filter((t) => t.url && !t.url.startsWith("spark://") && !t.private).map((t) => t.url);
+        writeJson("session.json", urls);
+      }
+    } catch {}
+  });
   mainWindow.on("closed", () => { engine.destroy(); mainWindow = null; });
 }
 
@@ -433,7 +556,12 @@ function registerIpc() {
   ipcMain.handle("clip:remove", (_e, id) => { clips.remove(id); return clips.list; });
 
   ipcMain.handle("settings:get", (_e, k) => (k ? settings.get(k) : settings.data));
-  ipcMain.handle("settings:set", (_e, { key, value }) => { settings.set(key, value); return settings.data; });
+  ipcMain.handle("settings:set", (_e, { key, value }) => {
+    settings.set(key, value);
+    applySettingsSideEffects(key, value);
+    return settings.data;
+  });
+  ipcMain.handle("settings:apply-all", () => { applyAllSettings(); return settings.data; });
 
   ipcMain.handle("stats:get", () => ({
     ...engine.stats(),
