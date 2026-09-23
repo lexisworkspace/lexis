@@ -15,16 +15,21 @@ const { BrowserEngine } = require("./browser-engine");
 const isDev = !app.isPackaged;
 
 // Single instance
+const { exec } = require("child_process");
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
   app.on("second-instance", (_e, argv) => {
-    const url = argv.find((a) => a.startsWith("spark://"));
+    const url = (argv || []).find((a) => /^(https?|spark):\/\//i.test(a));
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
-      if (url) openFromDeepLink(url);
+      if (url && url.startsWith("spark://")) openFromDeepLink(url);
+      else if (url && engine) {
+        const t = engine.createTab({ url });
+        engine.setActive(t.id);
+      }
     }
   });
 }
@@ -403,19 +408,6 @@ function createMainWindow() {
   engine.spellcheck = settings.get("spellcheck") !== false;
   engine.zoomFactor = Number(settings.get("zoomLevel")) || 1;
 
-  // Startup: restore last session's tabs, or open the homepage if set.
-  (function restoreOrHomepage() {
-    try {
-      const saved = readJson("session.json", []);
-      if (settings.get("restoreSession") !== false && Array.isArray(saved) && saved.length) {
-        saved.slice(0, 20).forEach((u, i) => engine.createTab({ url: u, activate: i === 0 }));
-        return;
-      }
-    } catch {}
-    const home = String(settings.get("homepage") || "").trim();
-    if (home && /^https?:\/\//i.test(home)) engine.createTab({ url: home });
-  })();
-
   mainWindow.loadFile(path.join(__dirname, "ui", "index.html"));
   mainWindow.once("ready-to-show", () => mainWindow.show());
 
@@ -562,6 +554,19 @@ function registerIpc() {
     return settings.data;
   });
   ipcMain.handle("settings:apply-all", () => { applyAllSettings(); return settings.data; });
+
+  // Default browser: status + opt-in handoff to the OS. Windows wants the
+  // Settings app (per-user choice since Win10); macOS/other fall back to
+  // our protocol registration. We never force it silently.
+  ipcMain.handle("default-browser:status", () => ({
+    canSet: canBeDefaultBrowser(),
+    isDefault: !canBeDefaultBrowser() && app.isPackaged,
+  }));
+  ipcMain.handle("default-browser:set", () => {
+    try { app.setAsDefaultProtocolClient("http"); app.setAsDefaultProtocolClient("https"); } catch {}
+    try { if (process.platform === "win32") { exec("start ms-settings:defaultapps"); } else { app.setAsDefaultBrowser?.(); } } catch {}
+    return true;
+  });
 
   ipcMain.handle("stats:get", () => ({
     ...engine.stats(),
@@ -711,7 +716,30 @@ app.whenReady().then(() => {
   }
   buildMenu();
   createMainWindow();
-  engine.createTab({ url: "spark://newtab" });
+
+  // Startup order: URL from the OS (default-browser launch) > restored
+  // session > homepage > plain new tab.
+  const launchUrl = urlFromArgv(process.argv);
+  let opened = false;
+  if (launchUrl && !launchUrl.startsWith("spark://")) {
+    engine.createTab({ url: launchUrl });
+    opened = true;
+  }
+  if (!opened) {
+    try {
+      const saved = readJson("session.json", []);
+      if (settings.get("restoreSession") !== false && Array.isArray(saved) && saved.length) {
+        saved.slice(0, 20).forEach((u, i) => engine.createTab({ url: u, activate: i === 0 }));
+        opened = true;
+      }
+    } catch {}
+  }
+  if (!opened) {
+    const home = String(settings.get("homepage") || "").trim();
+    if (home && /^https?:\/\//i.test(home)) engine.createTab({ url: home });
+    else engine.createTab({ url: "spark://newtab" });
+  }
+
   setInterval(() => checkForUpdates(false), 6 * 60 * 60 * 1000).unref?.();
 });
 
@@ -719,5 +747,27 @@ app.on("window-all-closed", () => {
   app.quit(); // Spark is a browser: closing the window quits
 });
 
-// Default browser registration (opt-in via OS settings; harmless to expose)
-app.setAsDefaultProtocolClient("spark");
+// Default browser registration: spark:// deep links (dev-safe), and on a
+// packaged build also claim HTTP/HTTPS so the OS lists Spark as a browser.
+// In dev the plain executable path breaks Windows' protocol registration
+// (it wants "exe" + args), so only packaged builds touch http/https.
+if (app.isPackaged) {
+  app.setAsDefaultProtocolClient("http");
+  app.setAsDefaultProtocolClient("https");
+  app.setAsDefaultProtocolClient("spark");
+} else {
+  app.setAsDefaultProtocolClient("spark");
+}
+
+// Can Spark become the OS default browser right now?
+function canBeDefaultBrowser() {
+  try {
+    if (!app.isPackaged) return false; // dev builds never claim it
+    return !app.isDefaultProtocolClient("https");
+  } catch { return false; }
+}
+
+// Open a URL passed on the command line (cold start from OS "open with").
+function urlFromArgv(argv) {
+  return (argv || []).find((a) => /^(https?|spark):\/\//i.test(a)) || null;
+}

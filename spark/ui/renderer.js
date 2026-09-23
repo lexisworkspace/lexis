@@ -444,6 +444,37 @@ async function openSettings() {
       body.appendChild(wrap);
     };
 
+    // ---------- Default browser ----------
+    sec("Default browser");
+    (async () => {
+      const wrap = document.createElement("div");
+      wrap.className = "panel-row";
+      const left = document.createElement("div");
+      left.style.flex = "1";
+      const t = document.createElement("div"); t.className = "r-title"; t.textContent = "Make Spark your default browser";
+      const s2 = document.createElement("div"); s2.className = "r-sub";
+      const btn = linkBtn("Set default", "Hand off to the OS to confirm", async () => {
+        btn.textContent = "...";
+        await window.spark.setDefaultBrowser();
+        setTimeout(() => (btn.textContent = "Set default"), 1500);
+      });
+      try {
+        const st = await window.spark.isDefaultBrowser();
+        if (st && st.isDefault) {
+          s2.textContent = "Spark is your default browser";
+          btn.style.display = "none";
+        } else if (st && st.canSet) {
+          s2.textContent = "Links from other apps open in Spark";
+        } else {
+          s2.textContent = "Available in the installed app";
+          btn.style.display = "none";
+        }
+      } catch { s2.textContent = "Links from other apps open in Spark"; }
+      left.append(t, s2);
+      wrap.append(left, btn);
+      body.appendChild(wrap);
+    })();
+
     // ---------- Privacy ----------
     sec("Privacy");
     mkSwitch("Shields", "shields", "Block trackers and ads on every site (per-site override in the shields panel)");

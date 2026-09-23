@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld("spark", {
   getSettings: () => invoke("settings:get"),
   setSetting: (key, value) => invoke("settings:set", { key, value }),
   applyAllSettings: () => invoke("settings:apply-all"),
+  isDefaultBrowser: () => invoke("default-browser:status"),
+  setDefaultBrowser: () => invoke("default-browser:set"),
   onUiPrefs: (cb) => {
     ipcRenderer.on("ui-prefs-changed", (_e, prefs) => cb(prefs));
   },
