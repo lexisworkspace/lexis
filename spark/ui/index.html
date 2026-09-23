@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:;">
+  <title>Orleia Spark</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ================= SIDEBAR ================= -->
+  <aside id="sidebar">
+    <div class="side-head">
+      <button id="btn-newtab" class="side-btn" title="New tab (Ctrl+T)">+</button>
+      <div class="side-title">
+        <img src="../assets/spark-white.png" alt="" onerror="this.style.display='none'">
+      </div>
+      <button id="btn-collapse" class="side-btn" title="Hide sidebar (Ctrl+B)">‹</button>
+    </div>
+    <div id="tab-list" role="tablist" aria-label="Tabs"></div>
+    <div class="side-foot">
+      <button id="btn-bookmarks" class="foot-btn" title="Bookmarks (Ctrl+Shift+B)">Bookmarks</button>
+      <button id="btn-history" class="foot-btn" title="History (Ctrl+Y)">History</button>
+      <button id="btn-clips" class="foot-btn" title="Clips — text saved from Noor answers">Clips</button>
+      <button id="btn-settings" class="foot-btn" title="Settings (Ctrl+,)">Settings</button>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN COLUMN ================= -->
+  <main id="main">
+    <header id="topbar">
+      <div class="nav-group">
+        <button id="btn-back" class="tbtn" title="Back (Alt+←)" disabled>←</button>
+        <button id="btn-fwd" class="tbtn" title="Forward (Alt+→)" disabled>→</button>
+        <button id="btn-reload" class="tbtn" title="Reload (Ctrl+R)">⟳</button>
+      </div>
+      <div id="omnibox-wrap">
+        <button id="shields-indicator" class="shield-pill" title="Shields — click for details">
+          <span class="shield-dot"></span><span id="shields-count">0</span>
+        </button>
+        <input id="omnibox" type="text" spellcheck="false" autocomplete="off"
+               placeholder="Search privately or enter a URL" aria-label="Address and search bar">
+        <button id="btn-star" class="tbtn star" title="Bookmark this page (Ctrl+D)">☆</button>
+        <button id="btn-noor" class="noor-pill" title="Ask Noor about this page (Ctrl+J)">Noor</button>
+      </div>
+      <div class="spacer"></div>
+    </header>
+  </main>
+
+  <!-- Noor panel (right side, full height — the page view shrinks via insets) -->
+  <section id="noor-drawer" hidden>
+    <div class="noor-inner">
+      <div class="drawer-head">
+        <span class="drawer-title"><img src="noor-mark.png" alt="" class="drawer-logo">Noor · this page</span>
+        <button class="tbtn" id="noor-close" title="Close">✕</button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-actions">
+          <button data-noor-mode="summarize">Summarize</button>
+          <button data-noor-mode="key-points">Key points</button>
+          <button data-noor-mode="extract-tasks">Extract tasks</button>
+          <button data-noor-mode="ask">Ask about this page…</button>
+        </div>
+        <input id="noor-input" type="text" placeholder="Ask anything about this page…" hidden>
+        <div id="noor-context" hidden></div>
+        <div id="noor-analyzer" hidden aria-hidden="true">
+          <div class="an-page">
+            <div class="an-beam"></div>
+            <div class="an-lines">
+              <i style="--w:92%"></i><i style="--w:78%"></i><i style="--w:85%"></i><i style="--w:60%"></i>
+              <i style="--w:88%"></i><i style="--w:74%"></i><i style="--w:82%"></i><i style="--w:55%"></i>
+            </div>
+          </div>
+          <div class="an-caption">Reading the page<span class="an-dots"></span></div>
+        </div>
+        <div id="noor-output" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= COMMAND BAR ================= -->
+  <div id="command-bar" hidden>
+    <input id="command-input" type="text" placeholder="Type a command, URL, or search…"
+           aria-label="Command bar" spellcheck="false" autocomplete="off">
+    <ul id="command-list" role="listbox"></ul>
+  </div>
+
+  <!-- ================= PANELS ================= -->
+  <div id="panel-backdrop" hidden>
+    <div id="panel" role="dialog" aria-modal="true">
+      <div class="panel-head">
+        <span id="panel-title">Panel</span>
+        <button class="tbtn" id="panel-close">✕</button>
+      </div>
+      <div id="panel-body"></div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{
+  "name": "orleia-spark",
+  "productName": "Orleia Spark",
+  "version": "1.0.0",
+  "description": "Orleia Spark — the private browser with a brain.",
+  "main": "main.js",
+  "author": "Orleia",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64",
+    "dist:mac": "electron-builder --mac dmg --x64",
+    "dist:linux": "electron-builder --linux AppImage deb --x64"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "app.orleia.spark",
+    "productName": "Orleia Spark",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "browser-engine.js",
+      "preload.js",
+      "ui/**/*",
+      "assets/**/*",
+      "spark.config.json",
+      "spark.config.local.json",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/spark.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "OrleiaSpark-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "icon": "assets/spark-512.png",
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "assets/spark-256.png",
+      "category": "Network;WebBrowser",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
+      ]
+    }
+  }
+}
