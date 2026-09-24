@@ -184,6 +184,20 @@ function applyTheme() {
   nativeTheme.themeSource = t === "light" ? "light" : t === "dark" ? "dark" : "system";
 }
 applyTheme();
+
+// Flash-proof the window: paint the BrowserWindow background (and re-paint on
+// theme change) with the chrome surface color so a slow-loading page never
+// flashes white in dark mode or dark in light mode.
+function syncWindowBackground() {
+  try {
+    const dark = nativeTheme.shouldUseDarkColors;
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.setBackgroundColor(dark ? "#0b0b14" : "#f4f3f1");
+    }
+  } catch { /* cosmetic only */ }
+}
+nativeTheme.on("updated", syncWindowBackground);
+setTimeout(syncWindowBackground, 0);
 ipcMain.on("theme:changed", () => applyTheme());
 
 // ---------- settings side effects ----------
@@ -258,23 +272,31 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 function newTabHTML() {
-  // Minimal monochrome NTP: ghost logo + one input, on the transparent view.
+  // Theme-aware NTP: matches the chrome theme (dark default, light on demand)
+  // so the new-tab page never glares or sits as a dark island in light mode.
+  const light = settings.get("theme") === "light" ||
+    (settings.get("theme") === "system" && nativeTheme.shouldUseDarkColors === false);
+  const c = light
+    ? { text: "#17161a", inputBg: "rgba(23,22,26,0.04)", inputBorder: "#d9d8d6",
+        inputBorderFocus: "#9a99a4", placeholder: "rgba(23,22,26,0.38)", btnBg: "rgba(23,22,26,0.06)", btnHover: "rgba(23,22,26,0.12)" }
+    : { text: "#fff", inputBg: "rgba(255,255,255,0.05)", inputBorder: "#2a2a2e",
+        inputBorderFocus: "#4a4a50", placeholder: "rgba(255,255,255,0.32)", btnBg: "rgba(255,255,255,0.08)", btnHover: "rgba(255,255,255,0.14)" };
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     * { margin:0; padding:0; box-sizing:border-box; }
     html, body { background: transparent; }
     @font-face { font-family:'Instrument Sans Variable'; src:url('spark://font-instrument') format('woff2-variations'); font-weight:100 900; }
     @font-face { font-family:'Fraunces Variable'; src:url('spark://font-fraunces') format('woff2-variations'); font-weight:100 900; }
     body { height:100vh; display:flex; align-items:center; justify-content:center;
-      color:#fff; font-family:'Instrument Sans Variable',system-ui,-apple-system,'Segoe UI',sans-serif; }
+      color:${c.text}; font-family:'Instrument Sans Variable',system-ui,-apple-system,'Segoe UI',sans-serif; }
     .logo { width:96px; height:96px; background:center/contain no-repeat url('spark://ghost'); }
     form { width:min(520px, 84vw); display:flex; margin-top:34px; }
-    input { flex:1; padding:14px 20px; border-radius:13px 0 0 13px; border:1px solid #2a2a2e; border-right:none;
-      background:rgba(255,255,255,0.05); color:#fff; font-size:14.5px; outline:none; }
-    input:focus { border-color:#4a4a50; }
-    input::placeholder { color:rgba(255,255,255,0.32); }
-    button { padding:0 20px; border-radius:0 13px 13px 0; border:1px solid #2a2a2e;
-      background:rgba(255,255,255,0.08); color:#fff; cursor:pointer; font-size:13.5px; }
-    button:hover { background:rgba(255,255,255,0.14); }
+    input { flex:1; padding:14px 20px; border-radius:13px 0 0 13px; border:1px solid ${c.inputBorder}; border-right:none;
+      background:${c.inputBg}; color:${c.text}; font-size:14.5px; outline:none; }
+    input:focus { border-color:${c.inputBorderFocus}; }
+    input::placeholder { color:${c.placeholder}; }
+    button { padding:0 20px; border-radius:0 13px 13px 0; border:1px solid ${c.inputBorder};
+      background:${c.btnBg}; color:${c.text}; cursor:pointer; font-size:13.5px; }
+    button:hover { background:${c.btnHover}; }
     @keyframes bloom { from { opacity:0; transform:scale(0.9); } }
     @keyframes rise { from { opacity:0; transform:translateY(10px); } }
     .logo { animation: bloom 0.6s cubic-bezier(0.2,0.7,0.2,1) backwards; }
@@ -379,7 +401,7 @@ function createMainWindow() {
     minWidth: 940, minHeight: 600,
     show: false,
     title: "Orleia Spark",
-    backgroundColor: "#0b0b14",
+    backgroundColor: "#0b0b14", // flash-match: engine syncs this to the theme on boot + change
     icon: path.join(__dirname, "assets", "spark.ico"),
     autoHideMenuBar: true,
     webPreferences: {
@@ -564,6 +586,10 @@ function registerIpc() {
   }));
   ipcMain.handle("default-browser:set", () => {
     try { app.setAsDefaultProtocolClient("http"); app.setAsDefaultProtocolClient("https"); } catch {}
+    // Re-write the full browser registration right before handing off —
+    // guarantees the OS picker sees Spark even if boot-time registration
+    // was interrupted.
+    try { registerAsBrowserWindows(); } catch (e) { logError("reg:register", e); }
     try { if (process.platform === "win32") { exec("start ms-settings:defaultapps"); } else { app.setAsDefaultBrowser?.(); } } catch {}
     return true;
   });
@@ -771,3 +797,42 @@ function canBeDefaultBrowser() {
 function urlFromArgv(argv) {
   return (argv || []).find((a) => /^(https?|spark):\/\//i.test(a)) || null;
 }
+
+// ---------------- Windows: register as a REAL browser ----------------
+// setAsDefaultProtocolClient alone only writes HKCU\Software\Classes\http.
+// Windows 10/11 "Default apps" does not list an app as a browser candidate
+// unless it registers a StartMenuInternet client with Capabilities — that is
+// why Spark never appeared in the OS picker. This writes the full client
+// registration (HKCU only: no admin rights needed, per-user install).
+function regAdd(key, valueName, type, data) {
+  const vn = valueName ? ` /v "${valueName}"` : " /ve";
+  exec(`reg add "${key}"${vn} /t ${type} /d "${data}" /f`, (err) => {
+    if (err) logError("reg:add", `${key} :: ${err.message}`);
+  });
+}
+
+function registerAsBrowserWindows() {
+  if (process.platform !== "win32" || !app.isPackaged) return;
+  const exe = app.getPath("exe");
+  const K = "HKCU\\Software\\Clients\\StartMenuInternet\\OrleiaSpark";
+  const cmd = `"${exe}" "%1"`;
+  regAdd(K, "", "REG_SZ", "Orleia Spark");
+  regAdd(K + "\\DefaultIcon", "", "REG_SZ", exe + ",0");
+  regAdd(K + "\\shell\\open\\command", "", "REG_SZ", cmd);
+  regAdd(K + "\\Capabilities", "ApplicationName", "REG_SZ", "Orleia Spark");
+  regAdd(K + "\\Capabilities", "ApplicationIcon", "REG_SZ", exe + ",0");
+  regAdd(K + "\\Capabilities\\StartMenu", "", "REG_SZ", "StartMenuInternet");
+  regAdd(K + "\\Capabilities\\URLAssociations", "http", "REG_SZ", "OrleiaSpark.URL");
+  regAdd(K + "\\Capabilities\\URLAssociations", "https", "REG_SZ", "OrleiaSpark.URL");
+  // The ProgID the URL associations point at.
+  regAdd("HKCU\\Software\\Classes\\OrleiaSpark.URL", "", "REG_SZ", "Orleia Spark Document");
+  regAdd("HKCU\\Software\\Classes\\OrleiaSpark.URL\\shell\\open\\command", "", "REG_SZ", cmd);
+  // The list entry itself: "Default apps" reads RegisteredApplications.
+  regAdd(
+    "HKCU\\Software\\RegisteredApplications",
+    "Orleia Spark",
+    "REG_SZ",
+    "Software\\Clients\\StartMenuInternet\\OrleiaSpark\\Capabilities"
+  );
+}
+registerAsBrowserWindows();

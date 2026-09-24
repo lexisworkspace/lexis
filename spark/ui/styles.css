@@ -20,6 +20,7 @@
 
 :root {
   --noor-w: 380px; /* right-docked Noor panel width */
+  --accent-rgb: 255 255 255; /* rgb twin so rgba(var(--accent-rgb)/x) works even pre-class */
   --bg: #0c0c10;
   --bg-raised: #14141a;
   --bg-hover: #1d1d25;
@@ -27,6 +28,7 @@
   --text: #f5f4f2;
   --text-dim: #93929e;
   --text-faint: #605f6c;
+  --bg-deep: #0d0d16; /* sidebar: one step deeper than --bg */
   --accent: #ffffff;
   --accent-dim: rgba(255, 255, 255, 0.09);
   --danger: #f67c7c;
@@ -46,12 +48,34 @@ body.light {
   --text: #17161a;
   --text-dim: #6b6a76;
   --text-faint: #9a99a4;
-  --accent: #17161a;
-  --accent-dim: rgba(0, 0, 0, 0.07);
+  --bg-deep: #f0efed;
+  --accent-rgb: 23 22 26; /* ink accent so white-accent stays visible on light */
+  --accent: rgb(var(--accent-rgb));
+  --accent-dim: rgb(var(--accent-rgb) / 0.08);
 }
+body.light.accent-white { --accent-rgb: 23 22 26; }
+
+/* Light-theme overrides for every hardcoded dark color below. Any rule in
+   this file that uses a raw hex MUST get a body.light twin here, or light
+   mode ships with dark islands (the bug that ruined v1 light mode). */
+body.light ::selection { background: rgba(23, 22, 26, 0.15); }
+body.light #sidebar { background: #f0efed; }
+body.light #btn-reveal { background: #ffffff; }
+body.light .tab-item .t-close:hover { background: #dddcda; }
+body.light #omnibox-wrap:focus-within { border-color: #9a99a4; box-shadow: 0 0 0 3px rgba(23, 22, 26, 0.06); }
+body.light .drawer-actions button:hover { border-color: #b9b8c2; }
+body.light #command-bar { border-color: #d9d8d6; box-shadow: 0 18px 60px rgba(20, 20, 30, 0.18); }
+body.light #panel { border-color: #d9d8d6; box-shadow: 0 18px 60px rgba(20, 20, 30, 0.18); }
+body.light #panel-backdrop { background: rgba(20, 20, 26, 0.35); }
+body.light #noor-backdrop { background: rgba(240, 240, 244, 0.45); }
+body.light .an-page { background: linear-gradient(180deg, #ffffff, #f4f3f1); }
+body.light .an-lines i { background: #e4e3e1; }
+body.light ::-webkit-scrollbar-thumb { background: #c9c8c6; }
+body.light ::-webkit-scrollbar-thumb:hover { background: #b1b0ae; }
 
 /* Accent color choices (violet keeps the white default; others tint key moments). */
 body.accent-violet { --accent-rgb: 139 124 246; }
+/* (kept in sync with the settings panel's Accent list) */
 body.accent-blue   { --accent-rgb: 96 165 250; }
 body.accent-green  { --accent-rgb: 52 211 153; }
 body.accent-orange { --accent-rgb: 251 146 60; }
@@ -125,7 +149,7 @@ body.side-collapsed .side-head { justify-content: center; padding: 0; }
 #sidebar {
   display: flex; flex-direction: column;
   min-height: 0; /* flex children can shrink -> tab-list overflows and scrolls */
-  background: #0d0d16;
+  background: var(--bg-deep);
   border-right: 1px solid var(--line);
 }
 .side-head {
@@ -154,7 +178,7 @@ body.side-collapsed .side-head { justify-content: center; padding: 0; }
 .tab-item:hover { background: var(--bg-hover); }
 .tab-item.active {
   background: var(--bg-raised); border-color: var(--line); color: var(--text);
-  box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 2px 0 0 var(--accent); /* accent bar: the active tab is findable at a glance */
 }
 .tab-item .t-fav { width: 15px; height: 15px; border-radius: 4px; flex: none; }
 .tab-item .t-title {
@@ -165,7 +189,7 @@ body.side-collapsed .side-head { justify-content: center; padding: 0; }
   color: var(--text-faint); font-size: 11px; visibility: hidden;
 }
 .tab-item:hover .t-close { visibility: visible; }
-.tab-item .t-close:hover { background: #2a2a38; color: var(--text); }
+.tab-item .t-close:hover { background: var(--bg-hover); color: var(--text); }
 .tab-item .dot-private { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
 
 .side-foot {
@@ -203,7 +227,7 @@ body.side-collapsed .side-head { justify-content: center; padding: 0; }
   height: 36px; padding: 0 6px;
   background: var(--bg-raised); border: 1px solid var(--line); border-radius: 11px;
 }
-#omnibox-wrap:focus-within { border-color: #4a4a55; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06); }
+#omnibox-wrap:focus-within { border-color: rgb(var(--accent-rgb) / 0.55); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 0.14); }
 #omnibox {
   flex: 1; background: none; border: none; outline: none; min-width: 0;
   color: var(--text); font-size: 13px;
@@ -215,12 +239,13 @@ body.side-collapsed .side-head { justify-content: center; padding: 0; }
   padding: 3px 9px; border-radius: 999px;
   background: var(--accent-dim); color: var(--text-dim); font-size: 11.5px;
 }
-.shield-dot { width: 7px; height: 7px; border-radius: 50%; background: #e8e8ec; }
+.shield-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 .shield-pill.off .shield-dot { background: var(--text-faint); }
 .tbtn.star { width: 28px; height: 28px; }
 .noor-pill {
   padding: 5px 13px; border-radius: 999px;
-  background: #ffffff; color: #0a0a0c; font-size: 12px; font-weight: 700;
+  background: var(--accent-dim); color: var(--accent); font-size: 12px; font-weight: 700;
+  border: 1px solid rgb(var(--accent-rgb) / 0.35);
 }
 .noor-pill:hover { filter: brightness(1.1); }
 .spacer { width: 4px; }
@@ -274,7 +299,7 @@ body.noor-open #noor-drawer {
   padding: 6px 12px; border-radius: 999px; font-size: 12px;
   background: var(--bg); border: 1px solid var(--line); color: var(--text-dim);
 }
-.drawer-actions button:hover { color: var(--text); border-color: #34344a; }
+.drawer-actions button:hover { color: var(--text); border-color: rgb(var(--accent-rgb) / 0.4); }
 #noor-input {
   width: 100%; padding: 9px 12px; border-radius: 10px; margin-bottom: 10px;
   background: var(--bg); border: 1px solid var(--line); outline: none;
@@ -312,19 +337,19 @@ body.noor-open #noor-drawer {
 }
 @keyframes an-breathe {
   0%, 100% { border-color: var(--line); }
-  50% { border-color: #34344a; }
+  50% { border-color: rgb(var(--accent-rgb) / 0.35); }
 }
 .an-lines { display: flex; flex-direction: column; gap: 7px; }
 .an-lines i {
   display: block; height: 6px; border-radius: 3px;
   width: var(--w, 80%);
-  background: #1d1d2b;
+  background: var(--bg-hover);
   position: relative;
 }
 /* Lines ignite as the scan passes, then settle to a dim ember. */
 .an-lines i::after {
   content: ""; position: absolute; inset: 0; border-radius: 3px;
-  background: linear-gradient(90deg, rgba(139,124,246,0), rgba(139,124,246,0.75));
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0), rgb(var(--accent-rgb) / 0.75));
   transform: scaleX(0); transform-origin: left;
   animation: an-ignite 2.1s ease-in-out infinite;
   animation-delay: calc(var(--i, 0) * 0.14s);
@@ -343,7 +368,7 @@ body.noor-open #noor-drawer {
 .an-beam {
   position: absolute; top: 0; bottom: 0; left: -14%;
   width: 14%;
-  background: linear-gradient(90deg, rgba(139,124,246,0) 0%, rgba(139,124,246,0.16) 45%, rgba(139,124,246,0.42) 50%, rgba(139,124,246,0.16) 55%, rgba(139,124,246,0) 100%);
+  background: linear-gradient(90deg, rgb(var(--accent-rgb) / 0) 0%, rgb(var(--accent-rgb) / 0.16) 45%, rgb(var(--accent-rgb) / 0.42) 50%, rgb(var(--accent-rgb) / 0.16) 55%, rgb(var(--accent-rgb) / 0) 100%);
   animation: an-scan 2.1s cubic-bezier(0.45, 0, 0.4, 1) infinite;
   pointer-events: none;
 }
@@ -400,7 +425,7 @@ select, input[type="text"] {
 #command-bar {
   position: fixed; left: 50%; top: 14vh; transform: translateX(-50%);
   width: min(620px, 86vw); z-index: 60;
-  background: var(--bg-raised); border: 1px solid #2c2c3e; border-radius: 16px;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 16px;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
   overflow: hidden;
 }
@@ -428,11 +453,12 @@ select, input[type="text"] {
   background: rgba(5, 5, 10, 0.55);
   display: flex; align-items: flex-start; justify-content: center;
 }
+body.light #panel-backdrop { background: rgba(20, 20, 26, 0.35); }
 /* [hidden] { display:none !important } above is what makes open/close work;
    the backdrop must never rely on the bare hidden attribute alone. */
 #panel {
   margin-top: 9vh; width: min(560px, 90vw); max-height: 76vh;
-  background: var(--bg-raised); border: 1px solid #2c2c3e; border-radius: 16px;
+  background: var(--bg-raised); border: 1px solid var(--line); border-radius: 16px;
   display: flex; flex-direction: column;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
 }
@@ -459,17 +485,17 @@ select, input[type="text"] {
 .shield-stat { display: flex; justify-content: space-between; padding: 7px 0; font-size: 13px; }
 .shield-stat b { color: var(--text); }
 .switch { position: relative; width: 34px; height: 20px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
-.switch.on { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.35); }
+.switch.on { background: rgb(var(--accent-rgb) / 0.25); border-color: rgb(var(--accent-rgb) / 0.5); }
 .switch::after {
   content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
   border-radius: 50%; background: var(--text-faint); transition: 0.15s;
 }
-.switch.on::after { left: 16px; background: #ffffff; }
+.switch.on::after { left: 16px; background: var(--text); }
 
 /* scrollbars */
 ::-webkit-scrollbar { width: 9px; }
-::-webkit-scrollbar-thumb { background: #26263a; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: #34344a; background-clip: content-box; }
+::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--line); background-clip: content-box; }
 
 /* ================= motion ================= */
 @keyframes fadeIn { from { opacity: 0; } }
