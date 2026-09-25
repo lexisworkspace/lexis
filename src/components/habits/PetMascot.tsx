@@ -101,11 +101,11 @@ export function PetMascot() {
           <AnimatePresence>
             {celebrate && (
               <motion.span
-                initial={{ opacity: 0, y: 6, scale: 0.6 }}
-                animate={{ opacity: 1, y: -18, scale: 1 }}
-                exit={{ opacity: 0, y: -30 }}
+                initial={{ opacity: 0, x: "-50%", y: 10, scale: 0.6 }}
+                animate={{ opacity: 1, x: "-50%", y: 0, scale: 1 }}
+                exit={{ opacity: 0, x: "-50%", y: -4 }}
                 transition={{ duration: 0.8 }}
-                className="absolute -top-2 left-1/2 -translate-x-1/2 text-red-400"
+                className="absolute left-1/2 top-0 z-10 text-red-400"
               >
                 <Heart className="h-4 w-4 fill-current" />
               </motion.span>

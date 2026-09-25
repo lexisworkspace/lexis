@@ -52,7 +52,7 @@ const DEFAULT_DATA: AppData = {
   lastSync: null,
   links: [],
   reminderDismissed: {},
-  dashboardWidgets: ["productivity", "stats"],
+  dashboardWidgets: ["productivity", "stats", "pet"],
   spreadsheets: [],
 };
 

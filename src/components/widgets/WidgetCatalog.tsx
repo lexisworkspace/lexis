@@ -35,7 +35,7 @@ export const WIDGET_CATALOG: WidgetDef[] = [
   { id: "wrapped", name: "Weekly Wrapped", description: "Your week at a glance - screenshot and share", icon: "✨", default: true, size: "large" },
   { id: "pomodoro", name: "Focus Timer", description: "25-minute focus session with breaks", icon: "◷", default: false, size: "wide" },
   { id: "mood", name: "Mood Check-in", description: "Log how you're feeling right now", icon: "☺", default: false, size: "wide" },
-  { id: "pet", name: "Your Pet", description: "Your companion greets you and tracks its meals", icon: "❤", default: false, size: "wide" },
+  { id: "pet", name: "Your Pet", description: "Your companion greets you and tracks its meals", icon: "❤", default: true, size: "wide" },
 ];
 
 export function WidgetCatalog({

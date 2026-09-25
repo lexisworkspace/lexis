@@ -30,8 +30,7 @@ export default function DashboardPage() {
   const [data, setData] = useState(storage.getData());
   const [greeting, setGreeting] = useState("Good morning");
   const [catalogOpen, setCatalogOpen] = useState(false);
-  const [widgets, setWidgets] = useState<WidgetId[]>(
-    () => (storage.getData().dashboardWidgets as WidgetId[]) || ["productivity", "stats"]
+  const [widgets, setWidgets] = useState<WidgetId[]>(      () => (storage.getData().dashboardWidgets as WidgetId[]) || ["productivity", "stats", "pet"]
   );
 
   useEffect(() => {
