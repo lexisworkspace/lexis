@@ -18,6 +18,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion, useInView } from "framer-motion";
 import { ArrowUpRight, ArrowRight, Menu, X, Shield, Check, Sparkles } from "lucide-react";
+import { PAID_PLANS } from "@/lib/plans";
 import { GMAIL_COMPOSE_HREF } from "@/lib/contact";
 import InteractiveNeuralVortex from "@/components/ui/interactive-neural-vortex-background";
 
@@ -420,6 +421,24 @@ export default function LandingPage() {
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><polyline points="6 9 12 15 18 9" /></svg>
           </motion.button>
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-b from-transparent to-black z-10 pointer-events-none" />
+
+          {/* Trust bar — social proof right under the hero */}
+          <div className="relative z-10 w-full max-w-3xl mx-auto px-6">
+            <motion.div {...enter} transition={{ duration: 0.8, delay: 0.9, ease }} className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/35">
+              <span className="inline-flex items-center gap-2">
+                <span className="flex -space-x-1.5" aria-hidden>
+                  {["bg-indigo-400", "bg-emerald-400", "bg-amber-400", "bg-rose-400", "bg-sky-400"].map((c, i) => (
+                    <span key={i} className={`h-5 w-5 rounded-full border-2 border-black ${c}`} />
+                  ))}
+                </span>
+                Used by 260+ people worldwide
+              </span>
+              <span aria-hidden className="hidden sm:inline text-white/20">·</span>
+              <span>100% local-first — your data never leaves your device</span>
+              <span aria-hidden className="hidden sm:inline text-white/20">·</span>
+              <span>19 languages</span>
+            </motion.div>
+          </div>
         </section>
 
         {/* ===== PRODUCT BENTO ===== */}
@@ -517,6 +536,122 @@ export default function LandingPage() {
                   </span>
                 ))}
               </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ===== WHY ORLEIA ===== */}
+        <section id="why" className="relative py-24 md:py-32 px-6 border-t border-white/10">
+          <div className="relative mx-auto max-w-6xl">
+            <Reveal>
+              <p className="text-center text-[10px] font-mono tracking-[0.3em] text-muted-foreground/40 uppercase">Why us</p>
+              <h2 className="mt-3 text-center text-3xl md:text-4xl font-bold tracking-tight">Not another cloud app.</h2>
+              <p className="mx-auto mt-4 max-w-xl text-center text-muted-foreground leading-relaxed">
+                Every other AI workspace needs your data more than you do. Orleia inverts that:
+                the workspace lives on your device, and the AI comes to it.
+              </p>
+            </Reveal>
+            <div className="mt-14 grid gap-4 md:grid-cols-3">
+              {[
+                {
+                  title: "Your data stays yours",
+                  body: "Notes, tasks, journal, habits — stored locally, no account required, no analytics on your content. Delete the app and it's gone. That's not a policy, it's the architecture.",
+                },
+                {
+                  title: "AI without the privacy tax",
+                  body: "Noor reads your live workspace and acts on it — planning weeks, creating tasks, answering about your projects — through a guarded pipeline with model allowlists and daily caps.",
+                },
+                {
+                  title: "Built by someone who uses it",
+                  body: "Orleia is an independent project, shipped fast and opinionated. Free forever for every tool; the only thing that scales is Noor itself.",
+                },
+              ].map((c, i) => (
+                <Reveal key={c.title} delay={0.08 * i}>
+                  <div className="h-full rounded-2xl border border-border/60 bg-white/[0.02] p-6">
+                    <h3 className="font-semibold">{c.title}</h3>
+                    <p className="mt-2.5 text-sm text-muted-foreground leading-relaxed">{c.body}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+            <Reveal delay={0.2}>
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 rounded-2xl border border-border/40 px-6 py-5 text-center">
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">260+</p>
+                  <p className="text-[11px] text-muted-foreground/50">people use Orleia worldwide</p>
+                </div>
+                <div className="hidden sm:block h-8 w-px bg-border/60" aria-hidden />
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">19</p>
+                  <p className="text-[11px] text-muted-foreground/50">interface languages</p>
+                </div>
+                <div className="hidden sm:block h-8 w-px bg-border/60" aria-hidden />
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">100%</p>
+                  <p className="text-[11px] text-muted-foreground/50">of your data, on your device</p>
+                </div>
+                <div className="hidden sm:block h-8 w-px bg-border/60" aria-hidden />
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">0</p>
+                  <p className="text-[11px] text-muted-foreground/50">trackers, ads, or accounts required</p>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ===== PRICING ===== */}
+        <section id="pricing" className="relative py-24 md:py-32 px-6 border-t border-white/10">
+          <div className="relative mx-auto max-w-6xl">
+            <Reveal>
+              <p className="text-center text-[10px] font-mono tracking-[0.3em] text-muted-foreground/40 uppercase">Pricing</p>
+              <h2 className="mt-3 text-center text-3xl md:text-4xl font-bold tracking-tight">Free forever. Noor, if you want more.</h2>
+              <p className="mx-auto mt-4 max-w-xl text-center text-muted-foreground leading-relaxed">
+                Every tool in Orleia is free, with no account. Plans only raise the ceiling on Noor, your AI companion.
+              </p>
+            </Reveal>
+            <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <Reveal>
+                <div className="h-full rounded-2xl border border-border/60 bg-white/[0.02] p-6 flex flex-col">
+                  <p className="text-sm font-semibold">Free</p>
+                  <p className="mt-3 text-3xl font-bold tracking-tight">$0</p>
+                  <p className="mt-1 text-xs text-muted-foreground/50">forever</p>
+                  <ul className="mt-5 space-y-2.5 text-sm text-muted-foreground flex-1">
+                    {["All tools, unlimited", "30 Noor messages a day", "Local-first, no account", "19 languages"].map((p) => (
+                      <li key={p} className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{p}
+                      </li>
+                    ))}
+                  </ul>
+                  <a href="https://app.orleia.app" className="mt-6 inline-flex items-center justify-center gap-2 rounded-full border border-border/60 px-5 py-2.5 text-sm font-medium hover:border-foreground/40 transition-colors">Start free</a>
+                </div>
+              </Reveal>
+              {PAID_PLANS.map((plan, i) => (
+                <Reveal key={plan.tier} delay={0.08 * (i + 1)}>
+                  <div className={`h-full rounded-2xl border p-6 flex flex-col ${plan.tier === "plus" ? "border-foreground/40 bg-white/[0.04]" : "border-border/60 bg-white/[0.02]"}`}>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">{plan.name}</p>
+                      {plan.tier === "plus" && <span className="rounded-full bg-foreground text-background px-2 py-0.5 text-[10px] font-medium">Popular</span>}
+                    </div>
+                    <p className="mt-3 text-3xl font-bold tracking-tight">${plan.monthly}</p>
+                    <p className="mt-1 text-xs text-muted-foreground/50">per month · ${plan.yearly} billed yearly</p>
+                    <p className="mt-3 text-xs text-muted-foreground/70 leading-relaxed">{plan.blurb}</p>
+                    <ul className="mt-5 space-y-2.5 text-sm text-muted-foreground flex-1">
+                      {plan.perks.map((p) => (
+                        <li key={p} className="flex items-start gap-2">
+                          <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{p}
+                        </li>
+                      ))}
+                    </ul>
+                    <a href="https://app.orleia.app" className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 transition-opacity">Get {plan.name}</a>
+                  </div>
+                </Reveal>
+              ))}
+            </div>
+            <Reveal delay={0.2}>
+              <p className="mt-8 text-center text-xs text-muted-foreground/50">
+                Cancel anytime, in one click, inside the app. Your data stays on your device on every plan.
+              </p>
             </Reveal>
           </div>
         </section>

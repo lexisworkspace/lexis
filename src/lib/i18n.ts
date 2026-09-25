@@ -921,6 +921,7 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "settings.fontMedium": "Medium",
   "settings.fontLarge": "Large",
   "settings.language": "Language",
+  "settings.languageHint": "Used everywhere in Orleia. Untranslated text falls back to English.",
   "settings.accessibility": "Accessibility",
   "settings.dyslexia": "Dyslexia-friendly mode",
   "settings.dyslexiaDesc": "More readable font, wider letter & word spacing",
@@ -23855,15 +23856,26 @@ export function getLangDir(lang: string): "ltr" | "rtl" {
   return (LANGUAGES.find((l) => l.code === lang) || LANGUAGES[0]).dir;
 }
 
-/** Reactive language hook — the OS owns the language.
- *  Resolution: explicit ?lang= URL param (deep links / testing), then the
- *  operating system language (navigator.languages), then English. Missing
- *  translations fall back to English inside t(), so partial tables are fine. */
-function resolveOsLanguage(): string {
+/**
+ * Language resolution order:
+ *   1. explicit ?lang= URL param (deep links / testing)
+ *   2. the user's pick in Settings → Appearance (theme.language)
+ *   3. the operating system language (navigator.languages)
+ *   4. English
+ * The stored default "en" means "no explicit pick" (auto/OS-driven); a
+ * user who explicitly picks English in the dropdown also stores "en",
+ * which is indistinguishable from auto — accepted trade-off, documented
+ * here. Missing translations fall back to English inside t().
+ */
+function resolveLanguage(): string {
   if (typeof window === "undefined") return "en";
   const params = new URLSearchParams(window.location.search);
   const fromUrl = params.get("lang");
   if (fromUrl && LANGUAGES.some((l) => l.code === fromUrl)) return fromUrl;
+  try {
+    const saved = storage.getData()?.theme?.language;
+    if (saved && saved !== "en" && LANGUAGES.some((l) => l.code === saved)) return saved;
+  } catch { /* storage not initialized yet */ }
   const candidates = [...(navigator.languages || []), navigator.language || "en"];
   for (const c of candidates) {
     const base = (c || "").toLowerCase().split("-")[0];
@@ -23874,16 +23886,25 @@ function resolveOsLanguage(): string {
 }
 
 export function useI18n() {
-  const [lang, setLang] = useState<string>(() => resolveOsLanguage());
+  const [lang, setLang] = useState<string>(() => resolveLanguage());
 
-  // Follow the OS live when the device language changes, and keep
-  // <html lang/dir> correct for screen readers + RTL.
+  // Re-resolve when the device language changes OR any storage write lands
+  // (picking a language in Settings notifies storage). setLang with the
+  // same value is a no-op re-render-wise.
   useEffect(() => {
-    const onChange = () => setLang(resolveOsLanguage());
+    const onChange = () => setLang(resolveLanguage());
     window.addEventListener("languagechange", onChange);
+    const unsub = storage.subscribe(onChange);
+    return () => {
+      window.removeEventListener("languagechange", onChange);
+      unsub();
+    };
+  }, []);
+
+  // Keep <html lang/dir> correct for screen readers + RTL.
+  useEffect(() => {
     document.documentElement.setAttribute("lang", lang);
     document.documentElement.setAttribute("dir", getLangDir(lang));
-    return () => window.removeEventListener("languagechange", onChange);
   }, [lang]);
 
   return { lang, t: (key: string) => t(lang, key), dir: getLangDir(lang) };

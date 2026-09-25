@@ -39,7 +39,7 @@ import { storage } from "@/lib/storage";
 import { exportNotesMarkdown, exportJournalMarkdown, exportTasksCsv, exportHabitsCsv } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import { notificationPermission, requestReminderPermission } from "@/lib/reminders";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, LANGUAGES } from "@/lib/i18n";
 import { verifyPassword, isPasswordSet, PasswordGate } from "@/components/layout/PasswordGate";
 
 import { OrleiaSwitch } from "@/components/switch/OrleiaSwitch";
@@ -678,6 +678,31 @@ export default function SettingsPage() {
             <h2 className="font-semibold">{t("settings.appearance")}</h2>
           </div>
           <div className="space-y-5">
+            {/* Language */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                {t("settings.language")}
+              </label>
+              <select
+                value={data.theme.language || "en"}
+                onChange={(e) => {
+                  storage.updateTheme({ language: e.target.value });
+                  refresh();
+                }}
+                className="w-full max-w-xs rounded-xl border border-border bg-secondary/40 px-4 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-primary-500/50"
+                aria-label={t("settings.language")}
+              >
+                {LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-xs text-muted-foreground/60">
+                {t("settings.languageHint")}
+              </p>
+            </div>
+
             {/* Theme */}
             <div>
               <label className="text-sm font-medium mb-2 block">
