@@ -421,24 +421,6 @@ export default function LandingPage() {
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><polyline points="6 9 12 15 18 9" /></svg>
           </motion.button>
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-b from-transparent to-black z-10 pointer-events-none" />
-
-          {/* Trust bar — social proof right under the hero */}
-          <div className="relative z-10 w-full max-w-3xl mx-auto px-6">
-            <motion.div {...enter} transition={{ duration: 0.8, delay: 0.9, ease }} className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-white/35">
-              <span className="inline-flex items-center gap-2">
-                <span className="flex -space-x-1.5" aria-hidden>
-                  {["bg-indigo-400", "bg-emerald-400", "bg-amber-400", "bg-rose-400", "bg-sky-400"].map((c, i) => (
-                    <span key={i} className={`h-5 w-5 rounded-full border-2 border-black ${c}`} />
-                  ))}
-                </span>
-                Used by 260+ people worldwide
-              </span>
-              <span aria-hidden className="hidden sm:inline text-white/20">·</span>
-              <span>100% local-first — your data never leaves your device</span>
-              <span aria-hidden className="hidden sm:inline text-white/20">·</span>
-              <span>19 languages</span>
-            </motion.div>
-          </div>
         </section>
 
         {/* ===== PRODUCT BENTO ===== */}
@@ -628,10 +610,10 @@ export default function LandingPage() {
               </Reveal>
               {PAID_PLANS.map((plan, i) => (
                 <Reveal key={plan.tier} delay={0.08 * (i + 1)}>
-                  <div className={`h-full rounded-2xl border p-6 flex flex-col ${plan.tier === "plus" ? "border-foreground/40 bg-white/[0.04]" : "border-border/60 bg-white/[0.02]"}`}>
+                  <div className={`h-full rounded-2xl border p-6 flex flex-col ${plan.popular ? "border-foreground/40 bg-white/[0.04]" : "border-border/60 bg-white/[0.02]"}`}>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold">{plan.name}</p>
-                      {plan.tier === "plus" && <span className="rounded-full bg-foreground text-background px-2 py-0.5 text-[10px] font-medium">Popular</span>}
+                      {plan.popular && <span className="rounded-full bg-foreground text-background px-2 py-0.5 text-[10px] font-medium">Most popular</span>}
                     </div>
                     <p className="mt-3 text-3xl font-bold tracking-tight">${plan.monthly}</p>
                     <p className="mt-1 text-xs text-muted-foreground/50">per month · ${plan.yearly} billed yearly</p>

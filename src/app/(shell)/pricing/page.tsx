@@ -62,7 +62,7 @@ export default function PricingPage() {
               key={plan.tier}
               className="rounded-2xl border border-border/60 p-6 flex flex-col relative"
             >
-              {plan.tier === "pro" && (
+              {plan.popular && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-background">
                   Most popular
                 </span>

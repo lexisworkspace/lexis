@@ -146,7 +146,12 @@ export function PlanIntro() {
               className="group flex flex-col rounded-2xl border border-border bg-card p-5 text-left transition-all hover:border-foreground/40 hover:bg-secondary/30 disabled:opacity-50"
             >
               <span className="flex items-center justify-between">
-                <span className="text-sm font-bold">Orleia {p.name}</span>
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-bold">Orleia {p.name}</span>
+                  {p.popular && (
+                    <span className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-medium text-background">Most popular</span>
+                  )}
+                </span>
                 <Check className="h-4 w-4 shrink-0 text-emerald-500" />
               </span>
               <span className="mt-2 text-2xl font-bold tabular-nums tracking-tight">

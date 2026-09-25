@@ -28,6 +28,10 @@ export interface PlanDef {
   yearly: number; // USD, 20% off monthly x12
   blurb: string;
   perks: string[];
+  /** The plan marketing surfaces highlight as most popular (Pro — best
+   *  value per Noor message). Single source of truth for landing, pricing
+   *  page and the plan intro dialog. */
+  popular?: boolean;
   /** Stripe price IDs come from env so keys are never in code. */
   priceEnv: { monthly: string; yearly: string };
 }
@@ -60,6 +64,7 @@ export const PAID_PLANS: PlanDef[] = [
       "Everything in Plus",
       "Cancel anytime",
     ],
+    popular: true,
     priceEnv: { monthly: "STRIPE_PRICE_PRO_MONTHLY", yearly: "STRIPE_PRICE_PRO_YEARLY" },
   },
   {
