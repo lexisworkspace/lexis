@@ -5,11 +5,22 @@ import { chat, buildStatsBlock, buildProfileBlock, buildNoorBlock, ChatOpts, wit
 import { getToday } from "./utils";
 
 const FALLBACK_MODELS: Record<string, string[]> = {
+  // Fast's fallback list is ordered for speed: if lightning is cold, the
+  // warm super model answers quicker than waiting lightning out.
   "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
-  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3-ultra-550b-a55b"],
-};
+  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-ultra-550b-a55b"],
+  "nvidia/nemotron-3.5-lightning-30b-a3b": ["nvidia/nemotron-3-super-120b-a12b"],
+};;
 import { buildSearchBlock, isLiveQuery } from "./web-search";
 import { getSituationPayload } from "@/lib/graph/engine";
+import { getDeviceId } from "./device-id";
+import { slurSpellReplacement } from "./safety-guard";
+import { setNoorUsage, usageLine } from "./noor-usage";
+import { buildSkillsBlock } from "./noor-skills";
+
+// Re-export the shared cap error so existing imports keep working.
+export { NoorCapError } from "./noor-cap";
+import { NoorCapError } from "./noor-cap";
 import { MODEL_PROFILES } from "./ai-models";
 import { countFactInstruction } from "./count-guard";
 import { jailbreakOverride, jailbreakQueryReplacement } from "./jailbreak-guard";
@@ -32,7 +43,9 @@ async function streamLLM(
   modelId: AIModel,
   signal: AbortSignal | undefined,
   onToken: (delta: string) => void,
-  opts?: ChatOpts
+  opts?: ChatOpts,
+  /** Agent-only extra context (device environment + screen description). */
+  agentContext = ""
 ): Promise<string | null> {
   const model = MODEL_PROFILES[modelId];
   if (!model) return null;
@@ -41,12 +54,20 @@ async function streamLLM(
   const profileBlock = buildProfileBlock();
   const noorBlock = buildNoorBlock();
   const searchBlock = buildSearchBlock(opts?.sources || []);
-  const systemPrompt = `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}`;
+  const extraContext = opts?.extraSystem ? `\n\n${opts.extraSystem}` : "";
+  // Server-truth usage for Noor's own self-knowledge (answers billing
+  // questions with real numbers instead of inventing them).
+  const usageBlock = usageLine();
+  // Skills: user-authored standing instructions (local-only). Injected for
+  // every Noor surface that streams through here (main chat, projects, research).
+  const skillsBlock = buildSkillsBlock();
+  const systemPrompt = `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageBlock}${skillsBlock}${extraContext}${agentContext}`;
 
   // Never feed JSON-looking assistant replies back to the model.
   const history = conversationHistory
     .slice(-model.maxContextMessages)
     .filter((m) => {
+      if ((m as { kind?: string }).kind === "usage-warning") return false; // banner, not a real reply
       if (m.role !== "assistant") return true;
       const t = (m.content || "").trim();
       return !/^\{\s*["']/.test(t) && !/^```(?:json)?/i.test(t);
@@ -77,41 +98,159 @@ async function streamLLM(
       payloadMessages[payloadMessages.length - 1] = { role: "user", content: safeQuery };
     }
   }
-
-  try {
-    // Try primary model, then fallbacks
+  // Slur end-runs ("spell X backwards"): same technique - the model gets a
+  // safe instruction instead, so even small models cannot comply.
+  const slurSafe = slurSpellReplacement(query);
+  if (slurSafe && !safeQuery) {
+    const last = payloadMessages[payloadMessages.length - 1];
+    if (last && last.role === "user") {
+      payloadMessages[payloadMessages.length - 1] = { role: "user", content: slurSafe };
+    }
+  }
+  // TTFB/stall timer handles - declared outside try/catch so the catch can
+  // also clean them up.
+  let clearStreamTimers: () => void = () => {};
+  try {    // Try primary model, then fallbacks
     let res: Response | null = null;
     let triedModel = model.nvidiaModelId;
     const fallbacks = FALLBACK_MODELS[model.nvidiaModelId] || [];
     const modelsToTry = [model.nvidiaModelId, ...fallbacks];
     
+    // Fast mode lives up to its name: a hard per-attempt budget. A slow or
+    // hung endpoint must never hold the request hostage (users saw 40s+
+    // waits when the primary was cold). Core/Agent get a roomier budget.
+    const attemptTimeoutMs = modelId === "fast-1" ? 8000 : 25000;
+    // Time-to-first-byte guard (replaces the old whole-stream timeout, which
+    // killed healthy long streams - Agent's deep model legitimately streams
+    // past 25s - and dumped users into the offline fallback mid-answer).
+    // TTFB: abort only while NOTHING has arrived. Once streaming, a stall
+    // guard aborts only if the stream goes silent for 45s. No total cap.
+    let bumpStreamStall: () => void = () => {};
     for (const tryModel of modelsToTry) {
+      let gotResponse = false;
+      const attemptAbort = new AbortController();
+      const ttfbTimer = setTimeout(() => {
+        if (!gotResponse) attemptAbort.abort();
+      }, attemptTimeoutMs);
+      let stallTimer: ReturnType<typeof setTimeout> | null = null;
+      clearStreamTimers = () => {
+        clearTimeout(ttfbTimer);
+        if (stallTimer) clearTimeout(stallTimer);
+      };
+      bumpStreamStall = () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => attemptAbort.abort(), 45_000);
+      };
       try {
         const attempt = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
       body: JSON.stringify({
         model: tryModel,
         messages: payloadMessages,
         temperature: model.temperature,
         maxTokens: model.maxTokens,
         stream: true,
+        ...(model.disableThinking ? { chatTemplateKwargs: { enable_thinking: false } } : {}),
         situation: getSituationPayload(),
+        lang: (typeof document !== "undefined" ? document.documentElement.lang : "") || undefined,
       }),
-      signal,
+      // Caller's abort + our TTFB/stall guards combined.
+      ...(typeof AbortSignal.any === "function"
+        ? { signal: AbortSignal.any([signal, attemptAbort.signal].filter((x): x is AbortSignal => Boolean(x))) }
+        : {}),
     });
-    if (attempt.ok && attempt.body) { res = attempt; triedModel = tryModel; break; }
-      } catch { /* try next */ }
+    if (attempt.ok && attempt.body) {
+      res = attempt; triedModel = tryModel;
+      // Headers arrived: TTFB satisfied. The stall guard takes over from here.
+      gotResponse = true;
+      clearTimeout(ttfbTimer);
+      bumpStreamStall();
+      // Server-truth usage -> UI warning + Noor's own self-knowledge.
+      const usageRaw = attempt.headers.get("x-orleia-usage");
+      if (usageRaw) {
+        try {
+          const u = JSON.parse(usageRaw) as { used?: number; limit?: number | null };
+          if (typeof u.used === "number") {
+            setNoorUsage(u.used, u.limit ?? null);
+            window.dispatchEvent(new CustomEvent("orleia:noor-usage", { detail: { used: u.used, limit: u.limit ?? null } }));
+          }
+        } catch { /* malformed header - ignore */ }
+      }
+      break;
     }
-    if (!res || !res.body) return null;
+      if (attempt.status === 402) {
+        // Daily Noor cap reached — do not fall back to other models; surface
+        // the upgrade state so the UI can respond (throws NoorCapError).
+        clearStreamTimers();
+        throw new NoorCapError();
+      }
+      clearStreamTimers(); // failed attempt - kill its timers before retrying
+      } catch (e) {
+        clearStreamTimers();
+        if (e instanceof NoorCapError) throw e;
+        /* try next */
+      }
+    }
+    if (!res || !res.body) {
+      clearStreamTimers();
+      return null;
+  }
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let full = "";
+    // ---- Thinking separation ----
+    // Reasoning models surface their thinking in two ways: a dedicated
+    // delta.reasoning_content field, or inline <think>...</think> tags inside
+    // content. Both are routed to onThinking so the visible reply stays clean
+    // and the UI can show the thought process in a collapsible block.
+    // Thinking never passes through the action interceptor or the voice
+    // pipeline (it goes to onThinking, not onToken).
+    const onThinking = opts?.onThinking;
+    let inThink = false; // inside an inline <think> block
+    let wbuf = "";       // held-back text (may end with a partial tag)
+    const flushHeld = () => {
+      if (!wbuf) return;
+      if (inThink) onThinking?.(wbuf);
+      else { full += wbuf; onToken(wbuf); }
+      wbuf = "";
+    };
+    // Route one content delta through the <think> state machine.
+    const routeContent = (delta: string) => {
+      wbuf += delta;
+      for (;;) {
+        if (inThink) {
+          const close = wbuf.indexOf("</think>");
+          if (close === -1) {
+            // Hold back a tail that could be a partial closing tag.
+            const lt = wbuf.lastIndexOf("<");
+            const keep = lt !== -1 && wbuf.length - lt < 9 ? lt : wbuf.length;
+            if (keep > 0) { onThinking?.(wbuf.slice(0, keep)); wbuf = wbuf.slice(keep); }
+            return;
+          }
+          if (close > 0) onThinking?.(wbuf.slice(0, close));
+          wbuf = wbuf.slice(close + 8);
+          inThink = false;
+        } else {
+          const open = wbuf.indexOf("<think>");
+          if (open === -1) {
+            const lt = wbuf.lastIndexOf("<");
+            const keep = lt !== -1 && wbuf.length - lt < 8 ? lt : wbuf.length;
+            if (keep > 0) { const vis = wbuf.slice(0, keep); full += vis; onToken(vis); wbuf = wbuf.slice(keep); }
+            return;
+          }
+          if (open > 0) { const vis = wbuf.slice(0, open); full += vis; onToken(vis); }
+          wbuf = wbuf.slice(open + 7);
+          inThink = true;
+        }
+      }
+    };
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      bumpStreamStall(); // stream is alive - rearm the stall guard
       buffer += decoder.decode(value, { stream: true });
       const parts = buffer.split("\n\n");
       buffer = parts.pop() || "";
@@ -122,18 +261,25 @@ async function streamLLM(
         if (data === "[DONE]") continue;
         try {
           const json = JSON.parse(data);
-          const delta = json?.choices?.[0]?.delta?.content;
-          if (typeof delta === "string" && delta) {
-            full += delta;
-            onToken(delta);
-          }
+          const d = json?.choices?.[0]?.delta;
+          const rc = d?.reasoning_content;
+          if (typeof rc === "string" && rc) onThinking?.(rc);
+          const delta = d?.content ?? null;
+          if (typeof delta === "string" && delta) routeContent(delta);
         } catch {
           /* skip malformed frames */
         }
       }
     }
+    flushHeld();
+    clearStreamTimers();
     return full.trim() || null;
-  } catch {
+  } catch (e) {
+    clearStreamTimers();
+    // NEVER swallow the cap: the UI must show the upgrade message, not
+    // silently drop to the offline robot (which once impersonated Noor
+    // for a whole session after the cap had already been hit).
+    if (e instanceof NoorCapError) throw e;
     return null;
   }
 }
@@ -147,6 +293,8 @@ async function streamLLM(
  */
 export interface StreamOpts {
   onToken: (delta: string) => void;
+  /** Streaming callback for the model's internal reasoning (thinking tokens). */
+  onThinking?: (delta: string) => void;
   signal?: AbortSignal;
   sources?: AISource[];
 }
@@ -154,12 +302,14 @@ export interface StreamOpts {
 export async function chatStream(
   query: string,
   conversationHistory: AIMessage[] = [],
-  modelId: AIModel = "logos-4.5",
-  opts: StreamOpts
+  modelId: AIModel = "core-1",
+  opts: StreamOpts,
+  /** Agent-only extra context (device environment + screen description). */
+  agentContext = ""
 ): Promise<string> {
   const model = MODEL_PROFILES[modelId];
   if (!model) {
-    const msg = "Invalid model selected. Please choose Ethos 4.7, Logos 4.5, or Verse 4.";
+    const msg = "Invalid model selected. Please choose Fast, Core, or Agent.";
     opts.onToken(msg);
     return msg;
   }
@@ -170,14 +320,14 @@ export async function chatStream(
   const action = isLiveQuery(query)
     ? { matched: false, type: null, params: {}, confidence: 0 }
     : detectAction(query);
-  if (action.matched && action.confidence >= 0.7) {
+  if (action.matched && action.confidence >= 0.7 && modelId !== "agent-1") {
     const result = executeAction(action);
     opts.onToken(result.message);
     return result.message;
   }
 
   // Streaming LLM - the rapid path. The token stream passes through a small
-  // state machine: a LEXIS_ACTION { ... } block the model emits is executed
+  // state machine: a ORLEIA_ACTION { ... } block the model emits is executed
   // for real and its JSON is replaced by a natural confirmation BEFORE it
   // reaches the UI or the voice pipeline (voice mode must never read raw
   // JSON aloud, and the action must actually happen - never just claimed).
@@ -191,6 +341,55 @@ export async function chatStream(
   let inAction = false;
   let actionBuf = "";
   let sawMarker = false;
+
+  // ---- Creation batching ----
+  // When the model fires several create_* actions back-to-back (e.g.
+  // "plan my week" -> 5 tasks), showing one confirmation per action spams
+  // the thread. Rapid creation confirmations are held briefly and flushed
+  // as a single summary ("I've created 5 tasks: a, b, c").
+  type BatchItem = { kind: string; message: string };
+  const batch: BatchItem[] = [];
+  let batchTimer: ReturnType<typeof setTimeout> | null = null;
+  const KIND_LABELS: Record<string, string> = {
+    create_task: "task",
+    create_habit: "habit",
+    create_journal: "journal entry",
+    create_note: "note",
+    create_event: "calendar event",
+  };
+  const flushBatch = () => {
+    if (batchTimer) { clearTimeout(batchTimer); batchTimer = null; }
+    if (!batch.length) return;
+    const items = batch.splice(0, batch.length);
+    if (items.length === 1) { emit(items[0].message); return; }
+    const kindCounts: Record<string, number> = {};
+    const titles: string[] = [];
+    for (const it of items) {
+      kindCounts[it.kind] = (kindCounts[it.kind] || 0) + 1;
+      const m = it.message.match(/\*\*(.+?)\*\*/);
+      if (m) titles.push(m[1]);
+    }
+    const parts = Object.entries(kindCounts).map(([k, n]) => {
+      const label = KIND_LABELS[k] || "item";
+      return `${n} ${label}${n > 1 ? "s" : ""}`;
+    });
+    let summary = `\u2705 Done \u2014 I've created ${parts.join(" and ")}`;
+    if (titles.length && titles.length <= 6) {
+      summary += `: ${titles.map((x) => `**${x}**`).join(", ")}`;
+    }
+    summary += ".";
+    emit(summary);
+  };
+  const queueConfirmation = (kind: string, message: string) => {
+    if (/^create_(task|habit|journal|note|event)$/.test(kind) && /^\u2705/.test(message)) {
+      batch.push({ kind, message });
+      if (batchTimer) clearTimeout(batchTimer);
+      batchTimer = setTimeout(flushBatch, 80);
+    } else {
+      flushBatch(); // keep chronological order before non-creatable actions
+      emit(message);
+    }
+  };
   const MAX_MARKER_LEN = Math.max(...ACTION_MARKER_VARIANTS.map((m) => m.length));
   const emit = (t: string) => {
     if (!t) return;
@@ -198,7 +397,7 @@ export async function chatStream(
     opts.onToken(t);
   };
 
-  // The LEXIS_ACTION marker interceptor - the only path visible text takes.
+  // The ORLEIA_ACTION marker interceptor - the only path visible text takes.
   const handleVisible = (delta: string) => {
     if (inAction) {
       actionBuf += delta;
@@ -250,7 +449,9 @@ export async function chatStream(
           const confirmation = tryExecuteJsonAction(json);
           if (confirmation) {
             handledAction = true;
-            emit(confirmation);
+            let kind = "";
+            try { kind = (JSON.parse(json) as { action?: string })?.action || ""; } catch { /* malformed - treated as non-batched */ }
+            queueConfirmation(kind, confirmation);
           }
           // Text after the block can itself contain another (possibly
           // truncated) marker - never let raw JSON reach the UI.
@@ -264,7 +465,7 @@ export async function chatStream(
   try {
     const text = await streamLLM(query, conversationHistory, modelId, opts.signal, (delta) => {
       handleVisible(delta);
-    }, opts);
+    }, opts, agentContext);
     // Flush any held-back visible text at stream end.
     if (pending) handleVisible(pending);
 
@@ -274,8 +475,49 @@ export async function chatStream(
     actionBuf = "";
     if (pending) emit(pending);
     pending = "";
+    flushBatch();
     // Already executed + filtered in the stream - return the clean text.
     if (handledAction) return actionText;
+
+    // ---- Rescue pass: announce-without-act ----
+    // Small models sometimes announce actions ("Let me create the tasks:")
+    // and then stop without emitting the ORLEIA_ACTION lines. Detect the
+    // dangling announcement and force one continuation call whose only job
+    // is to emit the action lines, then execute them for real.
+    const fullText = text ?? "";
+    if (!sawMarker && fullText.trim()) {
+      const tail = fullText.slice(-200);
+      const announcedIntent = /\b(?:let me|i'll|i will|allow me)\b/i.test(tail) || /:\s*$/.test(fullText.trimEnd());
+      const actionVerb = /\b(?:create|add|make|set up|schedule|log|complete|delete|remove)\b/i.test(tail);
+      if (announcedIntent && actionVerb) {
+        const proceedQ =
+          "PROCEED NOW: emit the ORLEIA_ACTION line(s) for exactly the actions you announced. " +
+          "Output ONLY the ORLEIA_ACTION line(s) - no prose, no markdown, no confirmation.";
+        const cont = await streamLLM(
+          proceedQ,
+          [
+            ...conversationHistory,
+            { id: "rescue-u", role: "user", content: query, timestamp: new Date().toISOString() },
+            { id: "rescue-a", role: "assistant", content: fullText, timestamp: new Date().toISOString() },
+          ],
+          modelId,
+          opts.signal,
+          () => {},
+          opts
+        );
+        if (cont && /ORLEIA_ACTION/i.test(cont)) {
+          const processedCont = processActionReply(cont);
+          const handledCont = processedCont
+            ? processedCont
+            : tryExecuteJsonAction(cont) || stripActionRemnants(cont);
+          if (handledCont && handledCont.trim()) {
+            const out = fullText.trim() + "\n\n" + handledCont.trim();
+            opts.onToken("\n\n" + handledCont.trim());
+            return out;
+          }
+        }
+      }
+    }
     // The action never completed: always tell the user honestly, even when
     // the model wrote prose before the marker (never a silent "Sure!" lie).
     if (truncatedAction) {
@@ -301,7 +543,7 @@ export async function chatStream(
         opts.onToken(handled);
         return handled;
       }
-      // Final net: never let a raw/truncated LEXIS_ACTION line reach the UI.
+      // Final net: never let a raw/truncated ORLEIA_ACTION line reach the UI.
       const cleaned = stripActionRemnants(t);
       if (cleaned) return cleaned;
       return t;
@@ -310,7 +552,11 @@ export async function chatStream(
     // fall through to the local engine below.
     if (!actionText.trim()) throw new Error("stream_null");
     return actionText;
-  } catch {
+  } catch (e) {
+    flushBatch();
+    // Cap errors propagate to the UI's friendly upgrade message. Everything
+    // else genuinely falls back to the local engine.
+    if (e instanceof NoorCapError) throw e;
     /* fall through to the local engine */
   }
 

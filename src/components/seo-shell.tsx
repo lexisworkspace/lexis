@@ -29,19 +29,13 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
       <nav className="relative z-20 mx-auto max-w-7xl px-6 py-5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2.5">
           <img
-            src="/lexis-logo.png"
-            alt="LEXIS"
-            className="h-9 w-9 rounded-lg object-contain"
+            src="/orleia-wordmark.png"
+            alt="Orleia"
+            className="h-7 w-auto dark:invert"
           />
-          <span
-            className="text-base font-bold tracking-tight"
-            style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
-          >
-            LEXIS
-          </span>
         </Link>
         <a
-          href="https://app.lexisapp.xyz"
+          href="https://app.orleia.app"
           target="_blank"
           rel="noopener noreferrer"
           className="group inline-flex items-center gap-1.5 bg-foreground text-background px-5 py-2.5 text-xs font-medium tracking-wide transition-all duration-300 hover:opacity-90 active:scale-[0.97]"
@@ -61,20 +55,20 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
             GET STARTED
           </span>
           <h2 className="text-3xl md:text-4xl font-bold tracking-tight mt-4 mb-4">
-            Try LEXIS - free, no sign-up
+            Try ORLEIA - free, no sign-up
           </h2>
           <p className="text-base text-muted-foreground/60 font-body leading-relaxed max-w-md mx-auto mb-10">
             No accounts. No servers. No cost. Just you, your tools, and an AI
             that actually understands your life.
           </p>
           <a
-            href="https://app.lexisapp.xyz"
+            href="https://app.orleia.app"
             target="_blank"
             rel="noopener noreferrer"
             className="group relative inline-flex items-center gap-3 bg-foreground text-background px-10 py-5 text-base font-medium tracking-wide transition-all duration-300 hover:opacity-90 active:scale-[0.97]"
             style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
           >
-            <span>Enter Lexis Workspace</span>
+            <span>Enter Orleia Workspace</span>
             <ArrowUpRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             <span className="absolute inset-0 border border-foreground/20 -translate-x-1.5 translate-y-1.5 transition-transform duration-300 group-hover:translate-x-0 group-hover:translate-y-0" />
           </a>
@@ -86,7 +80,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
         {/* Footer */}
         <footer className="py-12 border-t border-border/50 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-[10px] text-muted-foreground/30 font-mono tracking-wider">
-            LEXIS &middot; LOCAL-FIRST &middot; FREE
+            ORLEIA &middot; LOCAL-FIRST &middot; FREE
           </p>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:gap-4">
             <Link
@@ -102,10 +96,10 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
               OBSIDIAN ALT
             </Link>
             <Link
-              href="/what-is-lexis"
+              href="/what-is-orleia"
               className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60 font-mono tracking-wider transition-colors whitespace-nowrap"
             >
-              WHAT IS LEXIS
+              WHAT IS ORLEIA
             </Link>
             <Link
               href="/local-first-productivity"
@@ -132,7 +126,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
               CCPA
             </Link>
             <a
-              href="https://buymeacoffee.com/lexis"
+              href="https://buymeacoffee.com/orleia"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-muted-foreground/30 hover:text-muted-foreground/60 font-mono tracking-wider transition-colors whitespace-nowrap"
@@ -141,10 +135,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
             </a>
           </div>
           <p className="mt-5 text-center text-[10px] font-mono tracking-wider text-muted-foreground/25">
-            NOT AFFILIATED WITH LEXISNEXIS OR RELX GROUP
-          </p>
-          <p className="mt-1 text-center text-[9px] font-mono tracking-wider text-muted-foreground/20">
-            LEXISNEXIS AND RELX GROUP ARE TRADEMARKS OF THEIR RESPECTIVE OWNERS
+            ORLEIA — FREE, LOCAL-FIRST, NO TRACKING
           </p>
         </footer>
       </div>

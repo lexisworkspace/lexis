@@ -6,7 +6,7 @@ export const maxDuration = 60;
 
 // NVIDIA NIM image generation via FLUX.1-dev (high quality).
 export async function POST(req: Request) {
-  const denied = guardApi(req, { unlimited: true });
+  const denied = guardApi(req, { perMinute: 120, perDay: 5000 });
   if (denied) return denied;
 
   try {

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Delete } from "lucide-react";
 
 const PIN_LENGTH = 4;
-const PIN_STORAGE_KEY = "lexis-pin";
+const PIN_STORAGE_KEY = "orleia-pin";
 
 export function isPinSet(): boolean {
   if (typeof window === "undefined") return false;
@@ -19,7 +19,7 @@ export function isPinSet(): boolean {
 
 export async function storePin(pin: string): Promise<boolean> {
   try {
-    const hash = await sha256Hex(pin + "lexis-pin-salt");
+    const hash = await sha256Hex(pin + "orleia-pin-salt");
     localStorage.setItem(PIN_STORAGE_KEY, hash);
     const v = localStorage.getItem(PIN_STORAGE_KEY);
     return v === hash;
@@ -32,7 +32,7 @@ export async function verifyPin(pin: string): Promise<boolean> {
   try {
     const stored = localStorage.getItem(PIN_STORAGE_KEY);
     if (!stored) return false;
-    const hash = await sha256Hex(pin + "lexis-pin-salt");
+    const hash = await sha256Hex(pin + "orleia-pin-salt");
     return hash === stored;
   } catch {
     return false;

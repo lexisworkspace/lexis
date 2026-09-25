@@ -2,7 +2,7 @@
 
 // ============================================================
 // Wellness - breathing exercises & meditation
-// Same design language as the rest of Lexis. Pure CSS animation
+// Same design language as the rest of Orleia. Pure CSS animation
 // (no framer) so it stays smooth on phones and tablets.
 // ============================================================
 
@@ -46,7 +46,7 @@ const EXERCISES: BreathExercise[] = [
     nameKey: "journal.exBox",
     descKey: "journal.exBoxDesc",
     icon: Wind,
-    accent: "text-emerald-300 bg-emerald-400/10",
+    accent: "text-primary bg-primary/10",
     phases: [
       { labelKey: "journal.inhale", seconds: 4, target: 1 },
       { labelKey: "journal.hold", seconds: 4, target: 1 },
@@ -59,7 +59,7 @@ const EXERCISES: BreathExercise[] = [
     nameKey: "journal.ex478",
     descKey: "journal.ex478Desc",
     icon: Flower2,
-    accent: "text-emerald-300 bg-emerald-400/10",
+    accent: "text-primary bg-primary/10",
     phases: [
       { labelKey: "journal.inhale", seconds: 4, target: 1 },
       { labelKey: "journal.hold", seconds: 7, target: 1 },
@@ -71,7 +71,7 @@ const EXERCISES: BreathExercise[] = [
     nameKey: "journal.exCalm",
     descKey: "journal.exCalmDesc",
     icon: Waves,
-    accent: "text-emerald-300 bg-emerald-400/10",
+    accent: "text-primary bg-primary/10",
     phases: [
       { labelKey: "journal.inhale", seconds: 5, target: 1 },
       { labelKey: "journal.exhale", seconds: 5, target: 0.62 },
@@ -82,7 +82,7 @@ const EXERCISES: BreathExercise[] = [
     nameKey: "journal.exEnergy",
     descKey: "journal.exEnergyDesc",
     icon: Zap,
-    accent: "text-emerald-300 bg-emerald-400/10",
+    accent: "text-primary bg-primary/10",
     phases: [
       { labelKey: "journal.inhale", seconds: 4, target: 1 },
       { labelKey: "journal.exhale", seconds: 2, target: 0.62 },
@@ -239,7 +239,7 @@ function formatClock(totalSeconds: number): string {
 // ------------------------------------------------------------
 // Main section
 // ------------------------------------------------------------
-export function Wellness() {
+export function Wellness({ embedded = false }: { embedded?: boolean }) {
   const { t } = useI18n();
   const [session, setSession] = useState<null | {
     mode: SessionMode;
@@ -249,10 +249,12 @@ export function Wellness() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h2 className="font-semibold tracking-tight">{t("journal.wellness")}</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{t("journal.wellnessDesc")}</p>
-      </div>
+      {!embedded && (
+        <div className="mb-4">
+          <h2 className="font-semibold tracking-tight">{t("journal.wellness")}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("journal.wellnessDesc")}</p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         {EXERCISES.map((ex) => (
@@ -301,7 +303,7 @@ function ExerciseCard({
               className={cn(
                 "rounded-md px-2 py-1 text-xs font-medium transition-colors",
                 minutes === m
-                  ? "bg-primary-500/15 text-primary-500"
+                  ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -312,7 +314,7 @@ function ExerciseCard({
         </div>
         <button
           onClick={() => onStart(minutes)}
-          className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-sm"
+          className="flex items-center gap-1.5 rounded-xl border border-foreground/20 bg-background/40 px-3.5 py-1.5 text-sm font-medium text-foreground/60 backdrop-blur-md transition-all hover:border-foreground/40 hover:text-foreground active:scale-95"
         >
           <Play className="h-3.5 w-3.5" />
           {t("journal.start")}
@@ -328,7 +330,7 @@ function MeditationCard({ onStart }: { onStart: (minutes: number) => void }) {
   return (
     <div className="card sm:col-span-2 flex flex-col gap-3 p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Moon className="h-5 w-5" strokeWidth={1.75} />
         </div>
         <div className="min-w-0">
@@ -345,7 +347,7 @@ function MeditationCard({ onStart }: { onStart: (minutes: number) => void }) {
               className={cn(
                 "rounded-md px-2 py-1 text-xs font-medium transition-colors",
                 minutes === m
-                  ? "bg-emerald-400/15 text-emerald-300"
+                  ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -356,7 +358,7 @@ function MeditationCard({ onStart }: { onStart: (minutes: number) => void }) {
         </div>
         <button
           onClick={() => onStart(minutes)}
-          className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-sm"
+          className="flex items-center gap-1.5 rounded-xl border border-foreground/20 bg-background/40 px-3.5 py-1.5 text-sm font-medium text-foreground/60 backdrop-blur-md transition-all hover:border-foreground/40 hover:text-foreground active:scale-95"
         >
           <Play className="h-3.5 w-3.5" />
           {t("journal.start")}
@@ -364,6 +366,152 @@ function MeditationCard({ onStart }: { onStart: (minutes: number) => void }) {
       </div>
     </div>
   );
+}
+
+// ------------------------------------------------------------
+// ParticleBreath — canvas particle field for breathing sessions.
+// Particles drift outward on inhale and pull inward on exhale,
+// orbiting a glowing core. Color follows the user's --primary accent.
+// ------------------------------------------------------------
+interface Particle {
+  ang: number;
+  baseR: number; // 0..1 fraction of max radius
+  size: number;
+  drift: number; // rad/s tangential drift
+  wobAmp: number;
+  wobSpeed: number;
+  wobPhase: number;
+  bright: boolean;
+}
+
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
+function ParticleBreath({
+  from,
+  to,
+  start,
+  seconds,
+  meditate = false,
+}: {
+  from: number;
+  to: number;
+  start: number;
+  seconds: number;
+  meditate?: boolean;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drive = useRef({ from, to, start, seconds, meditate });
+  drive.current = { from, to, start, seconds, meditate };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reduced = document.documentElement.getAttribute("data-reduced-motion") === "true";
+
+    // deterministic particle field
+    let seed = 7;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const parts: Particle[] = Array.from({ length: 110 }, () => ({
+      ang: rand() * Math.PI * 2,
+      baseR: 0.3 + rand() * 0.7,
+      size: 0.8 + rand() * 1.8,
+      drift: (rand() - 0.5) * 0.14,
+      wobAmp: 2 + rand() * 5,
+      wobSpeed: 0.4 + rand() * 0.9,
+      wobPhase: rand() * Math.PI * 2,
+      bright: rand() < 0.16,
+    }));
+
+    let raf = 0;
+    let time = 0;
+    let last = performance.now();
+
+    const draw = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      if (!reduced) time += dt;
+
+      const { from: f, to: tt, start: st, seconds: secs, meditate: med } = drive.current;
+      /* Breath level is computed from the real clock every frame (not from
+         React state), so the motion is butter-smooth instead of stepping at
+         the 200ms state-tick rate. */
+      const level = med
+        ? 0.55 + 0.33 * Math.sin((time / 10) * Math.PI * 2 - Math.PI / 2)
+        : f + (tt - f) * easeInOut(Math.min(1, Math.max(0, (now - st) / (secs * 1000))));
+
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width;
+      const h = rect.height;
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const maxR = Math.min(w, h) / 2 - 10;
+
+      // accent color from the app's --primary token
+      const raw = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
+      const rgb = raw || "99 102 241";
+
+      // glowing core, scaled by breath level
+      const coreR = maxR * (0.3 + 0.42 * level);
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+      grad.addColorStop(0, `rgb(${rgb} / ${0.5 * level + 0.12})`);
+      grad.addColorStop(0.55, `rgb(${rgb} / ${0.22 * level + 0.05})`);
+      grad.addColorStop(1, `rgb(${rgb} / 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // faint structural ring
+      ctx.strokeStyle = `rgb(${rgb} / 0.14)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, maxR * (0.55 + 0.4 * level), 0, Math.PI * 2);
+      ctx.stroke();
+
+      // particles
+      for (const pt of parts) {
+        if (!reduced) pt.ang += pt.drift * dt;
+        const wob = Math.sin(time * pt.wobSpeed * Math.PI + pt.wobPhase) * pt.wobAmp;
+        const r = pt.baseR * maxR * (0.42 + 0.58 * level) + wob;
+        const x = cx + Math.cos(pt.ang) * r;
+        const y = cy + Math.sin(pt.ang) * r;
+        const tw = reduced ? 0.8 : 0.65 + 0.35 * Math.sin(time * 1.4 + pt.wobPhase);
+        const alpha = (0.2 + 0.6 * level) * tw;
+        ctx.beginPath();
+        if (pt.bright) {
+          ctx.shadowColor = `rgb(${rgb} / 0.8)`;
+          ctx.shadowBlur = 8;
+        }
+        ctx.fillStyle = `rgb(${rgb} / ${alpha.toFixed(3)})`;
+        ctx.arc(x, y, pt.size * (0.85 + 0.35 * level), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      raf = requestAnimationFrame(draw);
+    };
+
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />;
 }
 
 // ------------------------------------------------------------
@@ -461,7 +609,11 @@ function SessionOverlay({
   }, [completed, phaseIdx]);
 
   const phase = exercise.phases[phaseIdx % exercise.phases.length];
+  const prevTarget = exercise.phases[(phaseIdx - 1 + exercise.phases.length) % exercise.phases.length].target;
   const scale = phase.target;
+  /* Real-clock timestamp of when the current phase began — the particle
+     field interpolates against this every frame for smooth motion. */
+  const phaseStartedAt = useMemo(() => performance.now() - phaseMs, [phaseIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   const phaseLeft = Math.max(1, Math.ceil(phase.seconds - phaseMs / 1000));
   const progress = Math.min(100, (totalMs / (totalSeconds * 1000)) * 100);
   const remaining = Math.max(0, totalSeconds - Math.floor(totalMs / 1000));
@@ -481,7 +633,7 @@ function SessionOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-4"
+      className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -512,8 +664,8 @@ function SessionOverlay({
 
       {completed ? (
         <div className="flex flex-col items-center text-center">
-          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-primary-500/20">
-            <Check className="h-10 w-10 text-primary-400" strokeWidth={2} />
+          <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
+            <Check className="h-10 w-10 text-primary" strokeWidth={2} />
           </div>
           <h3 className="text-2xl font-bold text-white">{t("journal.sessionComplete")}</h3>
           <p className="text-sm text-white/60 mt-1">{session.minutes} {t("journal.minutes")}</p>
@@ -523,21 +675,14 @@ function SessionOverlay({
         </div>
       ) : session.mode === "breath" ? (
         <>
-          {/* orb */}
+          {/* particle breath field */}
           <div className="relative flex h-64 w-64 sm:h-80 sm:w-80 items-center justify-center">
+            <ParticleBreath from={prevTarget} to={phase.target} start={phaseStartedAt} seconds={phase.seconds} />
             <div
-              className="absolute inset-0 rounded-full bg-primary-500/10"
-              style={{ transition: `transform ${phase.seconds}s ease-in-out`, transform: `scale(${0.7 + scale * 0.5})` }}
-            />
-            <div
-              className="absolute inset-8 rounded-full bg-primary-500/20"
-              style={{ transition: `transform ${phase.seconds}s ease-in-out`, transform: `scale(${0.7 + scale * 0.5})` }}
-            />
-            <div
-              className="absolute inset-16 flex items-center justify-center rounded-full bg-primary-500/90 shadow-[0_0_90px_30px_rgba(99,102,241,0.4)]"
-              style={{ transition: `transform ${phase.seconds}s ease-in-out, box-shadow ${phase.seconds}s ease-in-out`, transform: `scale(${scale})` }}
+              className="absolute inset-16 flex items-center justify-center rounded-full bg-primary/85 blur-[2px] shadow-[0_0_90px_30px_rgb(var(--primary)/0.35)]"
+              style={{ transition: `transform ${phase.seconds}s ease-in-out, box-shadow ${phase.seconds}s ease-in-out`, transform: `scale(${0.62 + 0.38 * scale})` }}
             >
-              <span className="font-mono text-3xl font-bold text-white tabular-nums">
+              <span className="font-mono text-3xl font-bold text-primary-foreground tabular-nums">
                 {phaseLeft}
               </span>
             </div>
@@ -546,7 +691,7 @@ function SessionOverlay({
           <p className="mt-1 text-xs text-white/50">{t("journal.breatheGentle")}</p>
           <div className="mt-8 w-full max-w-xs">
             <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-primary-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+              <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
             <div className="mt-2 flex items-center justify-between text-xs text-white/50">
               <span className="font-mono tabular-nums">{formatClock(remaining)}</span>
@@ -556,22 +701,15 @@ function SessionOverlay({
         </>
       ) : (
         <>
-          {/* meditation */}
+          {/* meditation — slow particle drift, same field, calmer rhythm */}
           <div className="relative flex h-64 w-64 sm:h-80 sm:w-80 items-center justify-center">
+            <ParticleBreath from={0.22} to={0.88} start={0} seconds={10} meditate />
             <div
-              className="absolute inset-0 rounded-full bg-violet-500/10"
-              style={{ transition: "transform 4s ease-in-out", transform: pulse ? "scale(1.12)" : "scale(0.92)" }}
-            />
-            <div
-              className="absolute inset-10 rounded-full bg-violet-500/20"
-              style={{ transition: "transform 4s ease-in-out", transform: pulse ? "scale(1.08)" : "scale(0.94)" }}
-            />
-            <div
-              className="absolute inset-20 rounded-full bg-violet-500/90 shadow-[0_0_90px_30px_rgba(139,92,246,0.35)]"
-              style={{ transition: "transform 4s ease-in-out", transform: pulse ? "scale(1.05)" : "scale(0.97)" }}
+              className="absolute inset-20 flex items-center justify-center rounded-full bg-primary/85 shadow-[0_0_90px_30px_rgb(var(--primary)/0.3)]"
+              style={{ transition: "transform 4s ease-in-out, box-shadow 4s ease-in-out", transform: pulse ? "scale(1.05)" : "scale(0.97)" }}
             >
               <div className="flex h-full items-center justify-center">
-                <Moon className="h-10 w-10 text-white/90" strokeWidth={1.5} />
+                <Moon className="h-10 w-10 text-primary-foreground/90" strokeWidth={1.5} />
               </div>
             </div>
           </div>
@@ -582,7 +720,7 @@ function SessionOverlay({
           </p>
           <div className="mt-8 w-full max-w-xs">
             <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-violet-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+              <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
             </div>
           </div>
         </>

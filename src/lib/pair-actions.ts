@@ -63,7 +63,7 @@ export function applyPairAction(action: PairAction): PairActionResult {
           completedAt: null,
           tags: [],
           listId: null,
-          recurring: "none",
+          projectId: null, recurring: "none",
           recurringEndDate: null,
           estimatedMinutes: null,
         });

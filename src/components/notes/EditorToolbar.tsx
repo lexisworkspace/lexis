@@ -512,7 +512,7 @@ export function EditorToolbar({
   );
 
   return (
-    <div className="lexis-editor-toolbar relative z-50 mx-2 sm:mx-3 md:mx-4 mb-3 rounded-2xl border border-border bg-card/80 backdrop-blur">
+    <div className="orleia-editor-toolbar relative z-50 mx-2 sm:mx-3 md:mx-4 mb-3 rounded-2xl border border-border bg-card/80 backdrop-blur">
       {showFind && <FindReplaceBar editor={editor} onClose={() => setShowFind(false)} />}
 
       {/* Mobile compact toolbar - essentials only */}
@@ -940,8 +940,8 @@ export function EditorStatusBar({
   const [pages, setPages] = useState(getLivePages());
   useEffect(() => {
     const onPages = (e: any) => setPages(e.detail?.pages ?? getLivePages());
-    window.addEventListener("lexis:pages", onPages);
-    return () => window.removeEventListener("lexis:pages", onPages);
+    window.addEventListener("orleia:pages", onPages);
+    return () => window.removeEventListener("orleia:pages", onPages);
   }, []);
   const count = useEditorState({
     editor,
@@ -956,7 +956,7 @@ export function EditorStatusBar({
   const [words, chars, paras, sents] = count.split("|").map(Number);
   const readingMin = Math.max(1, Math.round(words / 200));
   return (
-    <div className="lexis-status-bar flex items-center justify-between px-4 py-1 border-b border-border bg-card/70 text-[11px] text-muted-foreground shrink-0 select-none">
+    <div className="orleia-status-bar flex items-center justify-between px-4 py-1 border-b border-border bg-card/70 text-[11px] text-muted-foreground shrink-0 select-none">
       <div className="flex items-center gap-3">
         <span>
           {words} {t("notes.words")}

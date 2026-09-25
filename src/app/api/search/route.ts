@@ -9,7 +9,7 @@ export const maxDuration = 30;
 // Server-side web search for Noor's Web toggle. Keyless (DuckDuckGo HTML
 // first, Bing fallback), so Noor can cite live answers for free.
 export async function POST(req: Request) {
-  const blocked = guardApi(req, { unlimited: true });
+  const blocked = guardApi(req, { perMinute: 120, perDay: 5000 });
   if (blocked) return blocked;
 
   let q = "";

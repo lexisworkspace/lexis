@@ -1,7 +1,7 @@
 // Paired-mode sync.
 //
-// When a phone opens the pairing QR, it lands on the REAL Lexis app - the
-// desktop's pairing server reverse-proxies app.lexisapp.xyz over the LAN, so
+// When a phone opens the pairing QR, it lands on the REAL Orleia app - the
+// desktop's pairing server reverse-proxies app.orleia.app over the LAN, so
 // the phone runs the exact same app (including its mobile UI) from an HTTP
 // origin. That origin is the discriminator: paired mode is only active when
 // the app was loaded over plain HTTP (the LAN proxy) with a pairing token in
@@ -20,7 +20,7 @@
 import { storage } from "./storage";
 import type { AppData } from "@/types";
 
-const TOKEN_KEY = "lexis-pair-token";
+const TOKEN_KEY = "orleia-pair-token";
 
 /** True only inside the LAN proxy origin with a session token. */
 export function isPaired(): boolean {
@@ -267,8 +267,8 @@ export function startPairSync(): void {
 /* Mobile-initiated pairing: scan a QR from desktop Settings           */
 /* ------------------------------------------------------------------ */
 
-const DESKTOP_URL_KEY = "lexis-desktop-url";
-const DESKTOP_TOKEN_KEY = "lexis-desktop-token";
+const DESKTOP_URL_KEY = "orleia-desktop-url";
+const DESKTOP_TOKEN_KEY = "orleia-desktop-token";
 
 /** Check if this device is in mobile-initiated pair mode. */
 export function isMobilePaired(): boolean {
@@ -305,7 +305,7 @@ export async function connectToDesktop(desktopUrl: string, token: string): Promi
   // Test the connection first
   const reachable = await testDesktopConnection(desktopUrl, token);
   if (!reachable) {
-    return { ok: false, error: "Desktop not reachable. Make sure you're on the same WiFi network and Lexis Desktop is open." };
+    return { ok: false, error: "Desktop not reachable. Make sure you're on the same WiFi network and Orleia Desktop is open." };
   }
 
   // Fetch the desktop's workspace

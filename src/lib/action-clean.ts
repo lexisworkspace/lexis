@@ -8,19 +8,19 @@
  * token, we still catch the shape of it and run it in the background.
  */
 export const ACTION_MARKER_VARIANTS = [
-  "lexis_action",
+  "orleia_action",
   "levis_action",
-  "lexis action",
-  "lexis-action",
-  "lexisaction",
+  "orleia action",
+  "orleia-action",
+  "orleiaaction",
 ] as const;
 
 /** Matches any marker variant (case-insensitive). Non-global - safe for .test/.search. */
-export const ACTION_MARKER_RE = /\b(?:lexis|levis)[-_ ]?action\b/i;
+export const ACTION_MARKER_RE = /\b(?:orleia|levis)[-_ ]?action\b/i;
 
 /** Matches a complete action block: fuzzy marker + optional colon + JSON. */
 export const ACTION_BLOCK_RE =
-  /\b(?:lexis|levis)[-_ ]?action\s*:?\s*(\{(?:[^{}]|\{[^{}]*\})*\})/gi;
+  /\b(?:orleia|levis)[-_ ]?action\s*:?\s*(\{(?:[^{}]|\{[^{}]*\})*\})/gi;
 
 /**
  * Final safety net: strips any action marker and whatever follows it

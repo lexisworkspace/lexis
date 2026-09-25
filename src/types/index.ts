@@ -5,7 +5,69 @@
 export type Theme = "light" | "dark" | "system";
 export type ViewMode = "list" | "grid" | "kanban" | "calendar";
 export type AccentColor = "slate" | "amber" | "emerald" | "sky" | "violet" | "rose" | "orange";
-export type LexisMode = "workspace" | "canvas" | "clone";
+export type OrleiaMode = "workspace" | "canvas" | "clone";
+
+// ============================================================
+// Project Types
+// ============================================================
+
+export type ProjectStatus = "active" | "on_hold" | "completed" | "archived";
+
+export interface ProjectFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  dataUrl: string; // base64 data URL for persistence
+  uploadedAt: string;
+}
+
+export type DeckSlideLayout = 'title' | 'bullets' | 'statement' | 'quote' | 'end' | 'two-col' | 'stats' | 'timeline' | 'section';
+
+export interface DeckSlide {
+  id: string;
+  layout: DeckSlideLayout;
+  kicker?: string; // small label above the title
+  title: string;
+  content: string[]; // bullet lines / subtitle / quote lines depending on layout
+  contentRight?: string[]; // right column for two-col layout
+  imageUrl?: string; // optional image (data URL or remote URL)
+  stats?: Array<{ value: string; label: string }>; // for 'stats' layout
+  notes: string; // speaker notes
+  accent?: string; // per-slide accent override
+}
+
+export interface Deck {
+  id: string;
+  title: string;
+  description: string;
+  slides: DeckSlide[];
+  theme: string; // key of DECK_THEMES
+  transition: 'fade' | 'slide' | 'zoom';
+  starred: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  icon: string;
+  status: ProjectStatus;
+  taskIds: string[];
+  noteIds: string[];
+  documentIds: string[];
+  habitIds: string[];
+  deckIds?: string[];
+  files: ProjectFile[];
+  noorMessages: AIMessage[];
+  deadline: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 export type NoorRelationship = "observer" | "assistant" | "operator";
 
 export interface UserProfile {
@@ -30,9 +92,11 @@ export interface ThemeConfig {
   reducedMotion: boolean;
   dyslexiaFriendly: boolean;
   highContrast: boolean;
+  underlineLinks: boolean;
   language: string;
   voiceId: string | null;
   remindersEnabled: boolean;
+  remindEvents: boolean;
   remindHabits: boolean;
   remindTasks: boolean;
   remindMentions: boolean;
@@ -115,6 +179,7 @@ export interface Note {
   content: string;
   contentHtml: string;
   folderId: string | null;
+  projectId: string | null;
   tags: string[];
   pinned: boolean;
   archived: boolean;
@@ -195,6 +260,7 @@ export interface Task {
   completedAt: string | null;
   tags: string[];
   listId: string | null;
+  projectId: string | null;
   recurring: RecurringType;
   recurringDays?: number[];
   recurringEndDate: string | null;
@@ -240,7 +306,7 @@ export interface WeeklySummary {
 // AI Types
 // ============================================================
 
-export type AIModel = "ethos-4.7" | "logos-4.5" | "verse-4";
+export type AIModel = "fast-1" | "core-1" | "agent-1";
 
 export type AISource = {
   id?: string;
@@ -261,27 +327,35 @@ export type BriefAction = {
 };
 
 export const MODEL_ALIASES: Record<string, AIModel> = {
-  ethos: "ethos-4.7",
-  logos: "logos-4.5",
-  verse: "verse-4",
-  "ethos-4.7": "ethos-4.7",
-  "logos-4.5": "logos-4.5",
-  "verse-4": "verse-4",
+  // Legacy (Ethos/Logos/Verse era) -> new tiers, so old stored
+  // conversations and settings keep resolving.
+  ethos: "agent-1",
+  logos: "core-1",
+  verse: "fast-1",
+  "ethos-4.7": "agent-1",
+  "logos-4.5": "core-1",
+  "verse-4": "fast-1",
+  fast: "fast-1",
+  core: "core-1",
+  agent: "agent-1",
+  "fast-1": "fast-1",
+  "core-1": "core-1",
+  "agent-1": "agent-1",
   // Legacy aliases for migration
-  "ethos-1.5": "ethos-4.7",
-  "logos-1.2": "logos-4.5",
-  "verse-0.8": "verse-4",
 };
 
 export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
-  { id: "ethos-4.7", name: "Ethos 4.7", description: "Most complex and reasonable", tagline: "Deep analysis & strategic thinking", contextWindow: 40, responseStyle: "thorough" },
-  { id: "logos-4.5", name: "Logos 4.5", description: "Best for everyday tasks", tagline: "Balanced, practical, actionable", contextWindow: 24, responseStyle: "balanced" },
-  { id: "verse-4", name: "Verse 4", description: "Best for quick answers", tagline: "Fast, concise, to the point", contextWindow: 12, responseStyle: "concise" },
+  { id: "fast-1", name: "Fast", description: "Instant answers, zero wait", tagline: "Quick, concise, to the point", contextWindow: 12, responseStyle: "concise" },
+  { id: "core-1", name: "Core", description: "Best for everyday work", tagline: "Balanced, practical, actionable", contextWindow: 24, responseStyle: "balanced" },
+  // "agent-1" remains a valid AIModel (saved preferences alias to it) but is
+  // deliberately not offered in pickers - Agent mode is parked for now.
 ];
 
 export interface AIMessage {
   id: string;
   role: "user" | "assistant";
+  /** System-injected banner (e.g. "5 messages left today"). Never sent to the LLM. */
+  kind?: "usage-warning";
   content: string;
   timestamp: string;
   model?: AIModel;
@@ -289,6 +363,9 @@ export interface AIMessage {
   attachments?: Attachment[];
   image?: string | { dataUrl: string; prompt: string; };
   sources?: AISource[];
+  /** Model's internal reasoning (thinking tokens). Local-only: never sent back to the LLM. */
+  thinking?: string;
+  research?: import("@/lib/research").ResearchResult;
   actions?: BriefAction[];
   branch?: string | boolean;
 }
@@ -328,7 +405,7 @@ export interface GraphLink {
 
 export type WidgetId =
   | "productivity" | "stats" | "tasks" | "habits" | "notes"
-  | "streak" | "quote" | "quick-note" | "pomodoro" | "mood";
+  | "streak" | "quote" | "quick-note" | "pomodoro" | "mood" | "wrapped" | "pet";
 
 export interface WidgetDef {
   id: WidgetId;
@@ -336,6 +413,9 @@ export interface WidgetDef {
   description: string;
   icon: string;
   default: boolean;
+  /** iOS-style size class: "small" (half-row square), "wide" (full-row
+   *  rectangle), "large" (full-row, tall). Defaults to "small". */
+  size?: "small" | "wide" | "large";
 }
 
 // ============================================================
@@ -382,6 +462,73 @@ export interface Spreadsheet {
 // App State
 // ============================================================
 
+// ============================================================
+// Orleia Office: Calendar / Forms / Board
+// ============================================================
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // yyyy-mm-dd
+  time: string | null; // HH:mm or null for all-day
+  endTime?: string | null; // optional duration end, HH:mm (15-min grid)
+  color: string;
+  repeat: "none" | "daily" | "weekly" | "monthly";
+  notes: string;
+  createdAt: string;
+}
+
+export type FormQuestionType = "text" | "choice" | "checkbox" | "rating" | "date";
+
+export interface FormQuestion {
+  id: string;
+  type: FormQuestionType;
+  label: string;
+  options: string[]; // for choice/checkbox
+  required: boolean;
+}
+
+export interface Form {
+  id: string;
+  title: string;
+  description: string;
+  questions: FormQuestion[];
+  responses: FormResponse[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FormResponse {
+  id: string;
+  answers: Record<string, string | string[] | number>;
+  submittedAt: string;
+}
+
+export interface BoardSticky {
+  id: string;
+  x: number; // percentage 0-100
+  y: number;
+  text: string;
+  color: string;
+}
+
+export interface BoardShape {
+  id: string;
+  kind: "rect" | "ellipse" | "arrow";
+  x1: number; y1: number; x2: number; y2: number; // percentages
+  color: string;
+}
+
+export interface Board {
+  id: string;
+  name: string;
+  stickies: BoardSticky[];
+  shapes: BoardShape[];
+  projectId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AppData {
   theme: ThemeConfig;
   habits: Habit[];
@@ -393,18 +540,28 @@ export interface AppData {
   journalEntries: JournalEntry[];
   tasks: Task[];
   taskLists: TaskList[];
+  projects: Project[];
   aiConversations: AIConversation[];
   aiSuggestions: AISuggestion[];
   selectedModel: AIModel;
   profile: UserProfile;
   noorRelationship: NoorRelationship;
-  lexisMode: LexisMode;
+  orleiaMode: OrleiaMode;
   onboardingCompleted: boolean;
   lastSync: string | null;
   links: GraphLink[];
   reminderDismissed: Record<string, string>;
+  streakFreezeTokens?: number;
+  habitFrozenDates?: Record<string, string[]>;
+  habitStreakRecords?: Record<string, number>;
+  perfectWeeks?: number;
+  lastPerfectWeek?: string;
   dashboardWidgets: WidgetId[];
   spreadsheets: Spreadsheet[];
+  decks: Deck[];
+  calendarEvents: CalendarEvent[];
+  forms: Form[];
+  boards: Board[];
 }
 
 export const PRIORITY_CONFIG = {

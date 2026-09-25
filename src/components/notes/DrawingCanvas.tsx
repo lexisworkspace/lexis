@@ -164,7 +164,7 @@ export function DrawingCanvas({ open, onClose, onSave }: DrawingCanvasProps) {
             <button onClick={clear} className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors">
               <Trash2 className="h-4 w-4" />
             </button>
-            <button onClick={save} className="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity">
+            <button onClick={save} className="flex h-8 items-center gap-1.5 rounded-lg border border-foreground/20 bg-transparent px-3 text-xs font-medium text-foreground/70 hover:border-foreground/40 hover:text-foreground transition-all">
               <Check className="h-3.5 w-3.5" /> Done
             </button>
           </div>

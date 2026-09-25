@@ -40,7 +40,7 @@ export const MARGIN_BOTTOM = 96;
 /** Target paper width on screen. */
 export const PAPER_WIDTH = 816;
 
-export const pageBreaksKey = new PluginKey("lexisPageBreaks");
+export const pageBreaksKey = new PluginKey("orleiaPageBreaks");
 
 let livePages = 1;
 let livePageHeight = Math.round(PAPER_WIDTH * PAGE_RATIO);
@@ -69,7 +69,7 @@ function computePageBreaks(view: any): { set: DecorationSet; pages: number; page
   const entries: { dom: HTMLElement; pos: number }[] = [];
   view.state.doc.forEach((node: any, offset: number) => {
     const d = view.nodeDOM(offset);
-    if (d && d.nodeType === 1 && !(d as HTMLElement).classList?.contains("lexis-float-node")) {
+    if (d && d.nodeType === 1 && !(d as HTMLElement).classList?.contains("orleia-float-node")) {
       entries.push({ dom: d as HTMLElement, pos: offset });
     }
   });
@@ -88,7 +88,7 @@ function computePageBreaks(view: any): { set: DecorationSet; pages: number; page
       page++;
       pageStart = rel;
       const gap = document.createElement("div");
-      gap.className = "lexis-page-gap";
+      gap.className = "orleia-page-gap";
       gap.style.height = `${PAGE_GAP}px`;
       decorations.push(Decoration.widget(pos, gap, { side: -1 }));
     }
@@ -125,7 +125,7 @@ export function createPageBreaksPlugin() {
       livePages = pages;
       livePageHeight = pageHeight;
       latest = set;
-      window.dispatchEvent(new CustomEvent("lexis:pages", { detail: { pages, pageHeight } }));
+      window.dispatchEvent(new CustomEvent("orleia:pages", { detail: { pages, pageHeight } }));
       const tr = view.state.tr.setMeta(pageBreaksKey, true).setMeta("addToHistory", false);
       view.dispatch(tr);
     });
@@ -155,7 +155,7 @@ export function createPageBreaksPlugin() {
       }
       const onResize = () => schedule(view);
       window.addEventListener("resize", onResize);
-      window.addEventListener("lexis:geometry", onResize);
+      window.addEventListener("orleia:geometry", onResize);
       return {
         update(view, prevState) {
           schedule(view);
@@ -163,7 +163,7 @@ export function createPageBreaksPlugin() {
         destroy() {
           cancelAnimationFrame(raf);
           window.removeEventListener("resize", onResize);
-          window.removeEventListener("lexis:geometry", onResize);
+          window.removeEventListener("orleia:geometry", onResize);
           if (ro) ro.disconnect();
         },
       };

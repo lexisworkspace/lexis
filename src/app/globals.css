@@ -4,10 +4,11 @@
 
 @layer base {
   :root {
-    --font-instrument: "Instrument Sans", system-ui, sans-serif;
-    --font-fraunces: "Fraunces", Georgia, serif;
-    --font-sora: "Sora", system-ui, sans-serif;
-    --background: 255 255 255;
+    /* Self-hosted via Fontsource — families registered as "X Variable". */
+    --font-instrument: "Instrument Sans Variable", system-ui, sans-serif;
+    --font-fraunces: "Fraunces Variable", Georgia, serif;
+    --font-sora: "Sora Variable", system-ui, sans-serif;
+    --background: 250 250 250;
     --foreground: 0 0 0;
     --card: 244 244 244;
     --card-foreground: 0 0 0;
@@ -107,28 +108,47 @@ html[data-dyslexia="true"] li {
 }
 
 /* ---- Accessibility: high contrast ---- */
-html[data-contrast="true"] {
+html.high-contrast {
   --border: 100 100 110;
   --input: 100 100 110;
-  --muted-foreground: 50 50 55;
-  --card: 230 230 235;
-  --accent: 220 220 228;
-}
-html[data-contrast="true"] .dark {
-  --border: 180 180 190;
-  --input: 180 180 190;
-  --muted-foreground: 220 220 230;
-  --card: 25 25 30;
-  --accent: 35 35 45;
-}
-/* Force all muted text to full opacity under high-contrast */
-html[data-contrast="true"] {
+  --muted-foreground: 45 45 50;
+  --card: 235 235 240;
+  --accent: 225 225 232;
   --text-muted-alpha: 1;
 }
-html[data-contrast="true"] [class*="text-muted-foreground/"] {
+/* Dark variant: .dark sits on <html> itself, so it must chain on the same element */
+html.high-contrast.dark {
+  --border: 200 200 215;
+  --input: 200 200 215;
+  --muted-foreground: 235 235 240;
+  --card: 20 20 26;
+  --accent: 40 40 52;
+  --text-muted-alpha: 1;
+}
+/* Force all muted text to full opacity under high-contrast */
+html.high-contrast [class*="text-muted-foreground/"] {
   color: rgb(var(--muted-foreground)) !important;
   opacity: 1 !important;
 }
+
+/* ---- Accessibility: underlined links ---- */
+html.underline-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+/* ---- Orleia Board dot grid ---- */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, rgb(var(--muted-foreground) / 0.18) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+/* Accessibility: font size scale */
+html {
+  font-size: calc(16px * var(--a11y-font-scale, 1));
+}
+
+/* Accessibility: high contrast mode */
+
 
 /* ---- Accessibility: reduced motion ---- */
 html[data-reduced-motion="true"] *,
@@ -140,11 +160,40 @@ html[data-reduced-motion="true"] *::after {
   scroll-behavior: auto !important;
 }
 
+/* Settings hub entrance — pure CSS (no JS-driven opacity race).
+   Content is always visible; a subtle rise-in plays on capable
+   devices, and touch/reduced-motion skip it entirely. Ripping a
+   framer-motion animate prop off mid-flight is what froze the hub
+   at opacity 0 with clickable-but-invisible cards. */
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-reduced-motion="true"]) .settings-enter {
+    animation: settings-in 0.3s ease-out backwards;
+  }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(2) { animation-delay: 0.03s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(3) { animation-delay: 0.06s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(4) { animation-delay: 0.09s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(5) { animation-delay: 0.12s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(6) { animation-delay: 0.15s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(7) { animation-delay: 0.18s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(8) { animation-delay: 0.21s; }
+  html:not([data-reduced-motion="true"]) .settings-enter:nth-child(9) { animation-delay: 0.24s; }
+}
+@keyframes settings-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  html:not([data-reduced-motion="true"]) .settings-enter-mobile {
+    animation: settings-in 0.25s ease-out backwards;
+  }
+}
+
 
 
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-instrument), system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -161,11 +210,29 @@ html[data-reduced-motion="true"] *::after {
   }
 
   .font-body {
-    font-family: var(--font-fraunces), Georgia, serif;
+    font-family: var(--font-instrument), system-ui, sans-serif;
   }
 
   ::selection {
     @apply bg-primary/30 text-foreground;
+  }
+
+  /* Notes editor: native blue selection rectangles felt heavy inside the
+     writing canvas (user request) — keep selection functional (copy/paste
+     still works) but render it invisibly. */
+  .notes-editor::selection,
+  .notes-editor ::selection,
+  .notes-editor *::selection {
+    background: transparent;
+    color: inherit;
+  }
+  /* No focus rectangle around the writing canvas — clicking into the
+     editor must not paint a ring (user request: "remove the rectangles"). */
+  .notes-editor:focus,
+  .notes-editor:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: transparent;
   }
 
   /* Accessibility: Focus visible styles */
@@ -249,15 +316,16 @@ html[data-reduced-motion="true"] *::after {
     @apply glass rounded-2xl p-4 md:p-6;
   }
 
-  /* Enhanced buttons with micro-interactions */
+  /* Primary action = outline (Orleia design language: transparent fill,
+     foreground border, brightens on hover). Filled grey buttons are retired. */
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground
+    @apply inline-flex items-center justify-center rounded-xl border border-foreground/20 bg-transparent px-4 py-2.5 text-sm font-medium text-foreground/70
            focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-2 focus:ring-offset-background
            disabled:opacity-50 disabled:pointer-events-none;
     font-family: var(--font-instrument), system-ui, sans-serif;
-    transition: background-color 0.2s ease, transform 0.15s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.2s ease;
+    transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
   }
-  .btn-primary:hover { background-color: rgb(var(--primary) / 0.9); }
+  .btn-primary:hover { border-color: rgb(var(--foreground) / 0.4); color: rgb(var(--foreground)); }
   .btn-primary:active { transform: scale(0.97); }
 
   .btn-secondary {
@@ -286,6 +354,16 @@ html[data-reduced-motion="true"] *::after {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .input-field:focus { border-color: rgb(var(--primary) / 0.5); }
+
+  /* Compact variant for date/time pickers on small screens — native mobile
+     pickers render tall; tightening padding and font keeps the form tidy. */
+  .input-field-sm {
+    @apply w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm
+           text-muted-foreground
+           focus:outline-none focus:ring-2 focus:ring-primary/40 focus:ring-offset-1 focus:ring-offset-background;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input-field-sm:focus { border-color: rgb(var(--primary) / 0.5); }
 
   .tag {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
@@ -791,7 +869,7 @@ body {
 /* Prevent iOS Safari overscroll rubber-band inside the app shell only -
    the landing page keeps pull-to-refresh. */
 @media (max-width: 767px) {
-  body.lexis-app {
+  body.orleia-app {
     overscroll-behavior-y: none;
   }
 }
@@ -824,23 +902,23 @@ body {
 /* ============================================================
    Notes editor (Documents) - A4 paper, tables, images, find
    ============================================================ */
-.lexis-backdrop { background-color: #e4e6eb; }
-.dark .lexis-backdrop { background-color: #23262c; }
+.orleia-backdrop { background-color: #e4e6eb; }
+.dark .orleia-backdrop { background-color: #23262c; }
 
-.lexis-page-card {
+.orleia-page-card {
   position: absolute;
   left: 0;
   right: 0;
-  background: #ffffff;
+  background: #fafafa;
   border-radius: 2px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 10px 28px rgba(15, 23, 42, 0.14);
 }
-.dark .lexis-page-card {
+.dark .orleia-page-card {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 30px rgba(0, 0, 0, 0.55);
 }
 
-.lexis-page-gap { width: 100%; position: relative; pointer-events: none; }
-.lexis-page-gap::after {
+.orleia-page-gap { width: 100%; position: relative; pointer-events: none; }
+.orleia-page-gap::after {
   content: "";
   position: absolute;
   left: 8%;
@@ -851,61 +929,63 @@ body {
 }
 
 /* Paper is always white; text always dark. */
-.lexis-editor { color: #1f2937; caret-color: #2563eb; padding: 0; }
-.lexis-editor ::selection { background: rgba(59, 130, 246, 0.28); }
-.lexis-editor p { margin: 0 0 0.6em; }
-.lexis-editor .is-editor-empty:first-child::before {
+.orleia-editor { color: #1f2937; caret-color: #2563eb; padding: 0; }
+.orleia-editor ::selection { background: transparent; }
+.orleia-editor *::selection { background: transparent; }
+.orleia-editor *::-moz-selection { background: transparent; }
+.orleia-editor p { margin: 0 0 0.6em; }
+.orleia-editor .is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: #9ca3af;
   float: left;
   height: 0;
   pointer-events: none;
 }
-.lexis-editor img { max-width: 100%; height: auto; border-radius: 4px; }
-.lexis-editor a { color: #2563eb !important; text-decoration: underline; text-underline-offset: 2px; }
-.lexis-editor h1, .lexis-editor h2, .lexis-editor h3 { color: #111827; }
-.lexis-editor blockquote { border-left: 3px solid #d1d5db; color: #4b5563; padding-left: 1em; }
-.lexis-editor code { background: #f3f4f6; border-radius: 4px; padding: 0.15em 0.35em; color: #be123c; }
-.lexis-editor pre { background: #f6f7f9; color: #1f2937; border: 1px solid #e5e7eb; border-radius: 8px; }
-.lexis-editor pre code { background: transparent; color: inherit; padding: 0; }
-.lexis-editor hr { border: none; border-top: 1px solid #d1d5db; margin: 1.2em 0; }
+.orleia-editor img { max-width: 100%; height: auto; border-radius: 4px; }
+.orleia-editor a { color: #2563eb !important; text-decoration: underline; text-underline-offset: 2px; }
+.orleia-editor h1, .orleia-editor h2, .orleia-editor h3 { color: #111827; }
+.orleia-editor blockquote { border-left: 3px solid #d1d5db; color: #4b5563; padding-left: 1em; }
+.orleia-editor code { background: #f3f4f6; border-radius: 4px; padding: 0.15em 0.35em; color: #be123c; }
+.orleia-editor pre { background: #f6f7f9; color: #1f2937; border: 1px solid #e5e7eb; border-radius: 8px; }
+.orleia-editor pre code { background: transparent; color: inherit; padding: 0; }
+.orleia-editor hr { border: none; border-top: 1px solid #d1d5db; margin: 1.2em 0; }
 
 /* tables */
-.lexis-editor table { border-collapse: collapse; width: 100%; margin: 0.8em 0; table-layout: fixed; }
-.lexis-editor th, .lexis-editor td { border: 1px solid #d1d5db; padding: 6px 10px; vertical-align: top; position: relative; }
-.lexis-editor th { background: #f3f4f6; font-weight: 600; }
-.lexis-editor .selectedCell::after {
+.orleia-editor table { border-collapse: collapse; width: 100%; margin: 0.8em 0; table-layout: fixed; }
+.orleia-editor th, .orleia-editor td { border: 1px solid #d1d5db; padding: 6px 10px; vertical-align: top; position: relative; }
+.orleia-editor th { background: #f3f4f6; font-weight: 600; }
+.orleia-editor .selectedCell::after {
   content: "";
   position: absolute; inset: 0;
   background: rgba(59, 130, 246, 0.12);
   pointer-events: none;
 }
-.lexis-editor .column-resize-handle { background-color: #2563eb; width: 2px; }
+.orleia-editor .column-resize-handle { background-color: #2563eb; width: 2px; }
 
 /* task lists */
-.lexis-editor ul[data-type="taskList"] { list-style: none; padding: 0; }
-.lexis-editor ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; margin: 0.25em 0; }
-.lexis-editor ul[data-type="taskList"] li > label { flex-shrink: 0; margin-top: 0.2em; }
-.lexis-editor ul[data-type="taskList"] li > div { flex: 1; min-width: 0; }
-.lexis-editor ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #9ca3af; }
+.orleia-editor ul[data-type="taskList"] { list-style: none; padding: 0; }
+.orleia-editor ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5em; margin: 0.25em 0; }
+.orleia-editor ul[data-type="taskList"] li > label { flex-shrink: 0; margin-top: 0.2em; }
+.orleia-editor ul[data-type="taskList"] li > div { flex: 1; min-width: 0; }
+.orleia-editor ul[data-type="taskList"] li[data-checked="true"] > div { text-decoration: line-through; color: #9ca3af; }
 
 /* find & replace */
-.lexis-find-match { background: rgba(250, 204, 21, 0.35); border-radius: 2px; box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.4); }
-.lexis-find-current { background: rgba(250, 204, 21, 0.8); border-radius: 2px; box-shadow: 0 0 0 1.5px #f59e0b; }
+.orleia-find-match { background: rgba(250, 204, 21, 0.35); border-radius: 2px; box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.4); }
+.orleia-find-current { background: rgba(250, 204, 21, 0.8); border-radius: 2px; box-shadow: 0 0 0 1.5px #f59e0b; }
 
 /* images */
-.lexis-img-wrap { position: relative; line-height: 0; }
-.lexis-img-wrap .lexis-img { border-radius: 6px; cursor: grab; touch-action: none; -webkit-user-drag: none; user-select: none; }
-.lexis-img-wrap.lexis-img-dragging .lexis-img { opacity: 0.85; cursor: grabbing; }
-.lexis-img-wrap.lexis-img-selected .lexis-img { outline: 2px solid rgba(37, 99, 235, 0.55); outline-offset: 2px; }
-.lexis-img-toolbar {
+.orleia-img-wrap { position: relative; line-height: 0; }
+.orleia-img-wrap .orleia-img { border-radius: 6px; cursor: grab; touch-action: none; -webkit-user-drag: none; user-select: none; }
+.orleia-img-wrap.orleia-img-dragging .orleia-img { opacity: 0.85; cursor: grabbing; }
+.orleia-img-wrap.orleia-img-selected .orleia-img { outline: 2px solid rgba(37, 99, 235, 0.55); outline-offset: 2px; }
+.orleia-img-toolbar {
   position: absolute; top: -44px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 2px; padding: 4px;
   background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   z-index: 40; white-space: nowrap;
 }
-.lexis-resize-handle {
+.orleia-resize-handle {
   position: absolute; right: -5px; bottom: -5px;
   width: 14px; height: 14px; border-radius: 4px;
   background: #2563eb; border: 2px solid #fff;
@@ -913,24 +993,24 @@ body {
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); z-index: 45;
 }
-.lexis-float-node { pointer-events: auto; }
+.orleia-float-node { pointer-events: auto; }
 
 /* print - hide the page furniture, print a clean document */
 @media print {
-  .lexis-page-card, .lexis-page-gap, .lexis-img-toolbar, .lexis-resize-handle,
-  .lexis-editor-toolbar, .lexis-status-bar,
-  .lexis-page-header, .lexis-page-footer { display: none !important; }
-  .lexis-editor { padding: 0 !important; }
-  .lexis-editor p, .lexis-editor h1, .lexis-editor h2, .lexis-editor h3 { break-inside: avoid; }
+  .orleia-page-card, .orleia-page-gap, .orleia-img-toolbar, .orleia-resize-handle,
+  .orleia-editor-toolbar, .orleia-status-bar,
+  .orleia-page-header, .orleia-page-footer { display: none !important; }
+  .orleia-editor { padding: 0 !important; }
+  .orleia-editor p, .orleia-editor h1, .orleia-editor h2, .orleia-editor h3 { break-inside: avoid; }
 }
 
 /* ---- Word-style rulers (margin correctors) ---- */
-.lexis-ruler {
+.orleia-ruler {
   background: color-mix(in srgb, hsl(var(--background)) 74%, transparent);
   border-top: 1px solid hsl(var(--border));
   border-bottom: 1px solid hsl(var(--border));
 }
-.lexis-ruler-marker {
+.orleia-ruler-marker {
   position: absolute;
   top: 0;
   height: 100%;
@@ -939,34 +1019,34 @@ body {
   z-index: 5;
   touch-action: none;
 }
-.lexis-marker-top,
-.lexis-marker-bottom {
+.orleia-marker-top,
+.orleia-marker-bottom {
   position: absolute;
   left: 50%;
   width: 0;
   height: 0;
   transform: translateX(-50%);
 }
-.lexis-marker-top {
+.orleia-marker-top {
   top: 1px;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-top: 7px solid hsl(var(--muted-foreground) / 0.65);
   transition: border-top-color 0.15s;
 }
-.lexis-marker-bottom {
+.orleia-marker-bottom {
   bottom: 1px;
   border-left: 5px solid transparent;
   border-right: 5px solid transparent;
   border-bottom: 7px solid hsl(var(--muted-foreground) / 0.65);
   transition: border-bottom-color 0.15s;
 }
-.lexis-ruler-marker:hover .lexis-marker-top,
-.lexis-ruler-marker:hover .lexis-marker-bottom {
+.orleia-ruler-marker:hover .orleia-marker-top,
+.orleia-ruler-marker:hover .orleia-marker-bottom {
   border-top-color: hsl(var(--primary));
   border-bottom-color: hsl(var(--primary));
 }
-.lexis-marker-bar {
+.orleia-marker-bar {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -977,16 +1057,16 @@ body {
   border-right: 1.5px solid hsl(var(--muted-foreground) / 0.6);
   transition: border-color 0.15s;
 }
-.lexis-ruler-marker:hover .lexis-marker-bar {
+.orleia-ruler-marker:hover .orleia-marker-bar {
   border-color: hsl(var(--primary));
 }
-.lexis-vruler {
+.orleia-vruler {
   background: color-mix(in srgb, hsl(var(--background)) 74%, transparent);
   border-left: 1px solid hsl(var(--border));
   border-right: 1px solid hsl(var(--border));
   touch-action: none;
 }
-.lexis-vmarker {
+.orleia-vmarker {
   position: absolute;
   left: -3px;
   width: calc(100% + 6px);
@@ -999,25 +1079,25 @@ body {
   touch-action: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.lexis-vmarker:hover {
+.orleia-vmarker:hover {
   border-color: hsl(var(--primary));
   box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
 }
 
 /* ---- Word-style columns, comments, headers & footers ---- */
-.lexis-columns[data-cols="2"] { column-count: 2; column-gap: 40px; }
-.lexis-columns[data-cols="3"] { column-count: 3; column-gap: 32px; }
-.lexis-columns p, .lexis-columns h1, .lexis-columns h2, .lexis-columns h3,
-.lexis-columns li, .lexis-columns blockquote { break-inside: avoid; }
-.lexis-comment {
+.orleia-columns[data-cols="2"] { column-count: 2; column-gap: 40px; }
+.orleia-columns[data-cols="3"] { column-count: 3; column-gap: 32px; }
+.orleia-columns p, .orleia-columns h1, .orleia-columns h2, .orleia-columns h3,
+.orleia-columns li, .orleia-columns blockquote { break-inside: avoid; }
+.orleia-comment {
   background: rgba(250, 204, 21, 0.32);
   border-bottom: 2px solid rgba(202, 138, 4, 0.75);
   border-radius: 2px;
   cursor: help;
 }
-.dark .lexis-comment { background: rgba(250, 204, 21, 0.22); }
-.lexis-page-header,
-.lexis-page-footer {
+.dark .orleia-comment { background: rgba(250, 204, 21, 0.22); }
+.orleia-page-header,
+.orleia-page-footer {
   position: absolute;
   left: 0;
   right: 0;
@@ -1027,12 +1107,12 @@ body {
   pointer-events: none;
   user-select: none;
 }
-.lexis-page-header {
+.orleia-page-header {
   top: 22px;
   padding-bottom: 6px;
   border-bottom: 0.5px solid rgba(107, 114, 128, 0.35);
 }
-.lexis-page-footer { bottom: 16px; }
+.orleia-page-footer { bottom: 16px; }
 
 /* ---- Analytics chart animations (CSS-only, mobile-safe) ---- */
 @keyframes lx-rise {
@@ -1112,3 +1192,176 @@ body {
 /* Widget catalog open: lower sidebar + header below overlay */
 html.widget-catalog-open aside[role="navigation"] { z-index: 0 !important; }
 html.widget-catalog-open header { z-index: 0 !important; }
+
+/* Fan Card Carousel */
+.fan-layout { perspective: 1200px; height: 22rem; }
+.fan-card { position: absolute; width: 14rem; height: 20rem; border-radius: 1rem; overflow: hidden; will-change: transform; transform-origin: bottom center; }
+@media (min-width: 640px) { .fan-layout { height: 26rem; } .fan-card { width: 16rem; height: 23rem; } }
+@media (min-width: 768px) { .fan-layout { height: 28rem; } .fan-card { width: 18rem; height: 25rem; } }
+@media (min-width: 1024px) { .fan-layout { height: 34rem; } .fan-card { width: 20rem; height: 28rem; } }
+@media (min-width: 1280px) { .fan-layout { height: 38rem; } .fan-card { width: 22rem; height: 32rem; } }
+
+/* ============================================================
+   Fixed fullscreen layers must never be pushed by parent margins.
+   Page wrappers using space-y-* apply margin-top to ALL children,
+   including fixed overlays, which shifts modal fog / dropdowns
+   down from the viewport top (the "fog cut off at top" bug).
+   ============================================================ */
+div[class*="fixed"][class*="inset-0"] {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Floating mobile buttons — MATTE style: solid surface, hairline border,
+   soft shadow, springy press. No blur, no glass layers.
+   Positioning (fixed + inset) lives in the component classes that use this. */
+.orleia-glass-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  color: rgb(var(--foreground));
+  background: rgb(var(--background));
+  border: 1px solid rgb(var(--foreground) / 0.12);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  box-shadow:
+    0 4px 14px rgba(0, 0, 0, 0.1),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+  transition:
+    transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+.orleia-glass-btn:active {
+  transform: scale(0.9);
+  background: rgb(var(--foreground) / 0.06);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .orleia-glass-btn,
+  .orleia-glass-btn:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Second-screen navigation (mobile): the nav screen is a separate full-screen
+   page OUTSIDE the shell. When it opens, the app shell hides INSTANTLY —
+   you are simply on the second screen. Nothing ever overlaps. */
+@media (max-width: 767px) {
+  html[data-nav-open] .orleia-app-shell {
+    visibility: hidden;
+  }
+}
+
+/* ============================================================
+   Documents editor — page backdrop + A4 sheet cards
+   (restored: lost after v2.0, left the editor on bare background
+   with no visible writing surface)
+   ============================================================ */
+.lexis-backdrop { background-color: #e4e6eb; }
+.dark .lexis-backdrop { background-color: #23262c; }
+
+.lexis-page-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 10px 28px rgba(15, 23, 42, 0.14);
+}
+.dark .lexis-page-card {
+  background: #26292f;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 30px rgba(0, 0, 0, 0.55);
+}
+
+.lexis-page-gap {
+  width: 100%;
+  position: relative;
+  pointer-events: none;
+}
+.lexis-page-gap::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(120, 130, 150, 0.45), transparent);
+}
+
+/* ============================================================
+   iOS-style bottom sheet mount animation (WidgetCatalog).
+   fill-mode: backwards so the animation yields cleanly to inline
+   transforms afterwards (drag-to-dismiss sets style.transform).
+   ============================================================ */
+@keyframes orleia-sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes orleia-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes orleia-modal-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(12px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.orleia-sheet {
+  animation: orleia-sheet-in 0.42s cubic-bezier(0.32, 0.72, 0, 1) backwards;
+}
+.orleia-sheet-backdrop {
+  animation: orleia-fade-in 0.25s ease-out backwards;
+}
+@media (min-width: 1024px) {
+  .orleia-sheet { animation-name: orleia-modal-pop; animation-duration: 0.3s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orleia-sheet, .orleia-sheet-backdrop { animation-duration: 0.01ms; }
+}
+
+/* Sheet exit animations (WidgetCatalog dismiss). */
+@keyframes orleia-sheet-out {
+  from { transform: translateY(0); opacity: 1; }
+  to   { transform: translateY(110%); opacity: 1; }
+}
+@keyframes orleia-backdrop-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+.orleia-sheet-out {
+  animation: orleia-sheet-out 0.29s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+.orleia-backdrop-out {
+  animation: orleia-backdrop-out 0.29s ease-in forwards;
+}
+@media (min-width: 1024px) {
+  .orleia-sheet-out { animation-name: orleia-modal-pop-out; }
+}
+@keyframes orleia-modal-pop-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 0; transform: scale(0.96) translateY(12px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orleia-sheet-out, .orleia-backdrop-out { animation-duration: 0.01ms; }
+}
+
+/* ============================================================
+   Noor camera + attachments
+   ============================================================ */
+@keyframes orleia-attach-in {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.orleia-attach-in {
+  animation: orleia-attach-in 0.24s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .orleia-attach-in { animation-duration: 0.01ms; }
+}

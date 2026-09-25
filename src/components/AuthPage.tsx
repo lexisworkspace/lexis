@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/components/AuthProvider";
 import { motion } from "framer-motion";
 import { Loader2, ArrowRight, Smartphone, Monitor, Tablet } from "lucide-react";
@@ -41,6 +42,7 @@ function MicrosoftIcon() {
 }
 
 export function AuthPage({ onComplete }: { onComplete?: () => void }) {
+  const { t } = useI18n();
   const { signInWithGoogle, signInWithApple, signInWithGitHub, signInWithMicrosoft, continueAsGuest, loading } = useAuth();
   const [error, setError] = useState("");
   const [signingIn, setSigningIn] = useState("");
@@ -65,8 +67,8 @@ export function AuthPage({ onComplete }: { onComplete?: () => void }) {
     setSigningIn(provider);
     try {
       // Save onboarding state so the redirect resumes at the right step
-      localStorage.setItem("lexis-onboarding-step", "auth");
-      localStorage.setItem("lexis-oauth-pending", "1");
+      localStorage.setItem("orleia-onboarding-step", "auth");
+      localStorage.setItem("orleia-oauth-pending", "1");
       await fn();
       onComplete?.();
     } catch (e: any) {
@@ -93,10 +95,10 @@ export function AuthPage({ onComplete }: { onComplete?: () => void }) {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight" style={{ fontFamily: "var(--font-fraunces), serif" }}>Lexis</h1>
-          <p className="text-muted-foreground text-sm">Your workspace. Your data. Your way.</p>
+          <h1 className="text-4xl font-bold tracking-tight" style={{ fontFamily: "var(--font-instrument), system-ui, sans-serif" }}>{t("auth.orleia")}</h1>
+          <p className="text-muted-foreground text-sm">{t("auth.your_workspace_your_data_your_way")}</p>
         </div>
-        <button onClick={handleGuest} className="w-full flex items-center justify-center gap-2 h-12 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium">Continue as Guest <ArrowRight className="h-4 w-4" /></button>
+        <button onClick={handleGuest} className="w-full flex items-center justify-center gap-2 h-12 rounded-xl border border-foreground/20 bg-transparent text-foreground/70 hover:border-foreground/40 hover:text-foreground transition-colors text-sm font-medium">{t("auth.continue_as_guest")}<ArrowRight className="h-4 w-4" /></button>
         <div className="relative"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div><div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or sync across devices</span></div></div>
         <div className="space-y-3">
           <button onClick={() => handleOAuth(signInWithGoogle, "Google")} disabled={!!signingIn} className="w-full flex items-center justify-center gap-3 h-12 rounded-xl border border-border bg-background hover:bg-accent/50 transition-colors text-sm font-medium disabled:opacity-50">{signingIn === "Google" ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />} Continue with Google</button>
@@ -108,9 +110,9 @@ export function AuthPage({ onComplete }: { onComplete?: () => void }) {
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-sm text-muted-foreground text-center bg-muted/50 rounded-lg px-3 py-2">{error}</motion.p>
         )}
         <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1"><Monitor className="h-3.5 w-3.5" /> Desktop</span>
-          <span className="flex items-center gap-1"><Tablet className="h-3.5 w-3.5" /> Tablet</span>
-          <span className="flex items-center gap-1"><Smartphone className="h-3.5 w-3.5" /> Mobile</span>
+          <span className="flex items-center gap-1"><Monitor className="h-3.5 w-3.5" />{t("auth.desktop")}</span>
+          <span className="flex items-center gap-1"><Tablet className="h-3.5 w-3.5" />{t("auth.tablet")}</span>
+          <span className="flex items-center gap-1"><Smartphone className="h-3.5 w-3.5" />{t("auth.mobile")}</span>
         </div>
         <p className="text-center text-xs text-muted-foreground/60">Guest mode keeps everything on this device. Sign in to sync across devices.</p>
       </motion.div>

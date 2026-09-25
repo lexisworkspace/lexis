@@ -1,14 +1,17 @@
 "use client";
 
-import { AppData, Note, Task, Habit, UserProfile, NoorRelationship, LexisMode, WidgetId, Spreadsheet, AIModel as AIModelType, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage } from "@/types";
+import { AppData, Note, Task, Habit, UserProfile, NoorRelationship, OrleiaMode, WidgetId, Spreadsheet, AIModel as AIModelType, HabitLog, JournalEntry, AIConversation, AISuggestion, AIMessage, Project, Deck, CalendarEvent, Form, Board } from "@/types";
 import { generateId, getToday, calculateStreak } from "./utils";
 import { loadFromIDB, saveToIDB, clearIDB } from "./db";
 
-const STORAGE_KEY = "lexis-data";
-const SYNC_KEY = "lexis-sync";
+const STORAGE_KEY = "orleia-data";
+const SYNC_KEY = "orleia-sync";
 
 const DEFAULT_DATA: AppData = {
-  theme: { theme: "system", primaryColor: "#6366f1", accentColor: "slate", fontSize: "md", reducedMotion: false, dyslexiaFriendly: false, highContrast: false, language: "en", voiceId: null, remindersEnabled: true, remindHabits: true, remindTasks: true, remindMentions: true, remindWellness: false, desktopNotifications: true, wellnessTime: "15:00" },
+  theme: { theme: "system", primaryColor: "#6366f1", accentColor: "slate", fontSize: "md", reducedMotion: false, dyslexiaFriendly: false, highContrast: false, underlineLinks: false, language: "en", voiceId: null, remindersEnabled: true, remindEvents: true, remindHabits: true, remindTasks: true, remindMentions: true, remindWellness: false, desktopNotifications: true, wellnessTime: "15:00" },
+  calendarEvents: [],
+  forms: [],
+  boards: [],
   habits: [],
   habitCategories: [
     { id: "health", name: "Health", color: "#22c55e", icon: "heart", createdAt: new Date().toISOString() },
@@ -36,18 +39,20 @@ const DEFAULT_DATA: AppData = {
     { id: "today", name: "Today", color: "#3b82f6", icon: "sun", createdAt: new Date().toISOString() },
     { id: "this-week", name: "This Week", color: "#22c55e", icon: "calendar", createdAt: new Date().toISOString() },
   ],
+  projects: [],
+  decks: [],
   aiConversations: [],
   aiSuggestions: [],
-  selectedModel: "logos-4.5" as const,
+  selectedModel: "core-1" as const,
 
   profile: {},
   noorRelationship: "assistant" as const,
-  lexisMode: "workspace" as const,
+  orleiaMode: "workspace" as const,
   onboardingCompleted: false,
   lastSync: null,
   links: [],
   reminderDismissed: {},
-  dashboardWidgets: ["productivity", "stats", "tasks", "habits", "notes"],
+  dashboardWidgets: ["productivity", "stats"],
   spreadsheets: [],
 };
 
@@ -79,11 +84,29 @@ class Storage {
         const lsData = raw ? JSON.parse(raw) : null;
 
         if (idbData || lsData) {
-          // localStorage wins on any conflicting keys
-          this.data = { ...DEFAULT_DATA, ...idbData, ...lsData };
+          // localStorage wins on most keys, but IDB is the source of truth for
+          // file data (localStorage strips dataUrls to stay under quota).
+          const merged = { ...DEFAULT_DATA, ...idbData, ...lsData };
+          if (idbData?.projects && lsData?.projects) {
+            const idbProjects = new Map(idbData.projects.map((p: any) => [p.id, p]));
+            merged.projects = (lsData.projects || []).map((lsProj: any) => {
+              const idbProj = idbProjects.get(lsProj.id);
+              if (idbProj?.files?.length) {
+                // IDB has file data — use it instead of localStorage's stripped version
+                return { ...lsProj, files: idbProj.files, noorMessages: idbProj.noorMessages || lsProj.noorMessages || [] };
+              }
+              return lsProj;
+            });
+          }
+          this.data = merged;
           // Sync merged result to both stores
           try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+            const lightweight = { ...merged };
+            lightweight.projects = lightweight.projects.map((p: any) => ({
+              ...p,
+              files: (p.files || []).map((f: any) => ({ ...f, dataUrl: "" })),
+            }));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweight));
           } catch {}
           await saveToIDB(this.data!);
           this.initialized = true;
@@ -125,20 +148,29 @@ class Storage {
 
   saveData(): void {
     if (typeof window === "undefined") return;
+    const dataToSave = this.data;
+
+    // Save to IndexedDB first (async, large capacity — handles file data URLs)
+    if (dataToSave) {
+      saveToIDB(dataToSave).catch((e) => console.error("IDB save failed", e));
+    }
+
+    // Save to localStorage (sync, fast, but 5MB quota — strip large file data URLs)
     try {
-      // Save to localStorage immediately (synchronous, fast)
-      if (this.data) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(this.data));
+      if (dataToSave) {
+        // Create a lightweight copy for localStorage — strip dataUrl from files
+        // to avoid QuotaExceededError. IDB is the source of truth for file content.
+        const lightweight = { ...dataToSave };
+        lightweight.projects = lightweight.projects.map((p) => ({
+          ...p,
+          files: (p.files || []).map((f: any) => ({ ...f, dataUrl: "" })),
+        }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(lightweight));
         localStorage.setItem(SYNC_KEY, new Date().toISOString());
       }
-
-      // Also save to IndexedDB (async, non-blocking, larger capacity)
-      const dataToSave = this.data;
-      if (dataToSave) {
-        saveToIDB(dataToSave).catch(() => {});
-      }
     } catch (e) {
-      console.error("Failed to save data", e);
+      // localStorage full — not critical, IDB has the real data
+      console.warn("localStorage save failed (likely quota), IDB is primary", e);
     }
 
     // Notify subscribers (relay sync, React re-renders, etc.)
@@ -148,6 +180,94 @@ class Storage {
   // ============================================================
   // Theme
   // ============================================================
+
+  // ============================================================
+  // Orleia Office: Calendar / Forms / Board
+  // ============================================================
+
+  getCalendarEvents(): CalendarEvent[] {
+    return this.getData().calendarEvents || [];
+  }
+
+  addCalendarEvent(ev: Omit<CalendarEvent, "id" | "createdAt">): CalendarEvent {
+    const data = this.getData();
+    const newEv: CalendarEvent = { ...ev, id: generateId(), createdAt: new Date().toISOString() };
+    data.calendarEvents = [...(data.calendarEvents || []), newEv];
+    this.saveData();
+    return newEv;
+  }
+
+  updateCalendarEvent(id: string, updates: Partial<CalendarEvent>): void {
+    const data = this.getData();
+    data.calendarEvents = (data.calendarEvents || []).map((e) => (e.id === id ? { ...e, ...updates } : e));
+    this.saveData();
+  }
+
+  deleteCalendarEvent(id: string): void {
+    const data = this.getData();
+    data.calendarEvents = (data.calendarEvents || []).filter((e) => e.id !== id);
+    this.saveData();
+  }
+
+  getForms(): Form[] {
+    return this.getData().forms || [];
+  }
+
+  addForm(form: Omit<Form, "id" | "createdAt" | "updatedAt" | "responses">): Form {
+    const data = this.getData();
+    const now = new Date().toISOString();
+    const newForm: Form = { ...form, id: generateId(), responses: [], createdAt: now, updatedAt: now };
+    data.forms = [...(data.forms || []), newForm];
+    this.saveData();
+    return newForm;
+  }
+
+  updateForm(id: string, updates: Partial<Form>): void {
+    const data = this.getData();
+    data.forms = (data.forms || []).map((f) => (f.id === id ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f));
+    this.saveData();
+  }
+
+  deleteForm(id: string): void {
+    const data = this.getData();
+    data.forms = (data.forms || []).filter((f) => f.id !== id);
+    this.saveData();
+  }
+
+  addFormResponse(formId: string, answers: Record<string, string | string[] | number>): void {
+    const data = this.getData();
+    data.forms = (data.forms || []).map((f) =>
+      f.id === formId
+        ? { ...f, responses: [...f.responses, { id: generateId(), answers, submittedAt: new Date().toISOString() }], updatedAt: new Date().toISOString() }
+        : f
+    );
+    this.saveData();
+  }
+
+  getBoards(): Board[] {
+    return this.getData().boards || [];
+  }
+
+  addBoard(board: Omit<Board, "id" | "createdAt" | "updatedAt">): Board {
+    const data = this.getData();
+    const now = new Date().toISOString();
+    const newBoard: Board = { ...board, id: generateId(), createdAt: now, updatedAt: now };
+    data.boards = [...(data.boards || []), newBoard];
+    this.saveData();
+    return newBoard;
+  }
+
+  updateBoard(id: string, updates: Partial<Board>): void {
+    const data = this.getData();
+    data.boards = (data.boards || []).map((b) => (b.id === id ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b));
+    this.saveData();
+  }
+
+  deleteBoard(id: string): void {
+    const data = this.getData();
+    data.boards = (data.boards || []).filter((b) => b.id !== id);
+    this.saveData();
+  }
 
   updateTheme(config: Partial<AppData["theme"]>): AppData["theme"] {
     const data = this.getData();
@@ -194,6 +314,10 @@ class Storage {
     const data = this.getData();
     data.habits = data.habits.filter((h) => h.id !== id);
     data.habitLogs = data.habitLogs.filter((l) => l.habitId !== id);
+    // Cascade: remove this habit's mirror events from the calendar,
+    // so deleting a habit never leaves ghost chips behind.
+    const link = `sync:habit:` + id;
+    data.calendarEvents = (data.calendarEvents || []).filter((e) => e.notes !== link);
     this.saveData();
   }
 
@@ -221,17 +345,14 @@ class Storage {
 
   unlogHabit(habitId: string, date: string = getToday()): void {
     const data = this.getData();
-    const existing = data.habitLogs.find(
-      (l) => l.habitId === habitId && l.date === date
+    // HARD-REMOVE the day's log. The UI is a toggle — an untick must
+    // unambiguously end that day's check-in, otherwise multi-count logs
+    // (legacy data had count > 1) survived the old decrement and the
+    // streak wrongly lived on after unticking.
+    data.habitLogs = data.habitLogs.filter(
+      (l) => !(l.habitId === habitId && l.date === date)
     );
-    if (existing) {
-      if (existing.count > 1) {
-        existing.count -= 1;
-      } else {
-        data.habitLogs = data.habitLogs.filter((l) => l.id !== existing.id);
-      }
-      this.saveData();
-    }
+    this.saveData();
   }
 
   isHabitLogged(habitId: string, date: string = getToday()): boolean {
@@ -398,7 +519,11 @@ class Storage {
   }
 
   deleteTask(id: string): void {
-    this.getData().tasks = this.getData().tasks.filter((t) => t.id !== id);
+    const data = this.getData();
+    data.tasks = data.tasks.filter((t) => t.id !== id);
+    // Cascade: remove the task's mirror event from the calendar.
+    const link = "sync:task:" + id;
+    data.calendarEvents = (data.calendarEvents || []).filter((e) => e.notes !== link);
     this.saveData();
   }
 
@@ -419,6 +544,119 @@ class Storage {
       if (task) task.order = index;
     });
     this.saveData();
+  }
+
+  // ============================================================
+  // Projects
+  // ============================================================
+
+  getProjects(): Project[] {
+    return this.getData().projects.filter((p) => p.status !== "archived");
+  }
+
+  getProject(id: string): Project | undefined {
+    return this.getData().projects.find((p) => p.id === id);
+  }
+
+  // ===== Decks =====
+  getDecks(): Deck[] {
+    return this.getData().decks || [];
+  }
+  getDeck(id: string): Deck | undefined {
+    return this.getDecks().find((d) => d.id === id);
+  }
+  createDeck(deck: Omit<Deck, "id" | "createdAt" | "updatedAt" | "starred">): Deck {
+    
+    const now = new Date().toISOString();
+    const newDeck: Deck = {
+      ...deck,
+      id: generateId(),
+      starred: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const data = this.getData();
+    data.decks = [newDeck, ...(data.decks || [])];
+    this.saveData();
+    return newDeck;
+  }
+  updateDeck(id: string, updates: Partial<Deck>): void {
+    
+    const data = this.getData();
+    data.decks = (data.decks || []).map((d) =>
+      d.id === id ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d
+    );
+    this.saveData();
+  }
+  toggleDeckStar(id: string): void {
+    
+    const data = this.getData();
+    data.decks = (data.decks || []).map((d) => (d.id === id ? { ...d, starred: !d.starred } : d));
+    this.saveData();
+  }
+  deleteDeck(id: string): void {
+    
+    const data = this.getData();
+    data.decks = (data.decks || []).filter((d) => d.id !== id);
+    this.saveData();
+  }
+
+  createProject(project: Omit<Project, "id" | "createdAt" | "updatedAt" | "taskIds" | "noteIds" | "documentIds" | "habitIds" | "files" | "noorMessages">): Project {
+    const data = this.getData();
+    const now = new Date().toISOString();
+    const newProject: Project = {
+      ...project,
+      id: generateId(),
+      taskIds: [],
+      noteIds: [],
+      documentIds: [],
+      habitIds: [],
+      files: [],
+      noorMessages: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    data.projects.push(newProject);
+    this.saveData();
+    return newProject;
+  }
+
+  updateProject(id: string, updates: Partial<Project>): Project | undefined {
+    const data = this.getData();
+    const idx = data.projects.findIndex((p) => p.id === id);
+    if (idx === -1) return undefined;
+    data.projects[idx] = { ...data.projects[idx], ...updates, updatedAt: new Date().toISOString() };
+    this.saveData();
+    return data.projects[idx];
+  }
+
+  deleteProject(id: string): void {
+    const data = this.getData();
+    data.projects = data.projects.filter((p) => p.id !== id);
+    // Cascade: remove the project's deadline mirror from the calendar.
+    const link = "sync:project:" + id;
+    data.calendarEvents = (data.calendarEvents || []).filter((e) => e.notes !== link);
+    this.saveData();
+  }
+
+  linkItemToProject(projectId: string, itemType: "taskIds" | "noteIds" | "documentIds" | "habitIds", itemId: string): void {
+    const data = this.getData();
+    const project = data.projects.find((p) => p.id === projectId);
+    if (project && !project[itemType].includes(itemId)) {
+      project[itemType].push(itemId);
+      project.updatedAt = new Date().toISOString();
+      this.saveData();
+    }
+  }
+
+  unlinkItemFromProject(projectId: string, itemType: "taskIds" | "noteIds" | "documentIds" | "habitIds", itemId: string): void {
+    const data = this.getData();
+    const project = data.projects.find((p) => p.id === projectId);
+    if (project) {
+      project[itemType] = project[itemType].filter((id) => id !== itemId);
+      project.updatedAt = new Date().toISOString();
+      this.saveData();
+    }
   }
 
   // ============================================================
@@ -500,10 +738,33 @@ class Storage {
   completeOnboarding(): void {
     this.getData().onboardingCompleted = true;
     this.saveData();
+    // Queue the tutorial for right after "Pick your look" — ClientLayout
+    // consumes this flag in handleOnboardingComplete. New users get the
+    // walkthrough; returning users (flag already consumed) never see it
+    // again unless they clear data.
+    try {
+      localStorage.setItem("orleia-tutorial-pending", "true");
+    } catch { /* private mode */ }
   }
 
   isOnboardingCompleted(): boolean {
     return this.getData().onboardingCompleted;
+  }
+
+  /** Age gate (13+ ToS requirement): one-time self-declaration, stored
+      locally only — we never collect birthdates or IDs. */
+  markAgeConfirmed(): void {
+    try {
+      localStorage.setItem("orleia_age_confirmed", "1");
+    } catch { /* private mode - gate simply re-asks next launch */ }
+  }
+
+  isAgeConfirmed(): boolean {
+    try {
+      return localStorage.getItem("orleia_age_confirmed") === "1";
+    } catch {
+      return false;
+    }
   }
 
   // ============================================================
@@ -566,15 +827,15 @@ class Storage {
   }
 
   // ============================================================
-  // Lexis Mode
+  // Orleia Mode
   // ============================================================
-  getLexisMode(): LexisMode {
-    return this.getData().lexisMode || "workspace";
+  getOrleiaMode(): OrleiaMode {
+    return this.getData().orleiaMode || "workspace";
   }
 
-  updateLexisMode(mode: LexisMode): void {
+  updateOrleiaMode(mode: OrleiaMode): void {
     const data = this.getData();
-    data.lexisMode = mode;
+    data.orleiaMode = mode;
     this.saveData();
   }
 
@@ -670,8 +931,8 @@ class Storage {
     if (typeof window === "undefined") return;
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(SYNC_KEY);
-    localStorage.removeItem("lexis-password");
-    localStorage.removeItem("lexis-tutorial-pending");
+    localStorage.removeItem("orleia-password");
+    localStorage.removeItem("orleia-tutorial-pending");
     await clearIDB();
     this.data = null;
   }

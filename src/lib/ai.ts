@@ -1,8 +1,13 @@
 "use client";
 
 import { storage } from "./storage";
+import { petById } from "./pets";
+import { petStage } from "./pet-habits";
 import { getSituationPayload } from "@/lib/graph/engine";
 import { getToday, calculateStreak, getMoodScore } from "./utils";
+import { NoorCapError } from "./noor-cap";
+import { usageLine, setNoorUsage } from "./noor-usage";
+import { buildSkillsBlock } from "./noor-skills";
 import { Habit, Task, JournalEntry, Note, AIMessage, AIModel } from "@/types";
 import {
   detectAction,
@@ -18,6 +23,7 @@ import { buildMemoryContext, saveMemory, extractFactsFromMessages } from "./noor
 import { buildSearchBlock, isLiveQuery } from "./web-search";
 import type { AISource } from "@/types";
 import { countFactInstruction } from "./count-guard";
+import { getDeviceId } from "./device-id";
 
 const FALLBACK_MODELS: Record<string, string[]> = {
   "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
@@ -137,6 +143,14 @@ function buildDataContext(depth: "shallow" | "moderate" | "deep"): DataContext {
     notesCount,
     totalCompletions,
   };
+
+  // Orleia Office awareness (calendar) — appended to the
+  // summary at every depth so Noor always knows these apps exist.
+  const eventCount = (data.calendarEvents || []).length;
+  if (eventCount) {
+    summary += ` Their Orleia Office contains ${eventCount} calendar event${eventCount !== 1 ? "s" : ""}.`;
+  }
+  summary += ` You can create calendar events ("schedule a meeting friday") on request.`;
 }
 
 // ============================================================
@@ -357,7 +371,7 @@ function generateGreeting(
     `Sup. ${statusLine} Ask away.`,
   ];
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     if (history.length === 0) {
       return ethosOpeners[Math.floor(Math.random() * ethosOpeners.length)];
     }
@@ -369,7 +383,7 @@ function generateGreeting(
     return welcomeBacks[Math.floor(Math.random() * welcomeBacks.length)];
   }
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     return verseOpeners[Math.floor(Math.random() * verseOpeners.length)];
   }
 
@@ -403,7 +417,7 @@ function generateSummaryResponse(
   ).length;
   const todayJournal = data.journalEntries.filter((e) => e.date === today);
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     let resp = `📊 **Today's Snapshot**\n`;
     resp += `• Habits: ${todayHabits} logged\n`;
     resp += `• Tasks: ${todayTasks} done, ${context.pendingTasks} pending`;
@@ -423,7 +437,7 @@ function generateSummaryResponse(
     return resp;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     let resp = `📊 **Comprehensive Overview**\n\n`;
 
     // Habits section
@@ -527,12 +541,12 @@ function generateHabitsResponse(
   const habits = data.habits.filter((h) => !h.archived);
 
   if (habits.length === 0) {
-    return model.id === "verse-4"
+    return model.id === "fast-1"
       ? "You have no habits yet. Create one in the Habits tab!"
       : "You haven't created any habits yet! I'd recommend starting with 1-2 simple daily habits like \"Morning stretch\" or \"Read 10 pages.\" Would you like me to suggest some based on common goals?";
   }
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     const today = getToday();
     const logged = habits.filter((h) => storage.isHabitLogged(h.id, today)).length;
     const best = habits
@@ -551,7 +565,7 @@ function generateHabitsResponse(
     return resp;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     let resp = `📊 **Habit Analysis**\n\n`;
 
     const today2 = getToday();
@@ -646,12 +660,12 @@ function generateTasksResponse(
     });
 
   if (pendingTasks.length === 0) {
-    return model.id === "verse-4"
+    return model.id === "fast-1"
       ? "No pending tasks! 🎉 Enjoy your free time."
       : "You have no pending tasks - that's wonderful! 🎉 You're either completely caught up or it's a great time to set some new goals. Want me to help you plan your next priorities?";
   }
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     let resp = `**Tasks** - ${pendingTasks.length} pending`;
     if (context.overdueTasks > 0)
       resp += ` (${context.overdueTasks} overdue)`;
@@ -674,7 +688,7 @@ function generateTasksResponse(
     return resp;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     let resp = `📋 **Task Analysis**\n\n`;
 
     const total = data.tasks.length;
@@ -776,12 +790,12 @@ function generateJournalResponse(
   const entries = data.journalEntries;
 
   if (entries.length === 0) {
-    return model.id === "verse-4"
+    return model.id === "fast-1"
       ? "No journal entries yet. Write your first one!"
       : "You haven't written any journal entries yet. Journaling is a powerful tool for self-reflection and mental clarity. Would you like some prompts to get started? Try writing about your day, what you're grateful for, or a goal you're working toward.";
   }
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     const recent = entries[0];
     const score = getMoodScore(recent.mood);
     const moodLabel =
@@ -789,7 +803,7 @@ function generateJournalResponse(
     return `📝 Journal: ${entries.length} entries\nLatest: ${recent.date} - feeling ${moodLabel}\n${recent.content.slice(0, 100)}...`;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     const recent = entries.slice(0, 7);
     const avgMood =
       recent.reduce((sum, e) => sum + getMoodScore(e.mood), 0) /
@@ -879,16 +893,16 @@ function generateNotesResponse(
   const notes = data.notes;
 
   if (notes.length === 0) {
-    return model.id === "verse-4"
+    return model.id === "fast-1"
       ? "No documents yet. Start writing!"
       : "You haven't created any documents yet. Documents are great for capturing ideas, meeting notes, or anything you want to remember. Head to the Documents tab to create your first one!";
   }
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     return `📓 ${notes.length} notes total\nRecent: "${notes.slice(-1)[0]?.title || "None"}"`;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     const pinned = notes.filter((n) => n.pinned);
     const hasTags = notes.filter((n) => n.tags.length > 0).length;
     const allTags = [...new Set(notes.flatMap((n) => n.tags))];
@@ -947,7 +961,7 @@ function generatePlanResponse(
   const data = storage.getData();
   const habits = data.habits.filter((h) => !h.archived);
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     let resp = `**Quick Plan** 🎯\n\n`;
     resp += `**Right now:** Focus on your top priority task first.\n`;
     resp += `**Today:** Complete ${habits.length > 0 ? "your habits + " : ""}top 3 tasks.\n`;
@@ -958,7 +972,7 @@ function generatePlanResponse(
     return resp;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     let resp = `🎯 **Strategic Plan**\n\n`;
 
     // Analyze current state
@@ -1078,7 +1092,7 @@ function generateMotivationResponse(
   const data = storage.getData();
   const habits = data.habits.filter((h) => !h.archived);
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     const best = habits
       .map((h) => ({ name: h.name, ...calculateStreak(storage.getHabitLogDates(h.id)) }))
       .sort((a, b) => b.current - a.current)[0];
@@ -1089,7 +1103,7 @@ function generateMotivationResponse(
     return `You've got this! Every small step counts. What's one thing you can do right now to move forward? 💪`;
   }
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     let resp = `🔥 **You're Building Something Real**\n\n`;
 
     if (habits.length > 0) {
@@ -1159,12 +1173,12 @@ function generateSearchResponse(
   const results = searchUserData(query, model.analysisDepth);
 
   if (results.length === 0) {
-    if (model.id === "verse-4")
+    if (model.id === "fast-1")
       return "No results found. Try different keywords.";
     return "I searched across your notes, tasks, and journal but couldn't find anything matching that. Try different keywords or check if you have any saved data related to this topic.";
   }
 
-  if (model.id === "verse-4") {
+  if (model.id === "fast-1") {
     return results.slice(0, 3).join("\n");
   }
 
@@ -1181,7 +1195,7 @@ function generateGeneralResponse(
 
   // Check if it's a feeling check
   if (/(how.*feeling|how.*you|you.*okay|you.*good|how.*day)/i.test(q)) {
-    if (model.id === "verse-4") {
+    if (model.id === "fast-1") {
       return `I'm here for you! Your data shows ${context.habits.filter((h) => h.logged).length}/${context.habits.length} habits done and ${context.pendingTasks} tasks left. How are you feeling?`;
     }
     return `I'm doing great - thanks for asking! 😊 More importantly, how are you feeling today?\n\nFrom your data, I can see you've logged ${context.habits.filter((h) => h.logged).length} habit${context.habits.filter((h) => h.logged).length !== 1 ? "s" : ""} and have ${context.pendingTasks} task${context.pendingTasks !== 1 ? "s" : ""} to tackle. Your recent mood has been ${context.recentMood}. \n\nWant to talk about anything specific? I'm here to listen and help.`;
@@ -1196,7 +1210,7 @@ function generateGeneralResponse(
 
   // General capability response
   const capabilities =
-    model.id === "verse-4"
+    model.id === "fast-1"
       ? `Try:\n• "how are my habits?"\n• "show my tasks"\n• "daily summary"\n• "journal overview"\n• "make a plan"`
       : `I can help you with:\n\n📊 **Summaries** - "Give me a daily/weekly summary"\n💪 **Habits** - "How are my habits doing?", "What's my best streak?"\n🎯 **Tasks** - "Show my tasks", "What should I focus on?"\n📝 **Journal** - "Review my journal", "How's my mood been?"\n📓 **Notes** - "Find notes about...", "Overview of my notes"\n🎯 **Plans** - "Create a habit plan", "Help me plan my day"\n🔥 **Motivation** - "Motivate me!", "Tell me something inspiring"\n\nWhat would you like to explore?`;
 
@@ -1289,6 +1303,34 @@ export function buildStatsBlock(depth: "shallow" | "moderate" | "deep"): string 
     ? Math.max(...streaks.map((s) => s.longest))
     : 0;
 
+  // Pet companion (lib/pet-habits.ts): feeds on habit check-ins, grows,
+  // and its shields are the streak freezes. Noor should know it by name.
+  const petLine = (function () {
+    const pet = petById(data.profile?.pet);
+    if (!pet) return "";
+    const mealsToday = data.habitLogs.filter((l) => l.date === today).length;
+    const meals = data.habitLogs.length;
+    const stage = petStage(meals);
+    const shields = data.streakFreezeTokens ?? 0;
+    const petName = (data.profile?.petName || "").trim() || pet.name;
+    const atRisk =
+      depth !== "shallow"
+        ? activeHabits
+            .filter(
+              (h) =>
+                !data.habitLogs.some((l) => l.date === today && l.habitId === h.id) &&
+                calculateStreak(storage.getHabitLogDates(h.id)).current > 0
+            )
+            .map((h) => h.name)
+        : [];
+    return (
+      `- Pet: ${petName} (${pet.name}) — ${mealsToday > 0 ? "fed and happy today" : "hungry (no habits logged today)"}; ${meals} total meals (${stage.label} stage); shields: ${shields}` +
+      (atRisk.length ? `; streaks at risk if today stays unlogged: ${atRisk.slice(0, 4).join(", ")}` : "") +
+      `\nPET GUIDANCE: ${petName} is the user's companion that feeds on habit check-ins; shields protect streaks. If it is hungry you may gently encourage one small check-in ("a quick check-in feeds ${petName}") — never guilt-trip. Celebrate shields and growth naturally when relevant.` +
+      "\n"
+    );
+  })();
+
   let moodLine = "";
   if (depth !== "shallow") {
     const recent = data.journalEntries.slice(0, 7);
@@ -1301,7 +1343,7 @@ export function buildStatsBlock(depth: "shallow" | "moderate" | "deep"): string 
     }
   }
 
-  return `CURRENT USER DATA (live snapshot from the user's Lexis workspace):
+  return `CURRENT USER DATA (live snapshot from the user's Orleia workspace):
 ` +
     `- Productivity score: ${productivityScore}/100 (habits ${habitScore}%, tasks ${taskScore}% today)
 ` +
@@ -1319,8 +1361,47 @@ export function buildStatsBlock(depth: "shallow" | "moderate" | "deep"): string 
 ` +
     `- Documents: ${notesCount} total
 ` +
-    `Never create a habit or task that is already listed above - skip it instead.\n` +
-    `Use these numbers to ground your answers - quote them naturally, never invent stats.`;
+    petLine +
+    (function () {
+      const lines: string[] = [];
+      try {
+        const projs = storage.getProjects();
+        if (projs.length) {
+          const projLines = projs.slice(0, 8).map((p: any) => {
+            if (depth === "shallow") return `"${p.name}"`;
+            const bits: string[] = [];
+            try {
+              const pt = (p.taskIds || []).length, pn = (p.noteIds || []).length, pf = (p.files || []).length, pd = (p.deckIds || []).length;
+              if (pt || pn || pf || pd) bits.push(`(${pt} tasks, ${pn} notes, ${pf} files, ${pd} decks)`);
+            } catch { /* ignore */ }
+            return `"${p.name}"${bits.length ? " " + bits.join(" ") : ""}`;
+          });
+          lines.push(`- Projects: ${projs.length} total: ${projLines.join(", ")}`);
+        } else {
+          lines.push(`- Projects: none`);
+        }
+      } catch { lines.push(`- Projects: none`); }
+      try {
+        const decks = storage.getDecks();
+        lines.push(depth === "shallow"
+          ? `- Decks: ${decks.length} total`
+          : `- Decks: ${decks.length ? decks.length + " presentation(s): " + decks.slice(0, 8).map((d: any) => `"${d.title}" (${(d.slides || []).length} slides)`).join(", ") : "none"}`);
+      } catch { /* ignore */ }
+      try {
+        const events = storage.getCalendarEvents();
+        const today = getToday();
+        const upcoming = events.filter((e: any) => e.date >= today).sort((a: any, b: any) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+        const evLimit = depth === "shallow" ? 3 : 5;
+        lines.push(`- Calendar: ${events.length} event(s) total; ${upcoming.length} upcoming` + (upcoming.length ? `; next: ${upcoming.slice(0, evLimit).map((e: any) => `"${e.title}" ${e.date}${e.time ? " " + e.time : ""}`).join(", ")}` : ""));
+      } catch { /* ignore */ }
+      try {
+        const boards = storage.getBoards();
+        lines.push(`- Boards: ${boards.length ? boards.length + " whiteboard(s): " + boards.slice(0, 8).map((b: any) => `"${b.name}"`).join(", ") : "none"}`);
+      } catch { /* ignore */ }
+      return lines.join("\n") + "\n";
+    })() +
+    `CRITICAL: Before creating ANY task or habit, first check the pending task titles and habit names listed above. If something already exists (even partially matching), DO NOT create it. Only create genuinely new items that do not exist yet.\n` +
+    `THINKING RULE: when writing your thought process, work from the data above silently - never recite, quote or restate its lines. Keep thinking brief and decision-focused (what to create, what to skip and why).\n` +    `Use these numbers to ground your answers - quote them naturally, never invent stats.`;
 }
 
 /**
@@ -1340,16 +1421,16 @@ export function buildProfileBlock(): string {
   };
 
   add("Name", p.name || "");
-  add("Pronouns", p.pronouns || "");
-  add("Age range", p.ageRange || "");
-  add("Time zone", p.timeZone || "");
-  addList("Work/study", p.workStudy as string[] || []);
-  addList("Interests", p.interests || []);
-  add("Typical schedule", p.schedule || "");
-  addList("Productivity preferences", p.productivityPrefs as string[] || []);
   addList("Communication preferences", p.communicationPrefs as string[] || []);
   add("Goals", p.goals || "");
-  addList("Wants help with", p.helpWith || []);
+  // Time zone is auto-detected, never stored or asked (About You is
+  // simplified — see settings ProfileEditor).
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) add("Time zone", tz);
+  } catch {
+    /* ignore */
+  }
 
   if (lines.length === 0) return "";
 
@@ -1381,6 +1462,10 @@ export function buildNoorBlock(): string {
 export interface ChatOpts {
   /** Numbered sources (workspace or web) injected into the system prompt. */
   sources?: AISource[];
+  /** Extra context appended to the system prompt (e.g. project-specific context). */
+  extraSystem?: string;
+  /** Streaming callback for the model's internal reasoning (thinking tokens). Never part of the visible reply. */
+  onThinking?: (delta: string) => void;
 }
 
 async function callLLM(
@@ -1393,11 +1478,9 @@ async function callLLM(
   const profileBlock = buildProfileBlock();
   const noorBlock = buildNoorBlock();
   const searchBlock = buildSearchBlock(opts?.sources || []);
-  const systemPrompt = `${model.systemPrompt}
-
-Today is ${getToday()}.
-
-${stats}${profileBlock}${noorBlock}${searchBlock}`;
+  const extraContext = opts?.extraSystem ? `\n\n${opts.extraSystem}` : "";
+  const skillsBlock = buildSkillsBlock();
+  const systemPrompt = `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageLine()}${skillsBlock}${extraContext}`;
   // Never feed JSON-looking assistant replies back to the model - it should
   // always reply in natural language.
   const history = conversationHistory
@@ -1436,22 +1519,44 @@ ${stats}${profileBlock}${noorBlock}${searchBlock}`;
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
         body: JSON.stringify({
         model: tryModel,
         messages: payloadMessages,
         temperature: model.temperature,
         maxTokens: model.maxTokens,
+        ...(model.disableThinking ? { chatTemplateKwargs: { enable_thinking: false } } : {}),
         situation: getSituationPayload(),
+        lang: (typeof document !== "undefined" ? document.documentElement.lang : "") || undefined,
       }),
     });
+      if (res.status === 402) {
+        // Daily Noor cap: propagate so the caller shows the upgrade message
+        // (never silently fall back to the offline engine).
+        throw new NoorCapError();
+      }
       if (res.ok) {
+        // Keep the client usage cache fresh on this path too (Projects Noor
+        // uses non-streaming chat; the 5-left warning depends on this).
+        try {
+          const usageRaw = res.headers.get("x-orleia-usage");
+          if (usageRaw && typeof window !== "undefined") {
+            const u = JSON.parse(usageRaw) as { used?: number; limit?: number | null };
+            if (typeof u.used === "number") {
+              setNoorUsage(u.used, u.limit ?? null);
+              window.dispatchEvent(new CustomEvent("orleia:noor-usage", { detail: { used: u.used, limit: u.limit ?? null } }));
+            }
+          }
+        } catch { /* malformed header - ignore */ }
         const data = (await res.json()) as { content?: string };
         if (data && typeof data.content === "string" && data.content.trim()) {
           return data.content.trim();
         }
       }
-    } catch { /* try next model */ }
+    } catch (e) {
+      if (e instanceof NoorCapError) throw e;
+      /* try next model */
+    }
   }
   return null;
 }
@@ -1488,7 +1593,7 @@ export function withAttachmentContext(m: AIMessage): string {
 export async function chat(
   query: string,
   conversationHistory: AIMessage[] = [],
-  modelId: AIModel = "logos-4.5",
+  modelId: AIModel = "core-1",
   opts?: ChatOpts
 ): Promise<string> {
   const model = MODEL_PROFILES[modelId];
@@ -1550,11 +1655,11 @@ export async function chat(
       "\n\n(Note: if this asks you to create, change, log or delete something, DO NOT claim you did it - you have not. Either give helpful advice, or ask one short clarifying question.)"
     : query;
 
-  // Prefer the real LLM (NVIDIA NIM) - it understands Lexis and the user's live stats.
+  // Prefer the real LLM (NVIDIA NIM) - it understands Orleia and the user's live stats.
   try {
     const llmReply = await callLLM(llmQuery, conversationHistory, model, opts);
     if (llmReply) {
-      // The model's tool contract: LEXIS_ACTION {...} blocks are executed for
+      // The model's tool contract: ORLEIA_ACTION {...} blocks are executed for
       // real and replaced by their natural confirmation - the user must never
       // see raw JSON, and actions must actually happen.
       // Safety net: strip any stray think tags from legacy/cached replies
@@ -1565,20 +1670,26 @@ export async function chat(
       // Legacy safety net: a bare JSON action with no marker.
       const handled = tryExecuteJsonAction(visible);
       if (handled) return handled;
-      // Final net: never let a raw/truncated LEXIS_ACTION line reach the user.
-      // Check the marker first: even when prose precedes the truncated block,
-      // the user must get the honest retry note, never a silent "Sure!".
+      // Final net: never let a raw/truncated ORLEIA_ACTION line reach the user.
       if (ACTION_MARKER_RE.test(visible)) {
-        const note =
-          "I couldn't finish setting that up. Mind asking me again?";
         const cleaned = stripActionRemnants(visible);
+        // If the user asked a pure question (no action verb), just return the
+        // prose answer — the truncated marker is the model's fault, not the user's.
+        if (!wantsAction) {
+          return cleaned || visible.replace(ACTION_MARKER_RE, "").trim();
+        }
+        // For action requests, show the retry note.
+        const note = "I couldn't finish setting that up. Mind asking me again?";
         return cleaned ? cleaned + "\n\n" + note : note;
       }
       const cleaned = stripActionRemnants(visible);
       if (cleaned) return cleaned;
       return visible;
     }
-  } catch {
+  } catch (e) {
+    // Cap errors are NEVER swallowed - the caller must show the upgrade
+    // message instead of the offline robot impersonating Noor.
+    if (e instanceof NoorCapError) throw e;
     // Fall through to the built-in response engine (offline-safe).
   }
 
@@ -1590,7 +1701,7 @@ export async function chat(
 
   let response = "";
 
-  if (model.id === "ethos-4.7") {
+  if (model.id === "agent-1") {
     // Ethos thinks deeply
     const thinkingDelay = memory ? "I remember our previous conversation. Let me connect that with what you're asking now.\n\n" : "";
 
@@ -1648,7 +1759,7 @@ case "greeting":
     }
 
 
-  } else if (model.id === "verse-4") {
+  } else if (model.id === "fast-1") {
     // Verse is fast and concise
     switch (intent) {
             case "navigate": {

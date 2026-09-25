@@ -24,7 +24,15 @@ import {
   Hash,
   X,
   Check,
+  Eye,
+  Code2,
+  ListTodo,
+  Quote,
+  Star,
+  Download,
 } from "lucide-react";
+import { saveAs } from "file-saver";
+import { markdownToHtml } from "@/lib/notes/markdown";
 import { storage } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 import { cn, generateId } from "@/lib/utils";
@@ -49,7 +57,19 @@ function formatDate(iso: string): string {
 }
 
 function extractPreview(content: string, maxLen = 80): string {
-  const text = content.replace(/<[^>]*>/g, "").replace(/\n+/g, " ").trim();
+  const text = content
+    .replace(/<[^>]*>/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*([^*]*)\*\*/g, "$1")
+    .replace(/\*([^*]*)\*/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/^>\s+/gm, "")
+    .replace(/^[-*]\s+\[[ xX]\]\s+/gm, "")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/^\d+\.\s+/gm, "")
+    .replace(/==([^=]*)==/g, "$1")
+    .replace(/\n+/g, " ")
+    .trim();
   return text.length > maxLen ? text.slice(0, maxLen) + "…" : text;
 }
 
@@ -63,6 +83,7 @@ export default function NotesPage() {
   const [folders, setFolders] = useState<NoteFolder[]>([]);
   const [tags, setTags] = useState<NoteTag[]>([]);
   const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = all
+  const [showNotePreview, setShowNotePreview] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -91,7 +112,7 @@ export default function NotesPage() {
 
   // Filtered notes
   const filteredNotes = useMemo(() => {
-    let result = notes;
+    let result = notes.filter((n) => !n.archived);
     if (activeFolder) {
       result = result.filter((n) => n.folderId === activeFolder);
     }
@@ -117,7 +138,7 @@ export default function NotesPage() {
       content: "",
       contentHtml: "",
       folderId: activeFolder,
-      tags: [],
+      projectId: null, tags: [],
       pinned: false,
       archived: false,
       favorite: false,
@@ -159,6 +180,49 @@ export default function NotesPage() {
     },
     [notes, updateNoteContent]
   );
+
+  // Toggle favorite (star)
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      if (note) updateNoteContent(id, { favorite: !note.favorite });
+    },
+    [notes, updateNoteContent]
+  );
+
+  /* ---- Markdown toolbar: wrap selection or insert prefix ---- */
+  const applyMd = useCallback((prefix: string, wrap?: string) => {
+    const ta = contentRef.current;
+    if (!ta || !selectedNote) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = selectedNote.content;
+    const sel = text.slice(start, end);
+    let next: string;
+    let cursor: number;
+    if (wrap) {
+      const body = sel || wrap;
+      next = text.slice(0, start) + prefix + body + prefix + text.slice(end);
+      cursor = start + prefix.length + body.length + prefix.length;
+    } else {
+      const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+      next = text.slice(0, lineStart) + prefix + text.slice(lineStart);
+      cursor = end + prefix.length;
+    }
+    updateNoteContent(selectedNote.id, { content: next, contentHtml: next });
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(cursor, cursor);
+    });
+  }, [selectedNote, updateNoteContent]);
+
+  // Export note as Markdown
+  const exportNoteMd = useCallback(() => {
+    if (!selectedNote) return;
+    const md = `# ${selectedNote.title}\n\n${selectedNote.content}`;
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    saveAs(blob, `${selectedNote.title || "note"}.md`);
+  }, [selectedNote]);
 
   // Archive note
   const archiveNote = useCallback(
@@ -277,7 +341,7 @@ export default function NotesPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 flex flex-col bg-background"
+      className="fixed inset-0 z-[90] flex flex-col bg-background"
     >
       {/* Top bar */}
       <div className="flex items-center gap-3 border-b border-border px-4 py-2 shrink-0">
@@ -533,8 +597,8 @@ export default function NotesPage() {
                 </span>
               </div>
 
-              {/* Editor toolbar */}
-              <div className="flex items-center gap-1 border-b border-border px-3 py-1.5 shrink-0">
+              {/* Note actions + Markdown formatting (one toolbar block) */}
+              <div className="flex items-center gap-1 px-3 py-1.5 shrink-0">
                 {/* Pin */}
                 <button
                   onClick={() => togglePin(selectedNote.id)}
@@ -547,6 +611,21 @@ export default function NotesPage() {
                   title={selectedNote.pinned ? t("notes.unpin") : t("notes.pin")}
                 >
                   <Pin className="h-3.5 w-3.5" />
+                </button>
+
+                {/* Star */}
+                <button
+                  onClick={() => toggleFavorite(selectedNote.id)}
+                  className={cn(
+                    "rounded p-1.5 transition-colors",
+                    selectedNote.favorite
+                      ? "text-amber-400"
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                  title={selectedNote.favorite ? "Unstar note" : "Star note"}
+                  aria-pressed={selectedNote.favorite}
+                >
+                  <Star className={cn("h-3.5 w-3.5", selectedNote.favorite && "fill-current")} />
                 </button>
 
                 {/* Tags */}
@@ -622,11 +701,14 @@ export default function NotesPage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Archive */}
+                {/* Archive (restores when note is already archived) */}
                 <button
-                  onClick={() => archiveNote(selectedNote.id)}
-                  className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted"
-                  title={t("notes.archive")}
+                  onClick={() => updateNoteContent(selectedNote.id, { archived: !selectedNote.archived })}
+                  className={cn(
+                    "rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted",
+                    selectedNote.archived && "text-amber-500"
+                  )}
+                  title={selectedNote.archived ? t("notes.unarchive") : t("notes.archive")}
                 >
                   <Archive className="h-3.5 w-3.5" />
                 </button>
@@ -720,8 +802,49 @@ export default function NotesPage() {
                 />
               </div>
 
+              {/* Markdown formatting row */}
+              <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-3 py-1.5 md:px-8" role="toolbar" aria-label="Formatting">
+                {[
+                  { icon: Bold, label: "Bold", run: () => applyMd("**", "bold") },
+                  { icon: Italic, label: "Italic", run: () => applyMd("*", "italic") },
+                  { icon: Heading1, label: "Heading 1", run: () => applyMd("# ") },
+                  { icon: Heading2, label: "Heading 2", run: () => applyMd("## ") },
+                  { icon: List, label: "Bullet list", run: () => applyMd("- ") },
+                  { icon: ListOrdered, label: "Numbered list", run: () => applyMd("1. ") },
+                  { icon: ListTodo, label: "Checklist", run: () => applyMd("- [ ] ") },
+                  { icon: Quote, label: "Quote", run: () => applyMd("> ") },
+                  { icon: Code2, label: "Code", run: () => applyMd("`", "code") },
+                ].map((b) => (
+                  <button
+                    key={b.label}
+                    onClick={b.run}
+                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    title={b.label}
+                    aria-label={b.label}
+                  >
+                    <b.icon className="h-4 w-4" />
+                  </button>
+                ))}
+                <div className="flex-1" />
+                <button
+                  onClick={() => setShowNotePreview((v) => !v)}
+                  className={cn("rounded-lg p-1.5 transition-colors", showNotePreview ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+                  title="Preview"
+                  aria-pressed={showNotePreview}
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={exportNoteMd}
+                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Export as Markdown"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+              </div>
+
               {/* Content */}
-              <div className="flex-1 overflow-y-auto px-4 pb-24 pt-2 md:px-8">
+              <div className={cn("flex-1 overflow-y-auto px-4 pb-24 pt-2 md:px-8", showNotePreview && "grid grid-cols-1 gap-6 md:grid-cols-2")}>
                 <textarea
                   ref={contentRef}
                   value={selectedNote.content}
@@ -732,8 +855,16 @@ export default function NotesPage() {
                     })
                   }
                   placeholder={t("notes.contentPlaceholder")}
-                  className="min-h-[400px] w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
+                  className="notes-editor min-h-[400px] w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
                 />
+                {showNotePreview && (
+                  <div className="min-h-[400px] border-l border-border pl-6">
+                    <div
+                      className="prose prose-sm dark:prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ __html: markdownToHtml(selectedNote.content) }}
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Status bar */}
@@ -779,7 +910,7 @@ export default function NotesPage() {
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 flex flex-col bg-background md:hidden"
+            className="fixed inset-0 z-[90] flex flex-col bg-background md:hidden"
           >
             <div className="flex items-center gap-3 border-b border-border px-4 py-2">
               <a
@@ -819,8 +950,8 @@ export default function NotesPage() {
                 className={cn(
                   "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                   activeFolder === null
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                    ? "border border-foreground/40 text-foreground"
+                    : "border border-transparent bg-muted/60 text-muted-foreground hover:text-foreground"
                 )}
               >
                 {t("notes.allNotes")}
@@ -832,8 +963,8 @@ export default function NotesPage() {
                   className={cn(
                     "shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors",
                     activeFolder === f.id
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
+                      ? "border border-foreground/40 text-foreground"
+                      : "border border-transparent bg-muted/60 text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {f.name}

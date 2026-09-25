@@ -98,7 +98,7 @@ export function HorizontalRuler({
   };
 
   return (
-    <div ref={ref} className="lexis-ruler relative h-7 w-full shrink-0 select-none overflow-hidden touch-none">
+    <div ref={ref} className="orleia-ruler relative h-7 w-full shrink-0 select-none overflow-hidden touch-none">
       {/* tick marks */}
       <div className="absolute inset-y-0 left-0 right-0 flex">
         {Array.from({ length: Math.max(1, Math.floor(W / 16)) }).map((_, i) => (
@@ -156,7 +156,7 @@ function RulerMarker({
 }) {
   return (
     <div
-      className="lexis-ruler-marker touch-none"
+      className="orleia-ruler-marker touch-none"
       style={{ left: `calc(${left}% - 5px)` }}
       title={title}
       onPointerDown={(e) => {
@@ -166,11 +166,11 @@ function RulerMarker({
       }}
     >
       {shape === "top" ? (
-        <div className="lexis-marker-top" />
+        <div className="orleia-marker-top" />
       ) : shape === "bottom" ? (
-        <div className="lexis-marker-bottom" />
+        <div className="orleia-marker-bottom" />
       ) : (
-        <div className="lexis-marker-bar" />
+        <div className="orleia-marker-bar" />
       )}
     </div>
   );
@@ -208,13 +208,13 @@ export function VerticalRuler({
   return (
     <div
       ref={ref}
-      className="lexis-vruler relative w-6 shrink-0 select-none sticky top-0 touch-none"
+      className="orleia-vruler relative w-6 shrink-0 select-none sticky top-0 touch-none"
       style={{ height: "calc(100dvh - 156px)" }}
     >
       <div className="absolute left-0 right-0 top-0 bg-muted/40" style={{ height: Math.min(margins.top, H) }} />
       <div className="absolute left-0 right-0 bottom-0 bg-muted/40" style={{ height: Math.min(margins.bottom, H) }} />
       <div
-        className="lexis-vmarker touch-none"
+        className="orleia-vmarker touch-none"
         style={{ top: Math.min(margins.top, H) - 4 }}
         title="Top margin"
         onPointerDown={(e) => {
@@ -224,7 +224,7 @@ export function VerticalRuler({
         }}
       />
       <div
-        className="lexis-vmarker"
+        className="orleia-vmarker"
         style={{ bottom: Math.min(margins.bottom, H) - 4 }}
         title="Bottom margin"
         onPointerDown={(e) => {

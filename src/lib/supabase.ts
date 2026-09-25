@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 let _client: SupabaseClient | null = null;
 
 /** Detect if running inside Electron desktop app. */
-const isElectron = typeof window !== "undefined" && !!window.lexisDesktop;
+const isElectron = typeof window !== "undefined" && !!window.orleiaDesktop;
 
 /** Singleton Supabase client. Returns null if env vars are missing. */
 export function getSupabase(): SupabaseClient | null {

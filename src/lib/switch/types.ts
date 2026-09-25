@@ -69,11 +69,11 @@ export const SWITCH_SOURCES: SwitchSourceDef[] = [
     desc: "CSV or Markdown files",
     extensions: [".csv", ".md", ".markdown", ".txt"],
     multi: true,
-    howTo: "Select CSV files (turned into tasks) or Markdown/text files (turned into documents). Lexis auto-detects the columns.",
+    howTo: "Select CSV files (turned into tasks) or Markdown/text files (turned into documents). Orleia auto-detects the columns.",
   },
 ];
 
-/** A task parsed from an external source, ready to map into Lexis. */
+/** A task parsed from an external source, ready to map into Orleia. */
 export interface ImportedTask {
   title: string;
   description?: string;
@@ -82,7 +82,7 @@ export interface ImportedTask {
   dueTime?: string | null;
   status?: TaskStatus;
   tags?: string[];
-  /** List/project name - resolved to a Lexis task list */
+  /** List/project name - resolved to a Orleia task list */
   list?: string | null;
 }
 
@@ -91,7 +91,7 @@ export interface ImportedDocument {
   title: string;
   content: string;
   tags?: string[];
-  /** Folder name - resolved to a Lexis folder */
+  /** Folder name - resolved to a Orleia folder */
   folder?: string | null;
 }
 

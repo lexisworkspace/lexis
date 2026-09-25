@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { GMAIL_COMPOSE_HREF } from "@/lib/contact";
 
 interface LegalPageProps {
   title: string;
@@ -31,6 +32,16 @@ export function LegalPage({ title, subtitle, lastUpdated, children }: LegalPageP
         </div>
 
         <div className="mt-16 pt-8 border-t border-border/50">
+          <p className="mb-6 text-xs text-muted-foreground/60">
+            Questions about this policy? Contact us at{" "}
+            <a
+              href={GMAIL_COMPOSE_HREF}
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              orleia.workspace@gmail.com
+            </a>
+            .
+          </p>
           <Link
             href="/"
             className="group inline-flex items-center gap-1.5 text-xs font-mono tracking-wider text-muted-foreground/50 hover:text-muted-foreground transition-colors"

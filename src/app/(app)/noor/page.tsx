@@ -1,7 +1,21 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { ThinkingOrb } from "thinking-orbs";
+import { ResearchCard } from "@/components/noor/ResearchCard";
+import {
+  buildPlannerPrompt as _unusedPlanner,
+  extractJSON as _unusedExtract,
+  coercePlan as _unusedCoercePlan,
+  type ResearchPlan,
+  type ResearchPage,
+  type ResearchSource,
+  type ResearchDeliverable,
+  type ResearchFormat,
+} from "@/lib/research";
+import { deliverableToMarkdown, downloadResearchMarkdown } from "@/lib/research-client";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Send,
   Mic,
@@ -11,23 +25,25 @@ import {
   Plus,
   MessageSquare,
   ChevronDown,
+  Sparkles,
   X as XIcon,
   Trash2,
   PanelRight,
-  Menu,
   RefreshCw,
   Copy as CopyIcon,
+  Zap,
   Check,
   Pencil,
   Pin,
   Search,
-  Zap,
   Download,
   FileText,
   BookOpen,
   CheckSquare,
   Flame,
   Globe,
+  Telescope,
+  Camera,
   ImagePlus,
   Paperclip,
 } from "lucide-react";
@@ -36,31 +52,32 @@ import { buildSituationModel } from "@/lib/graph/situation";
 import { getGraph } from "@/lib/graph/engine";
 import { chat } from "@/lib/ai";
 import { sanitizeStoredReply } from "@/lib/ai-actions";
-import { chatStream } from "@/lib/ai-stream";
+import { chatStream, NoorCapError } from "@/lib/ai-stream";
+import { getSkills, type NoorSkill } from "@/lib/noor-skills";
+import { noorPresence, subscribeNoorBg, notifyNoorReply } from "@/lib/noor-background";
+import { isBlockedUpload, blockedUploadReason } from "@/lib/upload-guard";
 import { isLiveQuery } from "@/lib/web-search";
 import { cn, generateId } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
+import { getDeviceId } from "@/lib/device-id";
 import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource } from "@/types";
 import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
 import { useVoiceDictation } from "@/lib/useVoiceDictation";
-import { VoiceOrb } from "@/components/assistant/VoiceOrb";
-import { VoiceModeOverlay } from "@/components/assistant/VoiceModeOverlay";
-import { getVoicePersona, speak, stopSpeaking, playOrbSound, pickVoice, warmUpSpeech, beginVoiceTurn } from "@/lib/voices";
+import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 
 const MODEL_META: Record<string, string> = {
-  "ethos-4.7": "Ethos 4.7",
-  "logos-4.5": "Logos 4.5",
-  "verse-4": "Verse 4",
+  "fast-1": "Fast",
+  "core-1": "Core",
 };
 
 // Resolve any stored model id (including legacy ids from old conversations)
 function resolveModelId(id: string): string {
-  return MODEL_ALIASES[id] || (MODEL_META[id] ? id : "logos-4.5");
+  return MODEL_ALIASES[id] || (MODEL_META[id] ? id : "core-1");
 }
 
 function msgLabel(id?: string): string {
-  return MODEL_META[resolveModelId(id || "logos-4.5")] || "Logos 4.5";
+  return MODEL_META[resolveModelId(id || "core-1")] || "Core";
 }
 
 interface Attachment {
@@ -82,7 +99,7 @@ function isImageRequest(q: string): boolean {
   }
   if (/(how do i|how to|what is|what's|explain|tutorial|best|compare)\b/.test(t)) return false;
   const m = t.match(
-    /(^|\s)(generate|create|make|draw|render|imagine|produce)\s+(me\s+|us\s+|an?\s+|a\s+)?(image|picture|photo|logo|art|illustration|poster|meme|drawing|icon|artwork|graphic)\b/
+    /(^|\s)(generate|create|make|draw|render|imagine|produce)\s+(me\s+|us\s+)?(an?\s+|a\s+)?(image|picture|photo|logo|art|illustration|poster|meme|drawing|icon|artwork|graphic)\b/
   );
   if (!m) return false;
   // Require an actual subject: "make an image of a fox" triggers, but a bare
@@ -114,7 +131,7 @@ function sourceIcon(kind: AISource["kind"]) {
   }
 }
 
-const SAFE_MODEL: AIModel = "logos-4.5";
+const SAFE_MODEL: AIModel = "core-1";
 
 // Text files shorter than this are sent to the model verbatim; longer ones
 // are digested into an overview first (see /api/overview) so Noor understands
@@ -131,52 +148,91 @@ const formatBytes = (n: number): string => {
 // Streaming speech helpers
 // ============================================================
 
-// Split accumulated stream text into finished sentences + leftover buffer.
-function splitStreamText(text: string): { done: string[]; rest: string } {
-  const done: string[] = [];
-  let rest = text;
-  const re = /.*?[.!?\n]+(?:\s|$)/g;
-  let m: RegExpExecArray | null;
-  let guard = 0;
-  while (guard++ < 50 && (m = re.exec(rest)) !== null) {
-    const seg = m[0].trim();
-    if (seg) done.push(seg);
-    rest = rest.slice(m.index + m[0].length).trimStart();
-    re.lastIndex = 0;
-  }
-  return { done, rest: rest.trim() };
-}
-
 export default function AssistantPage() {
+  const router = useRouter();
   const { t } = useI18n();
   const [data, setData] = useState(storage.getData());
+
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
+  // Server-truth "N messages left" warning: fired once per day at 5 remaining.
+  const usageWarnedDate = useRef<string | null>(null);
+  useEffect(() => {
+    const onUsage = (e: Event) => {
+      const { used, limit } = (e as CustomEvent<{ used: number; limit: number | null }>).detail;
+      if (typeof limit !== "number" || !Number.isFinite(limit) || limit <= 0) return;
+      const left = limit - used;
+      const today = new Date().toISOString().slice(0, 10);
+      if (left === 5 && usageWarnedDate.current !== today) {
+        usageWarnedDate.current = today;
+        const warn: AIMessage = {
+          id: generateId(),
+          role: "assistant",
+          kind: "usage-warning",
+          content: "⚠️ Heads up — only 5 Noor messages left today. The cap resets at midnight, or upgrade in Settings → Billing for more.",
+          timestamp: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, warn]);
+      }
+    };
+    window.addEventListener("orleia:noor-usage", onUsage);
+    return () => window.removeEventListener("orleia:noor-usage", onUsage);
+  }, []);
   const [input, setInput] = useState("");
+  const [allSkills, setAllSkills] = useState<NoorSkill[]>([]);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashIdx, setSlashIdx] = useState(0);
+  useEffect(() => { setAllSkills(getSkills()); }, []);
+  const skillSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const slashMatches = slashOpen
+    ? allSkills.filter((s) => {
+        const q = input.slice(1).split(/\s/)[0].toLowerCase();
+        return !q || s.name.toLowerCase().includes(q) || ("/" + skillSlug(s.name)).includes("/" + q);
+      })
+    : [];
+  const insertSkillSlug = (s: NoorSkill) => {
+    const v = "/" + skillSlug(s.name) + " ";
+    setInput(v);
+    setSlashOpen(false);
+    setSlashIdx(0);
+    requestAnimationFrame(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        inputRef.current.setSelectionRange(v.length, v.length);
+      }
+    });
+  };
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AIModel>(getSafeModel(data.selectedModel));
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showChats, setShowChats] = useState(false);
-  const [voiceActive, setVoiceActive] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [voiceModeOpen, setVoiceModeOpen] = useState(false);
-  const [missed, setMissed] = useState(false);
-  const [liveReply, setLiveReply] = useState("");
-  const reduceMotion = useReducedMotion();
   const isMobile = useMobile();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesBoxRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const modelPickerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const plusRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Generation guard: an in-flight reply must never land in a conversation
+  // that was deleted while Noor was thinking (race fix).
+  const abortRef = useRef<AbortController | null>(null);
+  const convDeleted = (id: string | null) =>
+    !id || !storage.getData().aiConversations.some((c) => c.id === id);
   const [composerMultiline, setComposerMultiline] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement>(null);
-  const [fastMode, setFastMode] = useState(false);
-  const [webMode, setWebMode] = useState(false);
+  // Live-streamed reply text - renders token-by-token while loading.
+  const [streamText, setStreamText] = useState("");
+  const [researchMode, setResearchMode] = useState(false);
+  const [researchState, setResearchState] = useState<{
+    active: boolean;
+    stage: string;
+    stageDetail: string;
+  }>({ active: false, stage: "", stageDetail: "" });
+  const [researchOpen, setResearchOpen] = useState<Record<string, boolean>>({});
   const [searching, setSearching] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
@@ -184,6 +240,41 @@ export default function AssistantPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [branchingId, setBranchingId] = useState<string | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
+  // Mini camera (ChatGPT-style small window): open state + captured photos
+  // flow into the normal attachment pipeline.
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const handleCameraCapture = (photo: CapturedPhoto) => {
+    setAttachments((prev) => [...prev, { ...photo, kind: "image" as const }]);
+  };
+  // Full-screen preview of a composer attachment (tap the thumbnail).
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null);
+  // Mobile keyboard: keep the layout in place instead of letting the browser
+  // pan or scroll the whole page. When the keyboard opens, size the chat to
+  // the visual viewport (iOS: layout viewport never shrinks; Android gets
+  // interactiveWidget=resizes-content natively) and re-pin messages to bottom.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onVv = () => {
+      const root = rootRef.current;
+      if (!root) return;
+      const kbOpen = vv.height < window.innerHeight - 120;
+      if (kbOpen) root.style.height = `${Math.round(vv.height)}px`;
+      else if (root.style.height) root.style.height = "";
+      const box = messagesBoxRef.current;
+      if (box) {
+        const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 160;
+        if (atBottom) box.scrollTop = box.scrollHeight;
+      }
+    };
+    vv.addEventListener("resize", onVv);
+    vv.addEventListener("scroll", onVv);
+    return () => {
+      vv.removeEventListener("resize", onVv);
+      vv.removeEventListener("scroll", onVv);
+    };
+  }, []);
+
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [generatingImage, setGeneratingImage] = useState(false);
 
@@ -273,6 +364,10 @@ export default function AssistantPage() {
     const MAX_FILE_BYTES = 25 * 1024 * 1024;
     const MAX_FILE_CHARS = 500_000;
     for (const f of files.slice(0, 2)) {
+      if (isBlockedUpload(f)) {
+        alert(blockedUploadReason(f));
+        continue;
+      }
       if (f.size > MAX_FILE_BYTES) continue;
       const isText =
         f.type.startsWith("text/") ||
@@ -306,18 +401,6 @@ export default function AssistantPage() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const voiceActiveRef = useRef(false);
-  voiceActiveRef.current = voiceActive;
-  const voiceModeOpenRef = useRef(false);
-  voiceModeOpenRef.current = voiceModeOpen;
-  const voiceRoundRef = useRef(false); // true when a recording round was started by voice mode
-  const speakRoundRef = useRef(false); // true when a mic round should speak the reply back
-  // Streaming voice reply state
-  const voiceStreamRef = useRef<AbortController | null>(null);
-  const streamFullRef = useRef("");
-  const streamDoneRef = useRef(true);
-  const speakSegmentsRef = useRef<string[]>([]);
-  const speakingSegmentRef = useRef(false);
 
   const LANG_MAP: Record<string, string> = {
     en: "en-US",
@@ -327,163 +410,49 @@ export default function AssistantPage() {
     pt: "pt-PT",
     ar: "ar-SA",
   };
-  const speechLang = LANG_MAP[data.theme.language || "en"] || "en-US";
+  /* Voice follows the OS language (same resolution as useI18n). */
+  const osLang = ((typeof navigator !== "undefined" && (navigator.languages?.[0] || navigator.language)) || "en").toLowerCase().split("-")[0];
+  const speechLang = LANG_MAP[osLang] || "en-US";
   const handleVoiceFinal = (text: string) => {
-    // If the immersive interface was closed while transcribing, drop the round.
-    if (voiceRoundRef.current && !voiceModeOpenRef.current) return;
-    // Mic dictation is a TEXT round - Noor replies in text, never speaks back.
-    speakRoundRef.current = false;
-    // Silence or empty transcription - give a gentle hint instead of nothing.
-    if (!text.trim()) {
-      if (voiceModeOpenRef.current) setMissed(true);
-      return;
-    }
-    setMissed(false);
-    // Mic dictation: Noor "types back" - the words land in the composer as
-    // typed text for the user to review before sending (never spoken back).
-    // If the composer already has text, append instead of replacing it.
-    if (!voiceRoundRef.current) {
-      setInput((prev) => {
-        const base = prev.trim();
-        return base ? base.replace(/\s+$/, "") + " " + text : text;
+    if (!text.trim()) return;
+    setInput((prev) => {
+      const base = prev.trim();
+      return base ? base.replace(/\\s+$/, "") + " " + text : text;
+    });
+    if (inputRef.current) {
+      inputRef.current.focus();
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.style.height = "auto";
+        el.style.height = Math.min(el.scrollHeight, 160) + "px";
       });
-      if (inputRef.current) {
-        inputRef.current.focus();
-        // Resize after React applies the new value - reading scrollHeight
-        // synchronously here would measure the stale (old) textarea.
-        requestAnimationFrame(() => {
-          const el = inputRef.current;
-          if (!el) return;
-          el.style.height = "auto";
-          el.style.height = Math.min(el.scrollHeight, 160) + "px";
-        });
-      }
-      return;
     }
-    // Immersive voice mode: send the round (spoken reply) as before.
-    if (loading) return;
-    voiceRoundRef.current = false; // round fully handled
-    void sendMessage(text);
   };
   const {
     supported: voiceSupported,
     listening: voiceListening,
     processing: voiceProcessing,
-    duration: voiceDuration,
     error: voiceError,
+    interim: voiceInterim,
     start: startVoice,
     stop: stopVoice,
-    formatDuration,
   } = useVoiceDictation({ lang: speechLang, onFinal: handleVoiceFinal });
 
-  // Speak queued segments in BATCHES: each speak() call fetches one TTS
-  // request per chunk, and Magpie is capped at ~15 req/min - speaking one
-  // sentence at a time used to blow the budget and flip Noor to the robotic
-  // device voice mid-reply. Buffer sentences until we have ~1200 chars queued
-  // (or the stream ends) and speak them together in one call.
-  const pumpSpeech = () => {
-    if (speakingSegmentRef.current) return;
-    const q = speakSegmentsRef.current;
-    if (!q.length) {
-      if (streamDoneRef.current) {
-        setSpeaking(false);
-        // Auto-restart listening for hands-free conversation
-        if (voiceModeOpenRef.current && voiceRoundRef.current === false) {
-          voiceRoundRef.current = true;
-          setMissed(false);
-          setTimeout(() => {
-            if (voiceModeOpenRef.current) startVoice();
-          }, 800);
-        }
-      }
-      return;
-    }
-    let batch = "";
-    while (q.length) {
-      const next = q[0]!;
-      if (batch && batch.length + next.length > 1200) break;
-      batch += (batch ? " " : "") + q.shift()!;
-    }
-    if (!batch.trim()) batch = q.shift() || "";
-    if (!batch.trim()) {
-      if (streamDoneRef.current) setSpeaking(false);
-      return;
-    }
-    speakingSegmentRef.current = true;
-    setSpeaking(true);
-    const p = getVoicePersona(storage.getData().theme.voiceId);
-    speak(batch.trim(), p, storage.getData().theme.language || "en", () => {
-      speakingSegmentRef.current = false;
-      if (speakSegmentsRef.current.length) {
-        pumpSpeech();
-      } else if (streamDoneRef.current) {
-        setSpeaking(false);
-      }
-    });
-  };
+  
+;
 
-  // Stop current speech + clear the streaming state (interrupt/close).
-  const resetVoiceSpeech = () => {
-    // Clear refs BEFORE stopSpeaking() - stopSpeaking fires the active
-    // speak()'s onEnd synchronously, and that callback must not find a
-    // full queue (it would start speaking a stale segment).
-    speakingSegmentRef.current = false;
-    speakSegmentsRef.current = [];
-    streamDoneRef.current = true;
-    stopSpeaking();
-    setSpeaking(false);
-  };
+  
+;
 
-  const closeVoiceMode = () => {
-    voiceRoundRef.current = false;
-    setMissed(false);
-    voiceStreamRef.current?.abort();
-    stopVoice();
-    resetVoiceSpeech();
-    setVoiceActive(false);
-    setVoiceModeOpen(false);
-  };
+  
+;
 
-  const toggleVoiceMode = () => {
-    if (loading || voiceProcessing) return;
-    if (!voiceSupported) return;
-    if (voiceModeOpen) {
-      closeVoiceMode();
-      return;
-    }
-    voiceStreamRef.current?.abort();
-    resetVoiceSpeech();
-    setMissed(false);
-    // Warm up the device voice list + unlock iOS speech (needs a gesture).
-    beginVoiceTurn(); // defense in depth: a fresh voice round is a fresh turn
-    warmUpSpeech();
-    setVoiceActive(true);
-    setVoiceModeOpen(true);
-    voiceRoundRef.current = true;
-    playOrbSound();
-    startVoice();
-  };
+  
+;
 
-  // Tap the orb in the immersive interface: start/stop a listening round,
-  // or interrupt Noor's reply and start a new one.
-  const handleOrbTap = () => {
-    if (loading || voiceProcessing) return;
-    if (voiceListening) {
-      stopVoice(); // stop -> transcribe -> send
-      return;
-    }
-    setMissed(false);
-    warmUpSpeech();
-    if (speaking) {
-      voiceStreamRef.current?.abort();
-      resetVoiceSpeech();
-      voiceRoundRef.current = true;
-      startVoice();
-      return;
-    }
-    voiceRoundRef.current = true;
-    startVoice();
-  };
+  
+;
 
   function getSafeModel(m: unknown): AIModel {
     if (typeof m === "string") {
@@ -494,13 +463,6 @@ export default function AssistantPage() {
     return SAFE_MODEL;
   }
 
-  // Auto-interrupt: when user starts talking while Noor is speaking, stop speech
-  useEffect(() => {
-    if (voiceListening && speaking && voiceModeOpenRef.current) {
-      voiceStreamRef.current?.abort();
-      resetVoiceSpeech();
-    }
-  }, [voiceListening, speaking]);
 
   const refresh = () => setData({ ...storage.getData() });
   useEffect(() => storage.subscribe(() => setData({ ...storage.getData() })), []);
@@ -524,13 +486,14 @@ export default function AssistantPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  useEffect(() => () => { voiceStreamRef.current?.abort(); stopSpeaking(); }, []);
 
+
+  // Deep link: /noor?c=<conversationId> opens that thread (toast/notification taps).
   useEffect(() => {
-    if (voiceSupported) {
-      pickVoice(getVoicePersona(storage.getData().theme.voiceId), storage.getData().theme.language || "en");
-    }
-  }, [voiceSupported]);
+    const c = new URLSearchParams(window.location.search).get("c");
+    if (c) loadConversation(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startNewChat = () => {
     const conv = storage.createConversation();
@@ -562,6 +525,13 @@ export default function AssistantPage() {
     appData.aiConversations = appData.aiConversations.filter((c) => c.id !== id);
     storage.saveData();
     if (conversationId === id) {
+      // Abort the in-flight generation and reset the composer view so the
+      // user lands on the clean empty state immediately - the reply (and its
+      // stream) is discarded, not delivered into a deleted chat.
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setLoading(false);
+      setStreamText("");
       setConversationId(null);
       setMessages([]);
     }
@@ -659,25 +629,37 @@ export default function AssistantPage() {
     branchMode: boolean
   ): Promise<void> => {
     setLoading(true);
-    setLiveReply("");
-    const model = fastMode ? "verse-4" : selectedModel;
+    setStreamText("");
+    const model = selectedModel;
     let sources: AISource[] = [];
-    if (webMode || isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
+    if (isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
     let response: string;
     try {
-      // Stream so Ethos/Logos feel as fast as Verse - tokens appear live.
-      setLiveReply("");
+      // Stream so tokens appear live in the thread as they are generated.
       let acc = "";
       response = await chatStream(queryText, msgs, model, {
         sources,
         onToken: (delta) => {
           acc += delta;
-          setLiveReply(acc);
+          setStreamText(acc);
         },
       });
-    } catch {
-      setLiveReply("");
+    } catch (e) {
       setLoading(false);
+      setStreamText("");
+      if (e instanceof NoorCapError) {
+        const capMsg: AIMessage = {
+          id: generateId(),
+          role: "assistant",
+          content: "⭐ You've used all of today's free Noor messages. Your cap resets at midnight — or upgrade to Plus in Settings → Billing for 300 messages a day.",
+          timestamp: new Date().toISOString(),
+          model,
+        };
+        storage.addMessage(conversationId ?? "", capMsg);
+        setMessages((prev) => [...prev, capMsg]);
+        if (!pageMountedRef.current) notifyNoorReply(capMsg.content, conversationId ?? "");
+        return;
+      }
       const errMsg: AIMessage = {
         id: generateId(),
         role: "assistant",
@@ -687,6 +669,7 @@ export default function AssistantPage() {
       };
       const updated = [...msgs, errMsg];
       setMessages(updated);
+      if (!pageMountedRef.current) notifyNoorReply(errMsg.content, conversationId ?? "");
       if (conversationId) storage.replaceConversationMessages(conversationId, updated);
       refresh();
       return;
@@ -703,10 +686,42 @@ export default function AssistantPage() {
     const updated = [...msgs, aiMsg];
     setMessages(updated);
     if (conversationId) storage.replaceConversationMessages(conversationId, updated);
-    setLiveReply("");
+    // Finalize the message in storage, clear the live stream view.
     setLoading(false);
+    setStreamText("");
     refresh();
+    if (!pageMountedRef.current) notifyNoorReply(aiMsg.content, conversationId ?? "");
   };
+
+  const pageMountedRef = useRef(false);
+  useEffect(() => {
+    pageMountedRef.current = true;
+    noorPresence.mounted = true;
+    return () => {
+      pageMountedRef.current = false;
+      noorPresence.mounted = false;
+    };
+  }, []);
+
+  // A background ask (global search) landed in the currently open conversation:
+  // sync the thread from storage so the user sees it arrive live.
+  useEffect(() => {
+    return subscribeNoorBg((e) => {
+      if (e.convId !== conversationId) return;
+      const conv = storage.getData().aiConversations.find((c) => c.id === e.convId);
+      if (conv) setMessages(conv.messages);
+    });
+  }, [conversationId]);
+
+  // Mounted + idle page answers orleia:noor-ask itself (live streaming UX).
+  useEffect(() => {
+    const onAsk = (ev: Event) => {
+      const text = String((ev as CustomEvent<string>).detail || "").trim();
+      if (text && !loading) void sendMessage(text);
+    };
+    window.addEventListener("orleia:noor-ask", onAsk);
+    return () => window.removeEventListener("orleia:noor-ask", onAsk);
+  });
 
   const changeModel = (model: AIModel) => {
     setSelectedModel(model);
@@ -792,7 +807,7 @@ export default function AssistantPage() {
           dueTime: null,
           tags: [],
           listId: parent?.listId || "inbox",
-          recurring: "none",
+          projectId: null, recurring: "none",
           recurringEndDate: null,
           estimatedMinutes: null,
           completedAt: null,
@@ -806,13 +821,187 @@ export default function AssistantPage() {
   const requestDailyBrief = () => {
     void sendMessage(DAILY_BRIEF_PROMPT, { actions: buildBriefActions() });
   };
+  // ===== Web Search 2.0: deep research pipeline =====
+  const runResearch = async (
+    question: string,
+    currentConvId: string,
+    msgs: AIMessage[],
+    forceFormat?: ResearchFormat
+  ): Promise<void> => {
+    setResearchState({ active: true, stage: "plan", stageDetail: "Planning research..." });
+    try {
+      // Stage 1: plan
+      const planRes = await fetch("/api/research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
+        body: JSON.stringify({ stage: "plan", question: question.slice(0, 300), format: forceFormat }),
+      });
+      const planData = (await planRes.json()) as { plan?: ResearchPlan };
+      const plan: ResearchPlan = planData.plan || { query: question.slice(0, 80), subQueries: [question], format: forceFormat || "report" };
+      setResearchState({ active: true, stage: "search", stageDetail: `Searching: ${plan.subQueries.slice(0, 3).join(" · ")}` });
+
+      // Stage 2: fan out searches (existing /api/search)
+      const searchLists = await Promise.all(
+        plan.subQueries.slice(0, 5).map((sq) => fetchWebSources(sq))
+      );
+      const merged = new Map<string, AISource>();
+      for (const list of searchLists) {
+        for (const src of list) {
+          if (src.kind !== "web" || !src.href) continue;
+          const key = src.id || src.href || src.title;
+          if (!merged.has(key)) merged.set(key, src);
+        }
+      }
+      let sources: AISource[] = Array.from(merged.values())
+        .filter((x) => typeof x.href === "string" && x.href.length > 0)
+        .slice(0, 12);
+      // Sub-queries can whiff (planner wrote sentences, or engines rate-limited
+      // under the burst). One retry with the cleaned core query through the
+      // news-first path before giving up.
+      if (!sources.length && plan.query) {
+        const retry = await fetchWebSources(plan.query);
+        for (const src of retry) {
+          if (src.kind !== "web" || !src.href) continue;
+          const key = src.id || src.href || src.title;
+          if (!merged.has(key)) merged.set(key, src);
+        }
+        sources = Array.from(merged.values())
+          .filter((x) => typeof x.href === "string" && x.href.length > 0)
+          .slice(0, 12);
+      }
+      if (!sources.length) throw new Error("no results");
+
+      setResearchState({ active: true, stage: "read", stageDetail: `Reading ${Math.min(5, sources.length)} pages...` });
+
+      // Stage 3: read top pages server-side
+      let pages: ResearchPage[] = [];
+      // Google News wrapper links are JS shells - the target URL is embedded
+      // client-side and cannot be unwrapped server-side. Skip them so the read
+      // stage spends its slots on fetchable article pages instead.
+      const readable = sources.filter((s2) => !/news\.google\.com\/rss\/articles/i.test(String(s2.href)));
+      try {
+        const readRes = await fetch("/api/research", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
+          body: JSON.stringify({
+            stage: "read",
+            urls: readable.slice(0, 5).map((s2) => ({ url: s2.href, title: s2.title })),
+          }),
+        });
+        const readData = (await readRes.json()) as { pages?: ResearchPage[] };
+        pages = readData.pages || [];
+      } catch {
+        pages = [];
+      }
+
+      setResearchState({ active: true, stage: "synthesize", stageDetail: "Synthesizing findings..." });
+
+      // Stage 4: synthesize via /api/chat with a situation block
+      const researchSources: ResearchSource[] = sources.map((s2, i) => ({
+        id: String(i + 1),
+        title: s2.title,
+        url: (s2.href as string) || "",
+        snippet: s2.snippet || "",
+      }));
+      const { buildSynthesizerPrompt, extractJSON, coerceDeliverable, isInconclusive, buildInconclusiveRetryContext } =
+        await import("@/lib/research");
+
+      const synthPrompt = buildSynthesizerPrompt({ question, format: plan.format, sources: researchSources, pages });
+      const synthRes = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
+        body: JSON.stringify({
+          model: "nvidia/nemotron-3-super-120b-a12b",
+          messages: [
+            { role: "user", content: synthPrompt.slice(0, 40000) },
+          ],
+          temperature: 0.4,
+          maxTokens: 4096,
+          situation: `RESEARCH OUTPUT FORMAT CONTRACT: Respond with ONLY the JSON deliverable object. No prose before or after.`,
+        }),
+      });
+      if (!synthRes.ok) throw new Error("synthesis failed");
+      const synthData = (await synthRes.json()) as { content?: string };
+      const rawOut = synthData.content || "";
+      let deliverable = coerceDeliverable(extractJSON(rawOut), plan.format);
+
+      // Bogus null-result guard: if the synthesizer says "the sources don't
+      // answer this" while the headlines clearly do (the GPT-6 Astra case),
+      // escalate ONCE — resubmit to the strongest model with an explicit
+      // rejection of the previous verdict. Mechanical, not prompt-hope.
+      if (isInconclusive(deliverable)) {
+        setResearchState({ active: true, stage: "synthesize", stageDetail: "Verifying against sources..." });
+        const retryCtx = buildInconclusiveRetryContext(question, deliverable as NonNullable<typeof deliverable>);
+        const retryRes = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
+          body: JSON.stringify({
+            model: "nvidia/nemotron-3-ultra-550b-a55b",
+            messages: [
+              { role: "user", content: [retryCtx, synthPrompt.slice(0, 36000)].join("\n\n") },
+            ],
+            temperature: 0.3,
+            maxTokens: 4096,
+            situation: `RESEARCH OUTPUT FORMAT CONTRACT: Respond with ONLY the JSON deliverable object. No prose before or after.`,
+          }),
+        });
+        if (retryRes.ok) {
+          const retryData = (await retryRes.json()) as { content?: string };
+          const retryOut = coerceDeliverable(extractJSON(retryData.content || ""), plan.format);
+          // Accept the escalated answer when it actually answers; if even the
+          // strong model calls it a null result, the original stands (both are
+          // surfaced with their sources either way).
+          if (retryOut && !isInconclusive(retryOut)) deliverable = retryOut;
+        }
+      }
+
+      if (!deliverable) throw new Error("Could not structure the findings. Try again.");
+
+      // Persist + render
+      const result = {
+        plan,
+        pages: pages.map((p) => ({ url: p.url, title: p.title, extract: "", ok: p.ok })),
+        sources: researchSources,
+        deliverable,
+        createdAt: new Date().toISOString(),
+      };
+      const aiMsg: AIMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: `${deliverable.tldr || deliverable.title}`,
+        timestamp: new Date().toISOString(),
+        model: selectedModel,
+        research: result as never,
+        sources: sources,
+      };
+      storage.addMessage(currentConvId, aiMsg);
+      setMessages((prev) => [...prev, aiMsg]);
+      refresh();
+    } catch (e) {
+      const aiMsg: AIMessage = {
+        id: generateId(),
+        role: "assistant",
+        content:
+          e instanceof Error && e.message === "no results"
+            ? "I could not find usable sources for that. Try rephrasing or narrowing the question."
+            : "The research run hit a snag partway through. Try again in a moment.",
+        timestamp: new Date().toISOString(),
+        model: selectedModel,
+      };
+      storage.addMessage(currentConvId, aiMsg);
+      setMessages((prev) => [...prev, aiMsg]);
+      refresh();
+    } finally {
+      setResearchState({ active: false, stage: "", stageDetail: "" });
+    }
+  };
+
   const sendMessage = async (textOverride?: string, opts?: { actions?: BriefAction[] }) => {
     const text = (textOverride ?? input).trim();
     if (!text || loading) return;
 
     // New reply turn: reset the sticky device-voice fallback so this reply
     // starts fresh on the premium neural voice (no mid-reply voice flips).
-    beginVoiceTurn();
 
     let currentConvId = conversationId;
     if (!currentConvId) {
@@ -821,6 +1010,11 @@ export default function AssistantPage() {
       setConversationId(conv.id);
       refresh();
     }
+
+    // Abort handle for this generation - used when the conversation is
+    // deleted mid-thought.
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     const userMsg: AIMessage = {
       id: generateId(),
@@ -835,7 +1029,20 @@ export default function AssistantPage() {
 
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
-    const queryText = text;
+    // Resolve a leading /skill-slug: the chat bubble keeps the short
+    // command, the model receives the skill's full instructions.
+    let queryText = text;
+    if (text.startsWith("/")) {
+      const m = /^\/([a-z0-9-]+)/i.exec(text);
+      const slug = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+      const skill = m
+        ? getSkills().find((s) => s.enabled && slug(s.name) === m[1].toLowerCase())
+        : undefined;
+      if (m && skill) {
+        const rest = text.slice(m[0].length).trim();
+        queryText = rest ? `${skill.instructions}\n\n---\n${rest}` : skill.instructions;
+      }
+    }
     setInput("");
     if (inputRef.current) inputRef.current.style.height = "auto";
     setLoading(true);
@@ -887,19 +1094,21 @@ export default function AssistantPage() {
     }
 
     let sources: AISource[] = [];
-    if (webMode || isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
-    const sendOpts = {
-      sources,
-    };
+    if (isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
+    const sendOpts = { sources };
 
     storage.addMessage(currentConvId, userMsg);
 
-    // Voice rounds: stream from Verse (fastest) and speak sentence-by-sentence.
-    const isVoiceRound = voiceActiveRef.current || speakRoundRef.current;
-    speakRoundRef.current = false;
+    // Deep research branch: run the pipeline instead of a normal reply.
+    if (researchMode) {
+      setLoading(false);
+      await runResearch(queryText, currentConvId, updatedMessages);
+      return;
+    }
+
 
     // Image generation: "make an image of X" / "image: X" -> generate & skip the LLM.
-    if (!isVoiceRound && attachments.length === 0 && isImageRequest(queryText)) {
+    if (attachments.length === 0 && isImageRequest(queryText)) {
       setGeneratingImage(true);
       const prompt = cleanImagePrompt(queryText);
       try {
@@ -920,7 +1129,6 @@ export default function AssistantPage() {
           };
           storage.addMessage(currentConvId, imgMsg);
           setMessages((prev) => [...prev, imgMsg]);
-          setLiveReply("");
           setLoading(false);
           setGeneratingImage(false);
           refresh();
@@ -933,84 +1141,48 @@ export default function AssistantPage() {
     }
 
     let response: string;
-    if (isVoiceRound) {
-      const ctrl = new AbortController();
-      voiceStreamRef.current = ctrl;
-      streamFullRef.current = "";
-      speakSegmentsRef.current = [];
-      speakingSegmentRef.current = false;
-      streamDoneRef.current = false;
-      setLiveReply("");
-      try {
-        response = await chatStream(llmQuery, updatedMessages, "verse-4", {
-          signal: ctrl.signal,
-          ...sendOpts,
-          onToken: (delta) => {
-            if (ctrl.signal.aborted) return;
-            streamFullRef.current += delta;
-            setLiveReply(streamFullRef.current);
-            // Queue completed sentences for speech immediately.
-            const { done, rest } = splitStreamText(streamFullRef.current);
-            let buffer = rest;
-            // Keep the voice moving: if the pending buffer grows long without
-            // a full stop, cut it at a comma or space so speech starts sooner.
-            if (buffer.length > 140) {
-              const comma = buffer.lastIndexOf(", ", 120);
-              const space = buffer.lastIndexOf(" ", 120);
-              const at = comma > 60 ? comma + 1 : space > 60 ? space : buffer.length;
-              if (at > 60 && at < buffer.length) {
-                done.push(buffer.slice(0, at).trim());
-                buffer = buffer.slice(at).trim();
-              }
-            }
-            streamFullRef.current = buffer;
-            for (const seg of done) {
-              // Never let a raw action marker/JSON be read aloud - strip any
-              // remnant before the segment can reach the TTS pipeline.
-              const clean = sanitizeStoredReply(seg);
-              if (clean.length >= 2) speakSegmentsRef.current.push(clean);
-            }
-            pumpSpeech();
-          },
-        });
-      } catch {
-        // Any streaming failure: fall back to the plain fast path.
-        response = await chat(llmQuery, updatedMessages, "verse-4");
-      } finally {
-        voiceStreamRef.current = null;
-        streamDoneRef.current = true;
-      }
-      if (ctrl.signal.aborted) {
-        // Round was dropped (voice mode closed) - don't save the partial reply.
-        setLiveReply("");
-        setLoading(false);
-        refresh();
-        return;
-      }
-      // Speak whatever is left in the buffer after the stream ends.
-      const rest = sanitizeStoredReply(streamFullRef.current.trim());
-      streamFullRef.current = "";
-      if (rest.length > 1) speakSegmentsRef.current.push(rest);
-      pumpSpeech();
-    } else {
-      try {
-        setLiveReply("");
-        let acc = "";
+
+try {
+        let acc = "";        let agentContext = "";
+        const usedModel = selectedModel;
         response = await chatStream(
           llmQuery,
           updatedMessages,
-          fastMode ? "verse-4" : selectedModel,
+          usedModel,
           {
             ...sendOpts,
+            signal: controller.signal,
             onToken: (delta) => {
+              if (controller.signal.aborted) return; // deleted mid-stream
               acc += delta;
-              setLiveReply(acc);
+              setStreamText(acc);
             },
-          }
+          },
+          agentContext
         );
-      } catch {
-        setLiveReply("");
+      } catch (e) {
         setLoading(false);
+        setStreamText("");
+        // Deleted mid-generation: discard silently, never write into a
+        // conversation that no longer exists.
+        if (controller.signal.aborted || convDeleted(currentConvId)) {
+          abortRef.current = null;
+          return;
+        }
+        if (e instanceof NoorCapError) {
+          const capMsg: AIMessage = {
+            id: generateId(),
+            role: "assistant",
+            content: "⭐ You've used all of today's free Noor messages. Your cap resets at midnight — or upgrade to Plus in Settings → Billing for 300 messages a day.",
+            timestamp: new Date().toISOString(),
+            model: selectedModel,
+          };
+          storage.addMessage(currentConvId, capMsg);
+          setMessages((prev) => [...prev, capMsg]);
+          refresh();
+          if (!pageMountedRef.current) notifyNoorReply(capMsg.content, currentConvId);
+          return;
+        }
         const aiMsg: AIMessage = {
           id: generateId(),
           role: "assistant",
@@ -1021,21 +1193,30 @@ export default function AssistantPage() {
         storage.addMessage(currentConvId, aiMsg);
         setMessages((prev) => [...prev, aiMsg]);
         refresh();
+        if (!pageMountedRef.current) notifyNoorReply(aiMsg.content, currentConvId);
         return;
       }
-    }
-
     const aiMsg: AIMessage = {
       id: generateId(),
       role: "assistant",
       content: response,
       timestamp: new Date().toISOString(),
-      model: isVoiceRound ? "verse-4" : selectedModel,
+      model: selectedModel,
       actions: opts?.actions || undefined,
       sources: sources.length ? sources : undefined,
     };
 
+    // Deleted while Noor was thinking: discard the reply instead of
+    // resurrecting the conversation.
+    if (controller.signal.aborted || convDeleted(currentConvId)) {
+      setLoading(false);
+      setStreamText("");
+      abortRef.current = null;
+      return;
+    }
+
     storage.addMessage(currentConvId, aiMsg);
+    abortRef.current = null;
 
     const conv = storage.getData().aiConversations.find((c) => c.id === currentConvId);
     if (conv && conv.title === "New Chat" && conv.messages.length <= 2) {
@@ -1044,9 +1225,10 @@ export default function AssistantPage() {
     }
 
     setMessages((prev) => [...prev, aiMsg]);
-    setLiveReply("");
     setLoading(false);
+    setStreamText("");
     refresh();
+    if (!pageMountedRef.current) notifyNoorReply(aiMsg.content, currentConvId);
   };
 
   const conversations = data.aiConversations;
@@ -1103,25 +1285,19 @@ export default function AssistantPage() {
   const isEmptyChat =
     messages.length === 0 &&
     !loading &&
-    !voiceListening &&
-    !speaking &&
-    !voiceProcessing &&
     !generatingImage &&
-    !searching;
+        !searching;
 
-  const loadingText = generatingImage
+  const loadingText = researchState.active
+    ? researchState.stageDetail
+    : generatingImage
     ? t("assistant.generatingImage")
     : searching
     ? t("assistant.searchingWeb")
-    : selectedModel === "ethos-4.7"
-    ? t("assistant.thinkingDeeply")
-    : selectedModel === "verse-4"
+    : selectedModel === "fast-1"
     ? t("assistant.processing")
     : t("assistant.responding");
 
-  // Last exchange for the immersive orb overlay (live text while streaming)
-  const lastUserText = [...messages].reverse().find((m) => m.role === "user")?.content || "";
-  const lastNoorText = liveReply || [...messages].reverse().find((m) => m.role === "assistant")?.content || "";
 
   // Conversations panel content (shared between desktop side panel and mobile drawer)
   const chatsPanel = (onClose?: () => void) => {
@@ -1254,24 +1430,19 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="flex gap-6 h-dvh overflow-hidden relative">
+    <div ref={rootRef} className="fixed inset-0 z-0 flex gap-6 overflow-hidden md:relative md:inset-auto md:z-auto md:h-dvh">
       {/* Main chat */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between gap-2 border-b border-border/60 px-3 pt-[calc(0.625rem+env(safe-area-inset-top))] pb-2.5 sm:px-6 sm:pt-[calc(0.75rem+env(safe-area-inset-top))] sm:pb-3">
+        {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
+            same 64px clearance the shell gives other pages); compact again at
+            md where the buttons unmount. */}
+        <div className="shrink-0 flex items-center justify-between gap-2 border-b border-border/60 px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3">
           <div className="flex items-center min-w-0 gap-1">
-            {/* Mobile drawer trigger (the app's top bar is hidden here). */}
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("lexis:open-drawer"))}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground active:scale-95 transition-transform md:hidden"
-              aria-label="Open navigation"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
             <img
-              src="/noor-word-white.png"
+              src="/noor-mark-white.png"
               alt="Noor"
-              className="h-8 w-auto object-contain invert dark:invert-0 sm:h-9"
+              className="h-8 w-8 object-contain invert dark:invert-0 sm:h-9 sm:w-9"
             />
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -1282,7 +1453,7 @@ export default function AssistantPage() {
                 className={cn(
                   "flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 border sm:px-3.5 sm:py-2.5",
                   "hover:bg-secondary",
-                  showModelPicker ? "bg-secondary border-border" : "border-transparent"
+                  showModelPicker ? "border border-foreground/40 text-foreground" : "border border-transparent"
                 )}
               >
                 <span className="hidden sm:inline">{MODEL_META[selectedModel]}</span>
@@ -1319,6 +1490,19 @@ export default function AssistantPage() {
                         </button>
                       );
                     })}
+                    <div className="my-1.5 h-px bg-border/60" />
+                    <a
+                      href="/settings?cat=skills"
+                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
+                    >
+                      <Zap className="h-4 w-4 text-amber-500" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{t("skills.title")}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t("skills.pickerHint")}</p>
+                      </div>
+                    </a>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1343,7 +1527,7 @@ export default function AssistantPage() {
 
         {/* Messages */}
         <div ref={messagesBoxRef} className={cn("flex-1 overflow-y-auto px-2 md:px-6", isEmptyChat && "hidden")}>
-          <div className="noor-chat-font mx-auto max-w-4xl py-6 space-y-6 md:py-8">
+          <div className="noor-chat-font mx-auto w-full py-6 space-y-6 md:py-8">
             {messages.map((msg) => {
               if (msg.role === "user") {
                 const isEditing = editingId === msg.id;
@@ -1420,13 +1604,23 @@ export default function AssistantPage() {
                   </motion.div>
                 );
               }
-              const msgModel = resolveModelId(msg.model || "logos-4.5");
+              if (msg.kind === "usage-warning") {
+                return (
+                  <motion.div key={msg.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }} className="flex w-full justify-center py-1">
+                    <div className="max-w-[85%] rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-1.5 text-center text-xs text-amber-600 dark:text-amber-400">
+                      {msg.content}
+                    </div>
+                  </motion.div>
+                );
+              }
+              const msgModel = resolveModelId(msg.model || "core-1");
               return (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="group flex justify-start">
                   <div className="max-w-[85%] rounded-[28px] rounded-tl-lg bg-secondary/60 border border-border/60 px-5 py-4 shadow-sm">
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span className="text-[11px] font-semibold text-foreground/60">Noor</span>
                       <span className="text-[10px] text-muted-foreground/40">· {MODEL_META[msgModel]}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/40 border border-border/50 rounded-full px-1.5 py-px">{t("assistant.aiLabel")}</span>
                     </div>
                     <div className="text-[15px] leading-relaxed text-foreground/90">
                       <Markdown content={msg.content} />
@@ -1489,6 +1683,80 @@ export default function AssistantPage() {
                         })}
                       </div>
                     )}
+                    {msg.research && (
+                      <div className="mt-3">
+                        <ResearchCard
+                          deliverable={msg.research.deliverable}
+                          sources={msg.research.sources}
+                          defaultOpen={researchOpen[msg.id] !== false}
+                          onSendToTasks={() => {
+                            const d = msg.research!.deliverable;
+                            if (!d.actionItems) return;
+                            for (const a of d.actionItems) {
+                              storage.createTask({
+                                title: a.task,
+                                description: a.context || "",
+                                status: "todo",
+                                priority: a.priority,
+                                dueDate: null,
+                                dueTime: null,
+                                completedAt: null,
+                                tags: ["research"],
+                                listId: "inbox",
+                                projectId: null,
+                                recurring: "none",
+                                recurringDays: undefined,
+                                recurringEndDate: null,
+                                estimatedMinutes: null,
+                              });
+                            }
+                            refresh();
+                          }}
+                          onSaveAsNote={() => {
+                            const d = msg.research!.deliverable;
+                            const md = deliverableToMarkdown(d, msg.research!.sources);
+                            storage.createNote({
+                              title: d.title,
+                              content: md,
+                              contentHtml: "",
+                              folderId: null,
+                              projectId: null,
+                              tags: ["research"],
+                              pinned: false,
+                              archived: false,
+                              favorite: false,
+                            });
+                            refresh();
+                          }}
+                          onExportDeck={() => {
+                            const d = msg.research!.deliverable;
+                            if (!d.deck) return;
+                            storage.createDeck({
+                              title: d.deck.title,
+                              description: d.deck.description,
+                              slides: d.deck.slides.map((sl) => ({
+                                id: generateId(),
+                                layout: sl.layout,
+                                kicker: sl.kicker,
+                                title: sl.title,
+                                content: sl.content || [""],
+                                contentRight: sl.contentRight,
+                                stats: sl.stats,
+                                notes: sl.notes || "",
+                                accent: undefined,
+                              })),
+                              theme: "midnight",
+                              transition: "fade",
+                            });
+                            refresh();
+                            router.push("/deck");
+                          }}
+                          onExportMarkdown={() =>
+                            downloadResearchMarkdown(msg.research!.deliverable, msg.research!.sources)
+                          }
+                        />
+                      </div>
+                    )}
                     <div className="mt-2.5 flex items-center gap-1">
                       <p className="text-[10px] text-muted-foreground/40">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -1527,38 +1795,28 @@ export default function AssistantPage() {
                 </motion.div>
               );
             })}
-
-            {loading && liveReply && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className="group flex justify-start"
-              >
-                <div className="max-w-[85%] rounded-[28px] rounded-tl-lg bg-secondary/60 border border-border/60 px-5 py-4 shadow-sm">
-                  <div className="flex items-center gap-1.5 mb-1.5">
-                    <span className="text-[11px] font-semibold text-foreground/60">Noor</span>
-                    <span className="text-[10px] text-muted-foreground/40">· {loadingText}</span>
+            {(loading || researchState.active) && (
+              streamText ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col items-start"
+                >
+                  <div className="max-w-[85%] rounded-[28px] rounded-bl-lg bg-card border border-border px-5 py-3 text-[15px]">
+                    <Markdown content={streamText} />
+                    <span className="mt-1 inline-block h-4 w-[2px] animate-pulse bg-foreground/60" aria-hidden="true" />
                   </div>
-                  <div className="text-[15px] leading-relaxed text-foreground/90">
-                    <Markdown content={liveReply} />
-                    <span className="ml-0.5 inline-block h-3.5 w-[2px] translate-y-0.5 animate-pulse rounded-full bg-primary-500/70 align-middle" />
+                </motion.div>
+              ) : (
+                <div className="flex items-center gap-3 pl-1">
+                  <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/50 px-3.5 py-2.5" aria-hidden="true">
+                    <ThinkingOrb state="solving" size={20} theme="dark" />
                   </div>
+                  <span className="text-sm text-muted-foreground/80">{loadingText}</span>
                 </div>
-              </motion.div>
+              )
             )}
-
-            {loading && !liveReply && (
-              <div className="flex items-center gap-3 pl-1">
-                <div className="flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/50 px-3.5 py-2.5" aria-hidden="true">
-                  <span className="lx-typing-dot text-primary-500" style={{ animationDelay: "0ms" }} />
-                  <span className="lx-typing-dot text-primary-500/70" style={{ animationDelay: "160ms" }} />
-                  <span className="lx-typing-dot text-primary-500/40" style={{ animationDelay: "320ms" }} />
-                </div>
-                <span className="text-sm text-muted-foreground/80">{loadingText}</span>
-              </div>
-            )}
-
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -1566,41 +1824,20 @@ export default function AssistantPage() {
         {/* Input */}
         <div
           className={cn(
-            "shrink-0 px-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:px-6 sm:pb-[calc(1rem+env(safe-area-inset-bottom))]",
+            "shrink-0 px-3 pb-12 sm:px-6 sm:pb-6",
             isEmptyChat
-              ? "flex-1 flex flex-col justify-end border-t border-border/60 bg-background/80 backdrop-blur-sm pt-3 sm:pt-4 lg:items-center lg:justify-center lg:border-t-0 lg:bg-transparent lg:backdrop-blur-none lg:pt-0"
-              : "border-t border-border/60 bg-background/80 backdrop-blur-sm pt-3 sm:pt-4"
+              ? "flex-1 flex flex-col justify-end border-t border-border/60 bg-background/80 backdrop-blur-sm pt-0 sm:pt-4 lg:items-center lg:justify-center lg:border-t-0 lg:bg-transparent lg:backdrop-blur-none lg:pt-0"
+              : "border-t border-border/60 bg-background/80 backdrop-blur-sm pt-0 sm:pt-4"
           )}
         >
-          <div className={cn("w-full", isEmptyChat ? "mx-auto max-w-2xl" : "mx-auto max-w-4xl")}>
+          <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl" : "mx-auto lg:max-w-4xl")}>
             {isEmptyChat && (
               <div className="hidden lg:flex mb-6 flex-col items-center text-center">
                 <h1 className="font-semibold text-3xl tracking-tight text-foreground sm:text-4xl">{greeting.base}</h1>
                 <p className="mt-2 text-sm text-muted-foreground">{greeting.sub}</p>
               </div>
             )}
-            {attachments.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {attachments.map((a) => (
-                  <div key={a.id} className="flex items-center gap-2 rounded-xl border border-border bg-secondary/50 py-1 pl-1 pr-2 text-xs">
-                    {a.kind === "image" ? (
-                      <img src={a.dataUrl || ""} alt="" className="h-8 w-8 rounded-lg object-cover" />
-                    ) : (
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <span className="max-w-[140px] truncate text-muted-foreground">{a.name}</span>
-                    <button
-                      onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id!))}
-                      className="text-muted-foreground/50 transition-colors hover:text-foreground"
-                      aria-label={"Remove " + a.name}
-                    >
-                      <XIcon className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {!isEmptyChat && !input.trim() && !loading && !voiceListening && !speaking && !voiceProcessing && (
+            {!isEmptyChat && !input.trim() && !loading && !generatingImage && !searching && (
               <div className="mb-2 flex justify-start">
                 <button
                   onClick={requestDailyBrief}
@@ -1613,56 +1850,86 @@ export default function AssistantPage() {
                 </button>
               </div>
             )}
-            <div className={cn("flex items-center gap-2 border border-border bg-secondary/40 pl-4 pr-2 py-2 transition-all focus-within:border-primary-500/40 focus-within:ring-2 focus-within:ring-primary-500/10", composerMultiline ? "rounded-[20px]" : "rounded-full")}>
-              {voiceListening || voiceProcessing || speaking ? (
-                <div className="flex w-full items-center gap-3 py-0.5 pl-1 pr-1">
-                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center">
-                    {voiceListening ? (
-                      <VoiceOrb state="listening" size="sm" />
-                    ) : speaking ? (
-                      <VoiceOrb state="speaking" size="sm" />
-                    ) : (
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-muted-foreground">
-                      {voiceListening ? t("assistant.listening") : speaking ? t("assistant.speaking") : t("assistant.transcribingLong")}
-                    </p>
-                  </div>
-                  {voiceListening && (
-                    <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
-                      {formatDuration(voiceDuration)}
-                    </span>
-                  )}
-                  {(voiceListening || speaking) && (
-                    <button
-                      onClick={voiceListening ? stopVoice : () => { stopSpeaking(); setSpeaking(false); }}
-                      aria-label={voiceListening ? t("assistant.stop") : t("assistant.endVoice")}
-                      className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform duration-150 active:scale-90",
-                        voiceListening ? "bg-red-500 text-white" : "bg-foreground text-background"
+            <div className={cn("border border-border bg-secondary/40 pl-4 pr-2 py-2 transition-all focus-within:border-primary-500/40 focus-within:ring-2 focus-within:ring-primary-500/10", composerMultiline || attachments.length > 0 ? "rounded-[20px]" : "rounded-full")}>
+              {/* Attached items live INSIDE the composer - thumbnail row on top,
+                  ChatGPT-style. No filenames; the thumbnail is the label. */}
+              {attachments.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 pl-1 pt-1">
+                  {attachments.map((a) => (
+                    <div key={a.id} className="orleia-attach-in relative shrink-0">
+                      {a.kind === "image" ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={a.dataUrl || ""}
+                          alt=""
+                          className="h-14 w-14 rounded-xl object-cover cursor-zoom-in"
+                          onClick={() => setPreviewAttachment(a)}
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-secondary">
+                          <FileText className="h-5 w-5 text-muted-foreground" />
+                        </div>
                       )}
-                    >
-                      <Square className="h-3.5 w-3.5 fill-current" />
-                    </button>
+                      <button
+                        onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id!))}
+                        className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-foreground/85 text-background"
+                        aria-label={"Remove " + a.name}
+                      >
+                        <XIcon className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}                </div>
+              )}
+              {/* Live dictation feedback: interim words + readable errors.
+                  Previously errors were set but never rendered - dictation
+                  looked silently broken in browsers that block the service. */}
+              {(voiceListening || voiceError) && (
+                <div className="px-1 pb-2">
+                  {voiceError ? (
+                    <p className="text-xs text-red-500">{voiceError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500 align-middle" />
+                      {voiceInterim || "\u2026"}
+                    </p>
                   )}
                 </div>
-              ) : (
-                <>
-              <div className="relative shrink-0" ref={plusRef}>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="relative shrink-0" ref={plusRef}>
                 <button
                   onClick={() => setPlusOpen(!plusOpen)}
                   aria-label={t("assistant.attach")}
                   className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-all duration-200 hover:bg-secondary hover:text-foreground active:scale-95",
-                    plusOpen && "bg-secondary text-foreground"
+                    plusOpen && "border border-foreground/40 text-foreground"
                   )}
                 >
                   <Plus className="h-5 w-5" />
                 </button>
                 {plusOpen && (
                   <div className="absolute bottom-full left-0 z-30 mb-2 w-60 rounded-2xl border border-border bg-background/95 p-1.5 shadow-xl backdrop-blur-md">
+                    {/* Take a photo must "just do the thing": the in-app mini
+                        camera when one exists, otherwise straight to the native
+                        camera app via the capture attribute - no OS chooser. */}
+                    <button
+                      onClick={() => {
+                        setPlusOpen(false);
+                        const inp = imageInputRef.current;
+                        inp?.removeAttribute("capture");
+                        if (typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function") {
+                          setCameraOpen(true);
+                        } else if (inp) {
+                          inp.setAttribute("capture", "environment");
+                          inp.click();
+                        }
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
+                    >
+                      <Camera className="h-4 w-4 text-primary-500" />
+                      {t("assistant.takePhoto")}
+                    </button>
+                    <div className="my-1 h-px bg-border/70" />
                     <button
                       onClick={() => { imageInputRef.current?.click(); setPlusOpen(false); }}
                       className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
@@ -1677,76 +1944,112 @@ export default function AssistantPage() {
                       <Paperclip className="h-4 w-4 text-primary-500" />
                       {t("assistant.attachFile")}
                     </button>
+                    <button
+                      onClick={() => { router.push("/settings?cat=skills"); setPlusOpen(false); }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary-500" />
+                      {t("skills.title")}
+                    </button>
                     <div className="my-1 h-px bg-border/70" />
                     <button
-                      onClick={() => setWebMode(!webMode)}
+                      onClick={() => setResearchMode(!researchMode)}
                       className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
                     >
-                      <Globe className={cn("h-4 w-4", webMode ? "text-sky-500" : "text-muted-foreground")} />
-                      <span className="flex-1">{t("assistant.web")}</span>
-                      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", webMode ? "bg-sky-500" : "border border-border bg-secondary")}>
-                        <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", webMode ? "left-[18px]" : "left-0.5")} />
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => setFastMode(!fastMode)}
-                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
-                    >
-                      <Zap className={cn("h-4 w-4", fastMode ? "text-primary-500" : "text-muted-foreground")} />
-                      <span className="flex-1">{t("assistant.fastMode")}</span>
-                      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", fastMode ? "bg-primary-500" : "border border-border bg-secondary")}>
-                        <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", fastMode ? "left-[18px]" : "left-0.5")} />
+                      <Telescope className={cn("h-4 w-4", researchMode ? "text-violet-500" : "text-muted-foreground")} />
+                      <span className="flex-1">Research mode</span>
+                      <span className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", researchMode ? "bg-violet-500" : "border border-border bg-secondary")}>
+                        <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all", researchMode ? "left-[18px]" : "left-0.5")} />
                       </span>
                     </button>
                   </div>
                 )}
               </div>
               <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAttachImage} />
+              <MiniCamera open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={handleCameraCapture} />
+              {/* Attachment preview overlay - tap the thumbnail to inspect. */}
+              {previewAttachment && (
+                <div
+                  className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-6"
+                  onClick={() => setPreviewAttachment(null)}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewAttachment.dataUrl || ""}
+                    alt={previewAttachment.name}
+                    className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <button
+                    onClick={() => setPreviewAttachment(null)}
+                    className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white"
+                    aria-label="Close preview"
+                  >
+                    <XIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachFile} />
+              <div className="relative flex flex-1 items-end">
+              {slashOpen && slashMatches.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-56 overflow-y-auto rounded-2xl border border-border bg-popover p-1 shadow-xl">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("skills.pick")}</p>
+                  {slashMatches.map((s, i) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); insertSkillSlug(s); }}
+                      onMouseEnter={() => setSlashIdx(i)}
+                      className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors", i === slashIdx ? "bg-secondary" : "")}
+                    >
+                      <Sparkles className="h-4 w-4 shrink-0 text-primary-500" />
+                      <span className="truncate font-medium">/{skillSlug(s.name)}</span>
+                      <span className="flex-1 truncate text-muted-foreground">{s.name}</span>
+                      {s.enabled && <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-500">{t("skills.activeCount")}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => {
-                  setInput(e.target.value);
+                  const v = e.target.value;
+                  setInput(v);
+                  setSlashOpen(v.startsWith("/") && !v.slice(1).includes(" "));
+                  setSlashIdx(0);
                   e.target.style.height = "auto";
                   e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
                 }}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                placeholder={selectedModel === "verse-4" ? t("assistant.quickQuestion") : t("assistant.messageNoor")}
+                onKeyDown={(e) => {
+                  if (slashOpen && slashMatches.length > 0) {
+                    if (e.key === "ArrowDown") { e.preventDefault(); setSlashIdx((i) => (i + 1) % slashMatches.length); return; }
+                    if (e.key === "ArrowUp") { e.preventDefault(); setSlashIdx((i) => (i - 1 + slashMatches.length) % slashMatches.length); return; }
+                    if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertSkillSlug(slashMatches[slashIdx] ?? slashMatches[0]); return; }
+                    if (e.key === "Escape") { e.preventDefault(); setSlashOpen(false); return; }
+                  }
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+                }}
+                placeholder={selectedModel === "fast-1" ? t("assistant.quickQuestion") : t("assistant.messageNoor")}
                 className="noor-chat-font flex-1 bg-transparent resize-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-[15px] py-2 max-h-40 leading-relaxed"
                 rows={1}
               />
+              </div>
               <button
-                onClick={() => startVoice()}
-                disabled={!voiceSupported || loading || voiceActive}
+                onClick={() => {
+                  if (voiceListening) { stopVoice(); } else { startVoice(); }
+                }}
+                disabled={!voiceSupported || loading}
                 title={voiceSupported ? t("assistant.tapToSpeak") : t("assistant.voiceUnsupported")}
                 aria-label={t("assistant.tapToSpeak")}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-border/60 bg-secondary/40 text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+                className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed",
+                  voiceListening ? "border-red-500 bg-red-500/10 text-red-500" : "border-border/60 bg-secondary/40 text-muted-foreground hover:border-primary-500/40 hover:text-foreground"
+                )}
               >
-                <Mic className="h-5 w-5" />
+                {voiceListening ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
               </button>
-              {!input.trim() && (
-                <button
-                  onClick={toggleVoiceMode}
-                  disabled={!voiceSupported || loading}
-                  title={voiceSupported ? (voiceActive ? t("assistant.endVoice") : t("assistant.tapToTalk")) : t("assistant.voiceUnsupported")}
-                  aria-label={t("assistant.tapToTalk")}
-                  className={cn(
-                    "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed",
-                    voiceActive
-                      ? "border-primary-500/40 bg-primary-500/10"
-                      : "border-border/60 bg-secondary/40 hover:border-primary-500/40"
-                  )}
-                >
-                  <VoiceOrb state={speaking ? "speaking" : "idle"} size="sm" />
-                  {voiceActive && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-500 opacity-70" />
-                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary-500" />
-                    </span>
-                  )}
-                </button>
-              )}
+              
               {/* Send button: only when something is typed (replaces the orb). */}
               {!!input.trim() && (
                 <button
@@ -1757,22 +2060,10 @@ export default function AssistantPage() {
                   <Send className="h-5 w-5" />
                 </button>
               )}
-                </>
-              )}
+              </div>
             </div>
             <p className="hidden sm:block text-[10px] text-muted-foreground/40 text-center mt-2">
-              {voiceError === "permission"
-                ? t("assistant.permissionDenied")
-                : voiceError === "generic"
-                ? t("assistant.voiceError")
-                : voiceActive && !voiceListening && !voiceProcessing && !speaking
-                ? (
-                    <span className="inline-flex items-center gap-1.5 text-primary-500/80">
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary-500 animate-pulse" />
-                      {t("assistant.voiceMode")} - {t("assistant.tapAgain")}
-                    </span>
-                  )
-                : t("assistant.disclaimer")}
+              {t("assistant.disclaimer")}
             </p>
           </div>
         </div>
@@ -1816,20 +2107,6 @@ export default function AssistantPage() {
         </div>
         {chatsPanel()}
       </div>
-
-      <VoiceModeOverlay
-        open={voiceModeOpen}
-        listening={voiceListening}
-        processing={voiceProcessing}
-        thinking={loading}
-        speaking={speaking}
-        userText={lastUserText}
-        noorText={lastNoorText}
-        error={voiceError}
-        missed={missed}
-        onTap={handleOrbTap}
-        onClose={closeVoiceMode}
-      />
     </div>
   );
 }

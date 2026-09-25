@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardApi } from "@/lib/apiGuard";
+import { callChat } from "@/lib/ai-provider";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,22 +31,16 @@ async function callModel(
   messages: { role: string; content: string }[],
   maxTokens: number
 ): Promise<string | null> {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) return null;
   try {
-    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: CHUNK_MODEL,
-        messages,
-        temperature: 0.3,
-        max_tokens: maxTokens,
-      }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    const call = await callChat({
+      model: CHUNK_MODEL,
+      messages,
+      temperature: 0.3,
+      max_tokens: maxTokens,
+      timeoutMs: REQUEST_TIMEOUT_MS,
     });
-    if (!res.ok) return null;
-    const data = await res.json();
+    if (!call.ok || !call.response) return null;
+    const data = await call.response.json();
     const content: string = data?.choices?.[0]?.message?.content || "";
     return content.trim() || null;
   } catch {
@@ -83,9 +78,9 @@ function chunkText(text: string): string[] {
   return chunks.slice(0, MAX_CHUNKS);
 }
 
-const CHUNK_PROMPT = `You are the extraction engine of Lexis, a productivity app. You are given one excerpt of a larger document. Extract its key information into concise bullet points. Capture: main topics, important facts, names/people/places, numbers, decisions, deadlines, and action items. Be factual and complete - include only what the excerpt actually says, never add outside knowledge or commentary. Keep the whole answer under 200 words. No preamble, no headers, just bullets.`;
+const CHUNK_PROMPT = `You are the extraction engine of Orleia, a productivity app. You are given one excerpt of a larger document. Extract its key information into concise bullet points. Capture: main topics, important facts, names/people/places, numbers, decisions, deadlines, and action items. Be factual and complete - include only what the excerpt actually says, never add outside knowledge or commentary. Keep the whole answer under 200 words. No preamble, no headers, just bullets.`;
 
-const SYNTH_PROMPT = `You are Noor, the warm AI companion inside Lexis. A user attached a document and below are numbered summaries of its sections (each from a different part of the file). Write ONE clear, well-structured overview of the whole document so the user immediately understands what it is and what matters in it.
+const SYNTH_PROMPT = `You are Noor, the warm AI companion inside Orleia. A user attached a document and below are numbered summaries of its sections (each from a different part of the file). Write ONE clear, well-structured overview of the whole document so the user immediately understands what it is and what matters in it.
 
 Structure:
 ## What this is
@@ -100,7 +95,7 @@ Bullets of anything the user may need to do, if the document implies any. If non
 Rules: base EVERYTHING strictly on the section summaries below - never invent facts, numbers, or names. Keep the whole overview under 350 words. Markdown is fine.`;
 
 export async function POST(req: Request) {
-  const denied = guardApi(req, { unlimited: true });
+  const denied = guardApi(req, { perMinute: 120, perDay: 5000 });
   if (denied) return denied;
 
   let body: { text?: string; title?: string };

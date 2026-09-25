@@ -30,7 +30,7 @@ export const CommentMark = Mark.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["mark", mergeAttributes(HTMLAttributes, { class: "lexis-comment" }), 0];
+    return ["mark", mergeAttributes(HTMLAttributes, { class: "orleia-comment" }), 0];
   },
 
   addCommands() {

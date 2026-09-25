@@ -35,12 +35,21 @@ const JUNK_PATTERNS =
 const INJECTION_PATTERNS =
   /(ignore (all |any |your )?(previous|prior|above) instructions|disregard (all |the |above )?instructions|you are now |act as (if )?(an? )?(unrestricted|free|jailbroken|developer mode)|reveal (your|the) (system |hidden |internal )?(prompt|instructions|rules)|forget (everything|all previous)|new instructions|do not follow (the|your) (system )?(prompt|instructions)|jailbreak|dan mode|ignore the system|override (your|the) (rules|instructions|guidelines))/i;
 
+/** Homepage / section-front URLs and nav-page titles - never real content. */
+const HOMEPAGE_TITLE_RE =
+  /(breaking news( updates| headlines| videos)?|latest (news|headlines|stories|videos)( and (photos|videos|more|breaking news))?|top stories|news homepage|home page)/i;
+const BARE_DOMAIN_RE = /^https?:\/\/(www\.)?[^/]+\/?([?#].*)?$/i;
+
 function sanitizeResults(results: WebResult[]): WebResult[] {
   return results.filter((r) => {
     if (!/^https?:\/\//i.test(r.url)) return false;
     const hay = (r.title + " " + r.snippet + " " + r.url).toLowerCase();
     if (JUNK_PATTERNS.test(hay)) return false;
     if (INJECTION_PATTERNS.test(hay)) return false;
+    // A nav/homepage tells the model nothing ("Fox News - Breaking News
+    // Updates...") and poisons synthesis - drop bare domains and nav titles.
+    if (BARE_DOMAIN_RE.test(r.url)) return false;
+    if (HOMEPAGE_TITLE_RE.test(r.title)) return false;
     return true;
   });
 }
@@ -48,6 +57,10 @@ function sanitizeResults(results: WebResult[]): WebResult[] {
 /** Queries that need live/current data - triggers an automatic web search. */
 const LIVE_INTENTS =
   /\b(weather|forecast|temperature|news|stocks?|bitcoin|ethereum|currency|traffic|earthquake|sunrise|sunset|gpt|chatgpt|gemini|claude|openai|anthropic|deepseek|midjourney|grok|release date|coming out|latest model|sequel|announcement|launch date|latest|newest|upcoming|released|announced|whats new|what's new)\b|\b(price of|share price|exchange rate|air quality)\b|°c|°f/i;
+
+/** Freshness intent - newest/latest X, releases, versions. News-first search. */
+const FRESH_INTENT =
+  /\b(latest|newest|current|recent|just (released|launched|announced)|new(est)? version|who (is|was) the|what('s| is) the (best|top)|upcoming|unreleased|in \d{4}|this (year|month|week)|yesterday|today)\b/i;
 
 export function isLiveQuery(q: string): boolean {
   return LIVE_INTENTS.test(q);
@@ -65,6 +78,14 @@ function decodeEntities(s: string): string {
 
 function cleanText(s: string): string {
   return decodeEntities(s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ")).trim();
+}
+
+/** Strip HTML tags but keep entity decoding to cleanText (RSS descriptions arrive as HTML). */
+function stripHtml(s: string): string {
+  return s
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 async function fetchHtml(url: string, timeoutMs = 8000): Promise<string | null> {
@@ -455,13 +476,87 @@ async function searchBing(q: string, limit: number): Promise<WebResult[]> {
   return out;
 }
 
+// ===== News RSS engines (keyless, datacenter-friendly) =====
+// Freshness questions need news results, but DDG/Mojeek bot-wall datacenter
+// IPs (the "six news homepages" failure). News RSS endpoints serve clean,
+// newest-first headlines to any IP.
+
+/** Parse a minimal RSS feed into items (title, link, description). */
+function parseRssItems(xml: string): Array<{ title: string; link: string; description: string }> {
+  const items: Array<{ title: string; link: string; description: string }> = [];
+  const itemRe = /<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/g;
+  let m: RegExpExecArray | null;
+  const tag = (block: string, name: string) => {
+    const t = block.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
+    return t ? cleanText(t[1]) : "";
+  };
+  while ((m = itemRe.exec(xml)) && items.length < 20) {
+    const block = m[1];
+    let link = tag(block, "link");
+    if (!link) {
+      const l = block.match(/<link[^>]*href="([^"]+)"/i);
+      if (l) link = cleanText(l[1]);
+    }
+    items.push({ title: tag(block, "title"), link, description: tag(block, "description") });
+  }
+  return items;
+}
+
+/** Bing News wraps real URLs in an apiclick redirect - unwrap it. */
+function bingNewsRealUrl(href: string): string {
+  try {
+    const u = new URL(href);
+    if (u.pathname.endsWith("apiclick.aspx")) {
+      const inner = u.searchParams.get("url");
+      if (inner && /^https?:\/\//i.test(inner)) return inner;
+    }
+  } catch {
+    // keep original
+  }
+  return href;
+}
+
+async function searchGoogleNews(q: string, limit: number): Promise<WebResult[]> {
+  const url =
+    "https://news.google.com/rss/search?q=" +
+    encodeURIComponent(q) +
+    "&hl=en-US&gl=US&ceid=US:en";
+  const xml = await fetchHtml(url, 7000);
+  if (!xml) return [];
+  return parseRssItems(xml)
+    .filter((it) => it.title && it.link.startsWith("http"))
+    .slice(0, limit)
+    .map((it) => ({
+      title: it.title,
+      url: it.link,
+      snippet: it.description ? stripHtml(it.description).slice(0, 300) : "News headline via Google News RSS.",
+    }));
+}
+
+async function searchBingNews(q: string, limit: number): Promise<WebResult[]> {
+  const url = "https://www.bing.com/news/search?q=" + encodeURIComponent(q) + "&format=RSS";
+  const xml = await fetchHtml(url, 7000);
+  if (!xml) return [];
+  return parseRssItems(xml)
+    .filter((it) => it.title && it.link.startsWith("http"))
+    .slice(0, limit)
+    .map((it) => ({
+      title: it.title,
+      url: bingNewsRealUrl(it.link),
+      snippet: it.description ? stripHtml(it.description).slice(0, 300) : "News result via Bing News RSS.",
+    }));
+}
+
 export async function webSearch(q: string, limit = 6): Promise<WebResult[]> {
   const n = Math.min(Math.max(2, limit), 8);
   const cleaned = cleanSearchQuery(q);
   const query = cleaned || q;
 
-  const [weatherP, ddgP, liteP, wikiP, mojeekP, bingP] = await Promise.allSettled([
+  const fresh = FRESH_INTENT.test(query);
+  const [weatherP, gnewsP, bnewsP, ddgP, liteP, wikiP, mojeekP, bingP] = await Promise.allSettled([
     weatherResult(query),
+    searchGoogleNews(query, n),
+    searchBingNews(query, n),
     searchDuckDuckGo(query, n),
     searchDuckDuckGoLite(query, n),
     searchWikipedia(query, n),
@@ -473,22 +568,41 @@ export async function webSearch(q: string, limit = 6): Promise<WebResult[]> {
   const weather = weatherP.status === "fulfilled" ? weatherP.value : null;
   if (weather) results.push(weather);
 
-  const engines = [ddgP, liteP, wikiP, mojeekP, bingP].map((p) =>
-    p.status === "fulfilled" ? p.value : ([] as WebResult[])
-  );
+  const of = (p: PromiseSettledResult<WebResult[]>): WebResult[] =>
+    p.status === "fulfilled" ? p.value : [];
 
-  // Prefer the first engine with a solid result set. Ordering matters: DDG
-  // (html + lite) and Mojeek bot-wall datacenter IPs with 403s; Wikipedia's
-  // JSON API is deterministic from anywhere and is the reliable fallback;
-  // Bing RSS stays last - it degrades to first-word results on multi-word
-  // queries (and its HTML page serves only a news wall to cloud IPs).
-  let engineRes = engines.find((r) => r.length >= 3) || engines.find((r) => r.length > 0) || [];
-  engineRes = sanitizeResults(engineRes);
+  const news = [...of(gnewsP), ...of(bnewsP)];
+  const engines = [of(ddgP), of(liteP), of(wikiP), of(mojeekP), of(bingP)];
+
+  // Freshness questions (latest/newest X, releases, model names) go to news
+  // RSS engines first - general web scrapers get bot-walled from datacenter
+  // IPs and come back with news homepages instead of articles.
+  let engineRes: WebResult[] = [];
+  if (fresh && news.length >= 2) {
+    engineRes = sanitizeResults(news);
+  }
+  if (engineRes.length === 0) {
+    engineRes = engines.find((r) => r.length >= 3) || engines.find((r) => r.length > 0) || [];
+    engineRes = sanitizeResults(engineRes);
+  }
+  if (engineRes.length === 0 && news.length > 0) {
+    engineRes = sanitizeResults(news);
+  }
   if (engineRes.length === 0) {
     // Degraded fallback: keep the top raw results rather than returning nothing -
     // the model is told to treat web content as untrusted data anyway.
-    const best = engines.find((r) => r.length > 0);
+    const best = [...(news.length ? [news] : []), ...engines].find((r) => r.length > 0);
     engineRes = best ? best.slice(0, 2) : [];
+  }
+  // Freshness results overlap heavily across news engines - dedupe by URL base.
+  if (fresh) {
+    const seen = new Set<string>();
+    engineRes = engineRes.filter((r) => {
+      const k = r.url.replace(/[#?].*$/, "");
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
   }
   const cap = weather ? n - 1 : n;
   results.push(...engineRes.slice(0, cap));
@@ -512,7 +626,7 @@ export function buildSearchBlock(sources: AISource[]): string {
     "\n\n" +
     (hasWeb
       ? "WEB SEARCH RESULTS (live results from the web - up to date):"
-      : "WORKSPACE SEARCH RESULTS (real data from the user's Lexis workspace - live facts, not guesses):") +
+      : "WORKSPACE SEARCH RESULTS (real data from the user's Orleia workspace - live facts, not guesses):") +
     "\n" +
     lines.join("\n") +
     (hasWeb

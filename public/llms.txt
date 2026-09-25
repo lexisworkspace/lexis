@@ -1,0 +1,42 @@
+# Orleia
+
+> Orleia is a free, local-first AI productivity suite: habits, tasks, notes, journal, a smart calendar, spreadsheets, presentations (Deck), deep research with citations, projects, and Noor — a built-in AI assistant with three selectable models, vision, voice input, and image generation. All user data stays in the user's own browser; there are no accounts and no cloud storage.
+
+Orleia requires no sign-up: open the app and start. It works offline after first load and installs as a PWA on iOS, Android, Windows, macOS, and Linux. A native-quality desktop build is also available for Windows and Linux.
+
+## Core capabilities
+
+- Dashboard: a personal daily overview of habits, tasks, and reminders
+- Habits: streaks, schedules, monthly history
+- Tasks: list, Kanban, and calendar views with drag-and-drop
+- Notes and Documents: fast local notes and rich documents
+- Journal (Mindfulness): mood tracking, guided breathing exercises, meditation timer
+- Calendar: month/week scheduling with reminders
+- Grid: spreadsheet with formulas and CSV import/export
+- Deck: AI-drafted presentations with themes, charts, images, and export
+- Projects: focused workspaces that bundle tasks, notes, files, and context for Noor
+- Noor AI assistant: web search, deep research reports with citations, image generation, vision (image understanding), voice input, and workspace actions (create/complete tasks, habits, notes, reminders)
+- Web Search 2.0: multi-step research that reads pages and produces cited briefs, deliverables, and Deck exports
+
+## Key facts
+
+- Pricing: completely free; no paid tiers
+- Accounts: none — no email, no sign-up; an optional local password protects data on the user's own device
+- Data: stored locally in the browser (IndexedDB/localStorage); nothing is uploaded
+- AI: requests are relayed without storing conversations; models may be referenced as Ethos, Logos, and Verse
+- Platforms: Web (PWA), Windows, Linux
+- Languages: 19 UI languages, auto-selected from the operating system
+- Privacy: no third-party trackers, no ads, no data selling; aggregate, cookie-less analytics only
+
+## Pages
+
+- Home: https://www.orleia.app
+- App: https://app.orleia.app
+- What is Orleia: https://www.orleia.app/what-is-orleia
+- Local-first productivity: https://www.orleia.app/local-first-productivity
+- Orleia vs Notion: https://www.orleia.app/notion-alternative
+- Orleia vs Obsidian: https://www.orleia.app/obsidian-alternative
+- Changelog: https://www.orleia.app/changelog
+- Privacy policy: https://www.orleia.app/privacy
+- Terms of service: https://www.orleia.app/terms
+- Contact: https://www.orleia.app/contact

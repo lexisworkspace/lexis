@@ -33,7 +33,7 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-const GUEST_KEY = "lexis-guest-mode";
+const GUEST_KEY = "orleia-guest-mode";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -83,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await sb.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: "https://app.lexisapp.xyz/auth/success",
+          redirectTo: "https://app.orleia.app/auth/success",
           skipBrowserRedirect: true,
         },
       });
@@ -96,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await sb.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: "https://app.lexisapp.xyz/auth/success",
+          redirectTo: "https://app.orleia.app/auth/success",
         },
       });
     }
@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     if (sb) await sb.auth.signOut();
     localStorage.removeItem(GUEST_KEY);
-    localStorage.removeItem("lexis-auth-done");
+    localStorage.removeItem("orleia-auth-done");
     setIsGuest(false);
   }, [sb]);
 

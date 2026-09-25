@@ -66,7 +66,7 @@ export function notesToMarkdown(data: AppData): string {
   });
 
   const header = [
-    "# Lexis Notes Export",
+    "# Orleia Notes Export",
     "",
     `Exported: ${new Date().toISOString().split("T")[0]}  ·  ${data.notes.length} notes`,
     "",
@@ -78,7 +78,7 @@ export function notesToMarkdown(data: AppData): string {
 
 export function exportNotesMarkdown(data: AppData) {
   downloadTextFile(
-    `lexis-notes-${new Date().toISOString().split("T")[0]}.md`,
+    `orleia-notes-${new Date().toISOString().split("T")[0]}.md`,
     notesToMarkdown(data),
     "text/markdown"
   );
@@ -127,7 +127,7 @@ export function journalToMarkdown(data: AppData): string {
   });
 
   const header = [
-    "# Lexis Journal Export",
+    "# Orleia Journal Export",
     "",
     `Exported: ${new Date().toISOString().split("T")[0]}  ·  ${data.journalEntries.length} entries`,
     "",
@@ -139,7 +139,7 @@ export function journalToMarkdown(data: AppData): string {
 
 export function exportJournalMarkdown(data: AppData) {
   downloadTextFile(
-    `lexis-journal-${new Date().toISOString().split("T")[0]}.md`,
+    `orleia-journal-${new Date().toISOString().split("T")[0]}.md`,
     journalToMarkdown(data),
     "text/markdown"
   );
@@ -190,7 +190,7 @@ export function tasksToCsv(data: AppData): string {
 
 export function exportTasksCsv(data: AppData) {
   downloadTextFile(
-    `lexis-tasks-${new Date().toISOString().split("T")[0]}.csv`,
+    `orleia-tasks-${new Date().toISOString().split("T")[0]}.csv`,
     tasksToCsv(data),
     "text/csv"
   );
@@ -228,7 +228,7 @@ export function habitsToCsv(data: AppData): string {
 
 export function exportHabitsCsv(data: AppData) {
   downloadTextFile(
-    `lexis-habits-${new Date().toISOString().split("T")[0]}.csv`,
+    `orleia-habits-${new Date().toISOString().split("T")[0]}.csv`,
     habitsToCsv(data),
     "text/csv"
   );

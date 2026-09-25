@@ -1,5 +1,5 @@
 // ============================================================
-// LexisImage - images in the notes editor that you can resize by
+// OrleiaImage - images in the notes editor that you can resize by
 // dragging a corner handle and move FREELY around the paper by
 // dragging the image itself. Free images float in front of the
 // text (like Word's "In Front of Text"); tap "In line" to pin
@@ -39,7 +39,7 @@ type Align = "left" | "center" | "right" | "float-left" | "float-right" | "free"
 
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 
-export const LexisImage = Image.extend({
+export const OrleiaImage = Image.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -83,7 +83,7 @@ export const LexisImage = Image.extend({
     else if (align === "center") style.push("display:block;margin-left:auto;margin-right:auto");
     const attrs: Record<string, any> = { ...rest };
     if (style.length) attrs.style = style.join(";");
-    return ["img", mergeAttributes(attrs, { class: "lexis-img" })];
+    return ["img", mergeAttributes(attrs, { class: "orleia-img" })];
   },
 
   addNodeView() {
@@ -252,8 +252,8 @@ function ImageNodeView(props: any) {
   // Re-render if the page grid changes (resize, pagination).
   useEffect(() => {
     const onPages = () => setTick((n) => n + 1);
-    window.addEventListener("lexis:pages", onPages);
-    return () => window.removeEventListener("lexis:pages", onPages);
+    window.addEventListener("orleia:pages", onPages);
+    return () => window.removeEventListener("orleia:pages", onPages);
   }, []);
 
   const toInline = () => {
@@ -272,12 +272,12 @@ function ImageNodeView(props: any) {
   return (
     <NodeViewWrapper
       as="div"
-      className={isFree ? "lexis-float-node" : undefined}
+      className={isFree ? "orleia-float-node" : undefined}
       style={rootStyle}
       draggable={false}
     >
       <div
-        className={`lexis-img-wrap ${dragging ? "lexis-img-dragging" : ""} ${selected ? "lexis-img-selected" : ""}`}
+        className={`orleia-img-wrap ${dragging ? "orleia-img-dragging" : ""} ${selected ? "orleia-img-selected" : ""}`}
       >
         <img
           ref={imgRef}
@@ -289,11 +289,11 @@ function ImageNodeView(props: any) {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
-          className="lexis-img"
+          className="orleia-img"
         />
         {selected && (
           <>
-            <div className="lexis-img-toolbar" contentEditable={false}>
+            <div className="orleia-img-toolbar" contentEditable={false}>
               {isFree && (
                 <button className={TOOLBAR_BTN} title="In line with text" onClick={(e) => { e.stopPropagation(); toInline(); }}>
                   <ArrowLeftRight className="h-3.5 w-3.5" />
@@ -316,7 +316,7 @@ function ImageNodeView(props: any) {
               </button>
             </div>
             <div
-              className="lexis-resize-handle"
+              className="orleia-resize-handle"
               contentEditable={false}
               title="Resize"
               onPointerDown={(e) => startMove(e, "resize")}

@@ -1,7 +1,7 @@
-// Lexis update checker — polls /version.json periodically and fires events
+// Orleia update checker — polls /version.json periodically and fires events
 // when a newer version is detected. No kill, no restart — just a notification.
 
-const CURRENT_VERSION = "2.0.0";
+const CURRENT_VERSION = "2.5.0";
 const CHECK_INTERVAL_MS = 5 * 60_000; // every 5 minutes
 const VERSION_URL = "/version.json";
 
@@ -31,7 +31,7 @@ async function checkVersion(): Promise<void> {
       // Fire a custom event so the UI can react
       if (typeof window !== "undefined") {
         window.dispatchEvent(
-          new CustomEvent("lexis:update-available", {
+          new CustomEvent("orleia:update-available", {
             detail: { version: json.version },
           })
         );

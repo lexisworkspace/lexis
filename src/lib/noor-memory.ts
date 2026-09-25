@@ -114,7 +114,7 @@ function analyzeSentiment(text: string): string {
 function extractDecisions(messages: { role: string; content: string }[]): string[] {
   const d: string[] = [];
   for (const m of messages) {
-    if (m.role === "assistant" && m.content.includes("LEXIS_ACTION")) {
+    if (m.role === "assistant" && m.content.includes("ORLEIA_ACTION")) {
       const match = m.content.match(/"action":"([^"]+)"/);
       if (match) d.push(match[1].replace(/_/g, ' '));
     }

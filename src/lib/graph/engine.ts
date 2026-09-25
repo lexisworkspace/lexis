@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis Brain - engine
+// Orleia Brain - engine
 // Owns the cached GraphIndex, the query API, and the AI layer
 // (concept extraction cache + Noor briefing), all client-side.
 // ============================================================
@@ -11,7 +11,7 @@ import { buildGraph, AiConceptMap } from "./index";
 import { storage } from "@/lib/storage";
 import { buildSituationModel, situationForAI } from "./situation";
 
-const AI_CACHE_KEY = "lexis-brain-ai-v1";
+const AI_CACHE_KEY = "orleia-brain-ai-v1";
 const REBUILD_DEBOUNCE = 600;
 const MAX_ENRICH_PER_RUN = 6;
 const MIN_TEXT_LEN = 40;

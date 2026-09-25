@@ -1,48 +1,37 @@
 "use client";
 
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect, useLayoutEffect, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import {
-  Plus,
-  Sun,
-  Moon,
-  Cloud,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { storage } from "@/lib/storage";
+import { haptic } from "@/lib/haptics";
 import { cn, formatDate, getToday } from "@/lib/utils";
 import { WIDGET_COMPONENTS } from "@/components/widgets/Widgets";
 import { WidgetCatalog } from "@/components/widgets/WidgetCatalog";
 import type { WidgetId } from "@/types";
 import Link from "next/link";
 
-const LandingPage = lazy(() => import("./landing/page"));
+const LandingPage = lazy(() => import("../(marketing)/landing/page"));
 
 function useIsLandingDomain() {
-  const [isLanding, setIsLanding] = useState(false);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const host = window.location.hostname;
-      setIsLanding(host.includes("lexis-suite") || host.includes("lexis-landing"));
-    }
+  const [isLanding, setIsLanding] = useState(true);
+  /* Layout effect (not useEffect): resolves the hostname BEFORE the first
+     paint, so the landing page (and its vortex background) never flashes
+     when the dashboard mounts. Isomorphic wrapper keeps SSR happy. */
+  const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+  useIsoLayoutEffect(() => {
+    setIsLanding(!window.location.hostname.startsWith("app."));
   }, []);
   return isLanding;
 }
 
 export default function DashboardPage() {
   const isLanding = useIsLandingDomain();
-  if (isLanding) {
-    return (
-      <Suspense fallback={<div className="min-h-screen bg-background" />}>
-        <LandingPage />
-      </Suspense>
-    );
-  }
-
   const [data, setData] = useState(storage.getData());
   const [greeting, setGreeting] = useState("Good morning");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [widgets, setWidgets] = useState<WidgetId[]>(
-    () => (storage.getData().dashboardWidgets as WidgetId[]) || ["stats", "tasks", "habits", "notes"]
+    () => (storage.getData().dashboardWidgets as WidgetId[]) || ["productivity", "stats"]
   );
 
   useEffect(() => {
@@ -55,10 +44,18 @@ export default function DashboardPage() {
   useEffect(() => {
     const unsub = storage.subscribe(() => {
       setData({ ...storage.getData() });
-      setWidgets((storage.getData().dashboardWidgets as WidgetId[]) || ["stats", "tasks", "habits", "notes"]);
+      setWidgets((storage.getData().dashboardWidgets as WidgetId[]) || ["productivity", "stats"]);
     });
     return unsub;
   }, []);
+
+  if (isLanding) {
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <LandingPage />
+      </Suspense>
+    );
+  }
 
   const toggleWidget = (id: WidgetId) => {
     setWidgets((prev) => {
@@ -80,15 +77,6 @@ export default function DashboardPage() {
             <p className="text-sm text-muted-foreground">
               {formatDate(new Date(), "EEEE, MMMM d")}
             </p>
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-500/10">
-            {new Date().getHours() < 12 ? (
-              <Sun className="h-6 w-6 text-primary-500" />
-            ) : new Date().getHours() < 17 ? (
-              <Cloud className="h-6 w-6 text-primary-500" />
-            ) : (
-              <Moon className="h-6 w-6 text-primary-500" />
-            )}
           </div>
         </div>
       </motion.div>
@@ -116,6 +104,15 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Edit Widgets — full width of the widget column, hugs its content */}
+      <button
+        onClick={() => { haptic.tap(); setCatalogOpen(true); }}
+        className="mx-auto flex w-fit items-center justify-center gap-2 rounded-2xl border border-foreground/15 bg-transparent px-5 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-foreground/35 hover:text-foreground active:scale-[0.99] dark:border-foreground/25 dark:hover:border-foreground/45"
+      >
+        <Plus className="h-4 w-4" strokeWidth={1.75} />
+        <span>Edit Widgets</span>
+      </button>
+
       {/* Widget Catalog Modal */}
       {catalogOpen && (
         <WidgetCatalog
@@ -124,16 +121,6 @@ export default function DashboardPage() {
           onClose={() => setCatalogOpen(false)}
         />
       )}
-
-      {/* FAB: add widget */}
-      <button
-        onClick={() => setCatalogOpen(true)}
-        style={{ position: "fixed", bottom: "24px", right: "24px", zIndex: 2147483647 }}
-        className="flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform hover:scale-105 active:scale-95"
-        aria-label="Add widget"
-      >
-        <Plus className="h-5 w-5" />
-      </button>
     </div>
   );
 }

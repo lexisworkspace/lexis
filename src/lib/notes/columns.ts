@@ -28,7 +28,7 @@ export const Columns = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["div", mergeAttributes(HTMLAttributes, { class: "lexis-columns" }), 0];
+    return ["div", mergeAttributes(HTMLAttributes, { class: "orleia-columns" }), 0];
   },
 
   addCommands() {

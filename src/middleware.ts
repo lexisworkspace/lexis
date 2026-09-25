@@ -1,83 +1,72 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-const SEO_PATHS = [
-  "/notion-alternative",
-  "/obsidian-alternative",
-  "/local-first-productivity",
-];
+// ============================================================
+// Cache policy middleware.
+//
+// App Router RSC flight requests (the payloads behind client-side
+// tab switches) ride the page URL with an `RSC: 1` header. The
+// blanket `no-cache, no-store` page header also landed on those
+// flights, which made Next's client router cache discard every
+// payload — so prefetching worked exactly once and tab switches
+// re-fetched forever ("fast one cycle, then slow again").
+//
+// Policy:
+//   RSC flights  -> private, max-age=300  (browser-only, 5 min —
+//                  matches the client router staleTimes, so
+//                  prefetched payloads are actually RETAINED)
+//   HTML docs    -> untouched (next.config keeps them always-fresh,
+//                  so deploys propagate instantly)
+//   API/assets   -> untouched (matcher excludes them)
+// ============================================================
 
-const MARKET_DOMAIN = "https://lexisapp.xyz";
-const APP_DOMAIN = "https://app.lexisapp.xyz";
-
-function isMarketingHost(hostname: string) {
-  const h = hostname.toLowerCase();
-  return h === "lexisapp.xyz" || h === "www.lexisapp.xyz";
-}
-
-function isAppHost(hostname: string) {
-  const h = hostname.toLowerCase();
-  return h === "app.lexisapp.xyz";
-}
-
-function isOldMarketingHost(hostname: string) {
-  const h = hostname.toLowerCase();
-  return h.includes("lexis-suite") || h.includes("lexis-landing");
-}
-
-function isOldAppHost(hostname: string) {
-  const h = hostname.toLowerCase();
-  return h.includes("lexis-workspace") || h.includes("lexis-app");
-}
-
-export function middleware(request: NextRequest) {
-  const hostname = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
-  const url = request.nextUrl;
-  const path = url.pathname + url.search;
-
-  // 1) Old marketing domains (lexis-suite / lexis-landing) -> new brand domain (301, keeps path)
-  if (isOldMarketingHost(hostname)) {
-    return NextResponse.redirect(new URL(path, MARKET_DOMAIN), 301);
+export function middleware(req: NextRequest) {
+  // Marketing host: serve the landing page at "/" (rewrite, URL stays "/").
+  // The app host serves the dashboard there — no rewrite needed.
+  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || "");
+  const isMarketingHost =
+    host === "orleia.app" ||
+    host === "www.orleia.app" ||
+    host.includes("orleia-landing") ||
+    host.includes("orleia-suite");
+  if (isMarketingHost && req.nextUrl.pathname === "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/home";
+    const rewritten = NextResponse.rewrite(url);
+    rewritten.headers.set(
+      "Cache-Control",
+      "private, no-cache, no-store, max-age=0, must-revalidate"
+    );
+    return rewritten;
   }
 
-  // 2) Old app domains (lexis-workspace / lexis-app) -> new app subdomain (301, keeps path),
-  //    except the data-migration page which must stay reachable on the old origin.
-  if (isOldAppHost(hostname) && url.pathname !== "/migrate") {
-    return NextResponse.redirect(new URL(path, APP_DOMAIN), 301);
-  }
+  const isFlight =
+    req.method === "GET" && req.headers.get("RSC") === "1";
 
-  // 3) Old route names -> renamed routes (301, keeps query, same host)
-  if (url.pathname === "/assistant") {
-    url.pathname = "/noor";
-    return NextResponse.redirect(url, 301);
+  const res = NextResponse.next();
+  if (isFlight) {
+    // Cacheable in the browser only — this is what lets Next's client
+    // router cache RETAIN prefetched payloads (no-store makes it discard
+    // them, which is the "fast one cycle then slow forever" bug).
+    // Do NOT touch Vary: the platform already varies flights on
+    // rsc / next-router-state-tree / next-router-prefetch, which is
+    // required for correct cache-keying at different navigation depths.
+    res.headers.set(
+      "Cache-Control",
+      "private, max-age=300, stale-while-revalidate=600"
+    );
+  } else if (req.method === "GET") {
+    // HTML documents: always fresh so deploys propagate instantly.
+    res.headers.set(
+      "Cache-Control",
+      "private, no-cache, no-store, max-age=0, must-revalidate"
+    );
   }
-  // 4) www -> apex (canonical host)
-  if (hostname.toLowerCase() === "www.lexisapp.xyz") {
-    return NextResponse.redirect(new URL(path, MARKET_DOMAIN), 301);
-  }
-
-  // 4) New marketing domain: serve the landing page at the root
-  if (isMarketingHost(hostname)) {
-    if (url.pathname === "/") {
-      url.pathname = "/landing";
-      return NextResponse.rewrite(url);
-    }
-    return NextResponse.next();
-  }
-
-  // 5) New app subdomain: SEO comparison pages live on the marketing domain only
-  if (isAppHost(hostname)) {
-    if (SEO_PATHS.includes(url.pathname)) {
-      return NextResponse.redirect(new URL(url.pathname, MARKET_DOMAIN), 301);
-    }
-    return NextResponse.next();
-  }
-
-  return NextResponse.next();
+  return res;
 }
 
 export const config = {
-  // Run on all routes except API routes, Next internals, and static files
-  // (paths containing a dot: robots.txt, sitemap.xml, images, etc.)
-  matcher: ["/((?!api|_next|.*\\..*).*)"],
+  matcher: [
+    // Everything except APIs, static assets, service worker, manifests.
+    "/((?!api|_next/static|_next/image|favicon.ico|orleia-logo|og-image|sw.js|manifest.json|version.json|downloads).*)",
+  ],
 };

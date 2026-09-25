@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
   FileText,
+  Sheet,
   ListTodo,
   BookOpen,
   CheckCircle2,
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 
 const KIND_ICON = {
   note: FileText,
+  spreadsheet: Sheet,
   task: ListTodo,
   journal: BookOpen,
   habit: CheckCircle2,
@@ -54,21 +56,7 @@ export function GlobalSearch({
   // Flatten for keyboard navigation: quick actions first, then all results.
   const quickActions: QuickAction[] = useMemo(
     () => [
-      {
-        id: "new-note",
-        label: t("search.newNote"),
-        hint: t("search.newNoteHint"),
-        icon: FileText,
-        run: () => {
-          onClose();
-          if (pathname === "/documents") {
-            window.dispatchEvent(new CustomEvent("lexis:new-note"));
-          } else {
-            router.push("/documents?new=1");
-          }
-        },
-      },
-      {
+            {
         id: "daily-brief",
         label: t("search.dailyBrief"),
         hint: t("search.dailyBriefHint"),
@@ -132,6 +120,14 @@ export function GlobalSearch({
           (item.ref as QuickAction).run();
           return;
         }
+        // Documents is desktop-only: on phones, search results for notes and
+        // the new-note action go to Notes instead of a broken overlay.
+        if (
+          window.matchMedia("(max-width: 767px)").matches &&
+          (item.ref as SearchResult).kind === "note"
+        ) {
+          (item.ref as SearchResult).href = "/notes";
+        }
         openResult(item.ref as SearchResult);
       }
     };
@@ -147,8 +143,16 @@ export function GlobalSearch({
 
   const openResult = (result: SearchResult) => {
     onClose();
-    if (result.kind === "note" && pathname === "/documents") {
-      window.dispatchEvent(new CustomEvent("lexis:open-note", { detail: result.id }));
+    // Documents is retired: note results open Notes everywhere.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 767px)").matches &&
+      result.kind === "note"
+    ) {
+      result.href = "/notes";
+    }
+    if (result.kind === "note") {
+      router.push("/notes?open=" + encodeURIComponent(result.id));
     } else {
       router.push(result.href);
     }
@@ -197,7 +201,7 @@ export function GlobalSearch({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("search.placeholder")}
-                className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground/60"
+                className="flex-1 bg-transparent text-[15px] outline-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/60"
                 aria-label={t("search.placeholder")}
               />
               <kbd className="hidden sm:inline-flex shrink-0 items-center gap-0.5 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">

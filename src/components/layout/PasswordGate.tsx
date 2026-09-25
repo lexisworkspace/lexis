@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useI18n } from "@/lib/i18n";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, Eye, EyeOff, Info, HelpCircle, AlertTriangle,
@@ -9,7 +10,7 @@ import {
 import { isBiometricsAvailable, isBiometricsEnabled, authenticateBiometric } from "@/lib/biometric";
 import { NumericPin, isPinSet, clearPin } from "@/components/NumericPin";
 
-const PASSWORD_KEY = "lexis-password";
+const PASSWORD_KEY = "orleia-password";
 
 export function isPasswordSet(): boolean {
   if (typeof window === "undefined") return false;
@@ -34,7 +35,7 @@ export function clearPassword(): void {
   try { localStorage.removeItem(PASSWORD_KEY); } catch {}
 }
 
-const UNLOCK_KEY = "lexis-unlocked-this-session";
+const UNLOCK_KEY = "orleia-unlocked-this-session";
 export function isUnlockedThisSession(): boolean {
   if (typeof window === "undefined") return false;
   return sessionStorage.getItem(UNLOCK_KEY) === "1";
@@ -58,6 +59,7 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
   mode: "setup" | "unlock"; onUnlock: () => void; showSkip?: boolean; onResetComplete?: () => void;
 }) {
   const isMobile = useIsMobile();
+  const { t } = useI18n();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -134,34 +136,34 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
         <AnimatePresence mode="wait">
           {forgotStep === "info" && (
             <motion.div key="fi" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={{duration:0.35,ease:"easeOut"}} className="relative z-10 mx-auto w-full max-w-sm px-6">
-              <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">FORGOT</p>
+              <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">{t("gate.forgot")}</p>
               <div className="mb-8 h-px w-12 bg-primary-500/50" />
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted"><HelpCircle className="h-5 w-5 text-primary-500" /></div>
                 <h1 className="text-3xl font-bold tracking-tight leading-none">Forgot your {isMobile ? "PIN" : "password"}?</h1>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed mb-8">
-                Since LEXIS is fully local and private, there is no server to send a reset to.
+                Since ORLEIA is fully local and private, there is no server to send a reset to.
                 Your {isMobile ? "PIN" : "password"} never leaves this device.
               </p>
               <div className="flex flex-col gap-3">
                 <button onClick={() => setForgotStep("confirm")} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">Reset {isMobile ? "PIN" : "password"} <RefreshCw className="h-3.5 w-3.5" /></button>
-                <button onClick={() => { setShowForgot(false); setForgotStep("info"); }} className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-secondary active:scale-[0.98]"><ArrowLeft className="h-3.5 w-3.5" /> Back</button>
+                <button onClick={() => { setShowForgot(false); setForgotStep("info"); }} className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-secondary active:scale-[0.98]"><ArrowLeft className="h-3.5 w-3.5" />{t("gate.back")}</button>
               </div>
             </motion.div>
           )}
           {forgotStep === "confirm" && (
             <motion.div key="fc" initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} transition={{duration:0.35,ease:"easeOut"}} className="relative z-10 mx-auto w-full max-w-sm px-6">
-              <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">CONFIRM</p>
+              <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">{t("gate.confirm")}</p>
               <div className="mb-8 h-px w-12 bg-primary-500/50" />
               <div className="flex items-center gap-3 mb-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10"><AlertTriangle className="h-5 w-5 text-amber-500" /></div>
-                <h1 className="text-3xl font-bold tracking-tight leading-none">Are you sure?</h1>
+                <h1 className="text-3xl font-bold tracking-tight leading-none">{t("gate.are_you_sure")}</h1>
               </div>
               <p className="mb-8 text-sm text-muted-foreground leading-relaxed">This will clear your {isMobile ? "PIN" : "password"}. Your data stays intact.</p>
               <div className="flex flex-col gap-3">
-                <button onClick={handleReset} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">Yes, reset <ArrowRight className="h-3.5 w-3.5" /></button>
-                <button onClick={() => setForgotStep("info")} className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-secondary active:scale-[0.98]"><ArrowLeft className="h-3.5 w-3.5" /> Go back</button>
+                <button onClick={handleReset} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">{t("gate.yes_reset")}<ArrowRight className="h-3.5 w-3.5" /></button>
+                <button onClick={() => setForgotStep("info")} className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-border px-5 py-3 text-sm font-medium text-muted-foreground transition-all hover:text-foreground hover:bg-secondary active:scale-[0.98]"><ArrowLeft className="h-3.5 w-3.5" />{t("gate.go_back")}</button>
               </div>
             </motion.div>
           )}
@@ -170,7 +172,7 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
               <div className="mb-8 mx-auto h-px w-12 bg-primary-500/50" />
               <div className="flex justify-center mb-6"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-500/10"><RefreshCw className="h-8 w-8 text-green-400" /></div></div>
               <h1 className="text-2xl font-bold tracking-tight mb-3">{isMobile ? "PIN" : "Password"} reset!</h1>
-              <p className="text-sm text-muted-foreground">Setting up a new one...</p>
+              <p className="text-sm text-muted-foreground">{t("gate.setting_up_a_new_one")}</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -183,16 +185,16 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
         {bgLines}
         <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:0.35,ease:"easeOut"}} className="relative z-10 mx-auto w-full max-w-sm px-6">
-          <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">SECURITY</p>
+          <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">{t("gate.security")}</p>
           <div className="mb-8 h-px w-12 bg-primary-500/50" />
           <div className="flex items-center gap-3 mb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted"><Shield className="h-5 w-5 text-primary-500" /></div>
-            <h1 className="text-3xl font-bold tracking-tight leading-none">Protect your space</h1>
+            <h1 className="text-3xl font-bold tracking-tight leading-none">{t("gate.protect_your_space")}</h1>
           </div>
-          <p className="mb-8 text-sm text-muted-foreground leading-relaxed max-w-xs">Set a 4-digit PIN to keep your thoughts private.</p>
+          <p className="mb-8 text-sm text-muted-foreground leading-relaxed max-w-xs">{t("gate.set_a_4_digit_pin_to_keep_your_thoughts_")}</p>
           <NumericPin mode="setup" onSuccess={handlePinSuccess} />
           {showSkip && (
-            <button onClick={() => onUnlock()} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-4 mt-4">Skip</button>
+            <button onClick={() => onUnlock()} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-4 mt-4">{t("gate.skip")}</button>
           )}
         </motion.div>
       </div>
@@ -205,11 +207,11 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
         {bgLines}
         <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:0.35,ease:"easeOut"}} className="relative z-10 mx-auto w-full max-w-sm px-6">
-          <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">UNLOCK</p>
+          <p className="mb-6 text-[11px] font-mono tracking-widest text-muted-foreground/40">{t("gate.unlock")}</p>
           <div className="mb-8 h-px w-12 bg-primary-500/50" />
           <div className="flex items-center gap-3 mb-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted"><Shield className="h-5 w-5 text-primary-500" /></div>
-            <h1 className="text-3xl font-bold tracking-tight leading-none">Welcome back</h1>
+            <h1 className="text-3xl font-bold tracking-tight leading-none">{t("gate.welcome_back")}</h1>
           </div>
           {biometricsAvailable && biometricsEnabled && (
             <button onClick={handleBiometric} disabled={biometricsLoading} className="w-full inline-flex items-center justify-center gap-3 rounded-2xl border border-border bg-secondary/40 px-5 py-4 text-sm font-medium text-foreground transition-all hover:border-primary/40 hover:bg-secondary/60 active:scale-[0.98] disabled:opacity-50 mb-6">
@@ -219,7 +221,7 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
           )}
           {error && <motion.p initial={{opacity:0,y:-4}} animate={{opacity:1,y:0}} className="text-xs text-red-400 mb-4 text-center">{error}</motion.p>}
           <NumericPin mode="unlock" onSuccess={handlePinSuccess} />
-          <button onClick={() => setShowForgot(true)} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-4 mt-4">Forgot PIN?</button>
+          <button onClick={() => setShowForgot(true)} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-4 mt-4">{t("gate.forgot_pin")}</button>
         </motion.div>
       </div>
     );
@@ -240,15 +242,15 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
 
           <button onClick={() => setShowInfo(!showInfo)} className="flex items-center gap-1.5 mb-6 text-xs text-muted-foreground/50 hover:text-muted-foreground/70 transition-colors">
             <Info className="h-3 w-3" />
-            <span>Why a password, not a login?</span>
+            <span>{t("gate.why_a_password_not_a_login")}</span>
           </button>
 
           <AnimatePresence>
             {showInfo && (
               <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden mb-6">
                 <div className="rounded-xl bg-muted border border-border p-4 text-xs text-muted-foreground/70 leading-relaxed space-y-2">
-                  <p><strong className="text-foreground">LEXIS is free, local, and private.</strong> No accounts, no servers, no subscriptions.</p>
-                  <p>Your password stays <strong className="text-foreground">on this device only</strong>. Just a simple lock so your thoughts stay yours.</p>
+                  <p><strong className="text-foreground">{t("gate.orleia_is_free_local_and_private")}</strong>{t("gate.no_accounts_no_servers_no_subscriptions")}</p>
+                  <p>{t("gate.your_password_stays")}<strong className="text-foreground">on this device only</strong>. Just a simple lock so your thoughts stay yours.</p>
                 </div>
               </motion.div>
             )}
@@ -256,7 +258,7 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
 
           <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-3">
             <div className="relative">
-              <input id="lexis-password" name="lexis-password" autoComplete="new-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isSetup ? "Choose a password..." : "Enter your password..."} autoFocus disabled={submitting} className="w-full rounded-xl border border-border bg-background px-4 py-3 pr-10 text-sm placeholder:text-muted-foreground/40 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 transition-all duration-200" />
+              <input id="orleia-password" name="orleia-password" autoComplete="new-password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isSetup ? "Choose a password..." : "Enter your password..."} autoFocus disabled={submitting} className="w-full rounded-xl border border-border bg-background px-4 py-3 pr-10 text-sm placeholder:text-muted-foreground/40 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 transition-all duration-200" />
               <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors" tabIndex={-1} type="button">
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -265,7 +267,7 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
             <AnimatePresence>
               {isSetup && (
                 <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="relative">
-                  <input id="lexis-confirm-password" name="lexis-confirm-password" autoComplete="new-password" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm your password..." disabled={submitting} className="w-full rounded-xl border border-border bg-background px-4 py-3 pr-10 text-sm placeholder:text-muted-foreground/40 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 transition-all duration-200" />
+                  <input id="orleia-confirm-password" name="orleia-confirm-password" autoComplete="new-password" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder={t("gate.confirm_your_password")} disabled={submitting} className="w-full rounded-xl border border-border bg-background px-4 py-3 pr-10 text-sm placeholder:text-muted-foreground/40 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500/50 transition-all duration-200" />
                   <button onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors" tabIndex={-1} type="button">
                     {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -276,15 +278,15 @@ export function PasswordGate({ mode, onUnlock, showSkip = false, onResetComplete
             {error && <motion.p initial={{opacity:0,y:-4}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-4}} className="text-xs text-zinc-400">{error}</motion.p>}
 
             <button onClick={handleSubmit} disabled={submitting} className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-foreground px-5 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98] mt-1 disabled:opacity-50 disabled:cursor-not-allowed">
-              {submitting ? "Processing..." : isSetup ? <>Set password<ArrowRight className="h-3.5 w-3.5" /></> : <>Unlock<ArrowRight className="h-3.5 w-3.5" /></>}
+              {submitting ? "Processing..." : isSetup ? <>{t("gate.set_password")}<ArrowRight className="h-3.5 w-3.5" /></> : <>{t("gate.unlock_2")}<ArrowRight className="h-3.5 w-3.5" /></>}
             </button>
 
             {isSetup && showSkip && (
-              <button onClick={() => onUnlock()} disabled={submitting} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-1 disabled:opacity-50">Skip</button>
+              <button onClick={() => onUnlock()} disabled={submitting} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-1 disabled:opacity-50">{t("gate.skip")}</button>
             )}
 
             {!isSetup && (
-              <button onClick={() => setShowForgot(true)} disabled={submitting} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-1 disabled:opacity-50">Forgot password?</button>
+              <button onClick={() => setShowForgot(true)} disabled={submitting} className="w-full text-center text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors py-1 disabled:opacity-50">{t("gate.forgot_password")}</button>
             )}
           </form>
         </motion.div>

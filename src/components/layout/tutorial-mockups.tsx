@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Miniature visual previews of every Lexis page, used to anchor the
+ * Miniature visual previews of every Orleia page, used to anchor the
  * onboarding slides and the tutorial walkthrough. Pure CSS/Tailwind -
  * no canvas, no images, no framer-motion (which is disabled on touch
  * devices) - so they render identically on phone, tablet and desktop.
@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 function Frame({
   children,
   className,
-  title = "Lexis",
+  title = "Orleia",
 }: {
   children: React.ReactNode;
   className?: string;
@@ -225,6 +225,56 @@ export function HabitsMock() {
             />
           ))}
         </div>
+      </div>
+    </Frame>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 4b. Projects & Office                                               */
+/* ------------------------------------------------------------------ */
+
+export function ProjectsMock() {
+  return (
+    <Frame title="Projects">
+      <div className="space-y-2.5">
+        {/* Project header card */}
+        <Card>
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-[3px] bg-primary-500/70" />
+            <Bar w="55%" className="bg-foreground/30" />
+            <span className="ml-auto text-[8px] text-muted-foreground/50">2/5</span>
+          </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-muted">
+            <span className="block h-full w-2/5 rounded-full bg-primary-500/70" />
+          </div>
+        </Card>
+        {/* Attached items */}
+        {[
+          { w: "62%", icon: "task" },
+          { w: "48%", icon: "note" },
+          { w: "55%", icon: "task" },
+          { w: "40%", icon: "file" },
+        ].map((row, i) => (
+          <Card key={i} className="flex items-center gap-2">
+            <span
+              className={cn(
+                "h-2 w-2 rounded-[2px]",
+                row.icon === "task" ? "bg-primary-500/50" : row.icon === "note" ? "bg-muted-foreground/40" : "bg-border"
+              )}
+            />
+            <Bar w={row.w} className={i === 1 ? "bg-foreground/20" : "bg-foreground/25"} />
+          </Card>
+        ))}
+        {/* Deck strip */}
+        <Card className="flex items-center gap-2">
+          <span className="text-[8px] text-muted-foreground/50">Deck</span>
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="h-3 w-5 rounded-[2px] border border-border bg-secondary" />
+            ))}
+          </div>
+        </Card>
       </div>
     </Frame>
   );

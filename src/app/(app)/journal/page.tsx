@@ -10,20 +10,17 @@ import {
   Search,
   Plus,
   X,
-  Mic,
-  Square,
-  Loader2,
   Check,
   Link as LinkIcon,
 } from "lucide-react";
 import { MoodFace } from "@/components/MoodFace";
 import { Wellness } from "@/components/journal/Wellness";
 import { storage } from "@/lib/storage";
+import { useHydrated, useFirstVisit } from "@/lib/use-hydrated";
 import { ai } from "@/lib/ai";
 import { cn, getToday, formatDate, getMoodScore } from "@/lib/utils";
 import { Mood, JournalEntry, MOODS, ReflectionPrompt } from "@/types";
 import { useI18n } from "@/lib/i18n";
-import { useVoiceDictation } from "@/lib/useVoiceDictation";
 import { Highlight } from "@/components/Highlight";
 import NextLink from "next/link";
 import { rebuildGraph } from "@/lib/graph/engine";
@@ -32,17 +29,29 @@ import { rebuildGraph } from "@/lib/graph/engine";
 export default function JournalPage() {
   const { t } = useI18n();
   const [data, setData] = useState(storage.getData());
+  const hydrated = useHydrated();
+  const enter = useFirstVisit("journal");
   const [search, setSearch] = useState("");
   const [showEntry, setShowEntry] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [tab, setTab] = useState<"journal" | "wellness">("journal");
 
   const refresh = () => setData({ ...storage.getData() });
   useEffect(() => storage.subscribe(() => setData({ ...storage.getData() })), []);
 
   const today = getToday();
-  const todayEntry = data.journalEntries.find((e) => e.date === today);
 
-  const entries = data.journalEntries
+  // Normalize entries written by older app versions that may lack title/gratitude.
+  const allEntries = (data.journalEntries || []).map((e) => ({
+    ...e,
+    title: e.title ?? "",
+    content: e.content ?? "",
+    gratitude: Array.isArray(e.gratitude) ? e.gratitude : [],
+  }));
+
+  const todayEntry = allEntries.find((e) => e.date === today);
+
+  const entries = allEntries
     .filter((e) => {
       if (search) {
         const q = search.toLowerCase();
@@ -52,7 +61,7 @@ export default function JournalPage() {
     })
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const monthEntries = data.journalEntries.filter((e) => {
+  const monthEntries = allEntries.filter((e) => {
     const d = new Date(e.date);
     const now = new Date();
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -81,12 +90,36 @@ export default function JournalPage() {
       .slice(0, 3);
   };
 
+  // Hydration gate: the SSR tree shows default data, then hydration swaps
+  // in real localStorage data and replays every entrance animation —
+  // the "blocks double load" flicker. Show a static skeleton until
+  // mounted; real content then mounts once, cleanly.
+  if (!hydrated) {
+    return (
+      <div className="relative space-y-6 md:space-y-8" aria-busy="true" aria-live="polite">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-40 animate-pulse rounded-lg bg-muted" />
+            <div className="h-3 w-56 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-9 w-24 animate-pulse rounded-xl bg-muted" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+        <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative space-y-6 md:space-y-8">
 
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={enter ? { opacity: 0, y: 12 } : false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
         className="flex items-start justify-between gap-4 relative"
@@ -97,7 +130,7 @@ export default function JournalPage() {
             {t("journal.subtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0 mt-12">
+        <div className="flex items-center gap-3 shrink-0">
           {/* Streak badge */}
           {journalStreak.current > 0 && (
             <div className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 md:px-3 md:py-2">
@@ -110,9 +143,9 @@ export default function JournalPage() {
           )}
           <button
             onClick={() => { setSelectedDate(today); setShowEntry(true); }}
-            className="btn-primary flex items-center gap-2"
+            className="flex items-center gap-2 rounded-xl border border-foreground/20 bg-background/40 px-3.5 py-2 text-sm font-medium text-foreground/60 backdrop-blur-md transition-all hover:border-foreground/40 hover:text-foreground active:scale-95"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
             <span className="hidden sm:inline">
               {todayEntry ? t("journal.editToday") : t("journal.writeToday")}
             </span>
@@ -120,9 +153,31 @@ export default function JournalPage() {
         </div>
       </motion.div>
 
+      {/* Tab pill - Journal / Wellness */}
+      <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
+        {(["journal", "wellness"] as const).map((key) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-sm font-medium transition-all active:scale-95",
+              tab === key
+                ? "bg-background text-foreground shadow-sm border border-border"
+                : "text-muted-foreground hover:text-foreground border border-transparent"
+            )}
+          >
+            {t(key === "journal" ? "journal.tabJournal" : "journal.tabWellness")}
+          </button>
+        ))}
+      </div>
+
+      {tab === "journal" && (
+        <>
       {/* Mood Overview - faces + counts in one block */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={enter ? { opacity: 0, y: 12 } : false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
         className="relative"
@@ -160,16 +215,6 @@ export default function JournalPage() {
         </div>
       </motion.div>
 
-      {/* Wellness - breathing & meditation */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.14, duration: 0.35, ease: "easeOut" }}
-        className="relative"
-      >
-        <Wellness />
-      </motion.div>
-
       {/* Search */}      {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -184,7 +229,7 @@ export default function JournalPage() {
       {/* Today's Entry Preview */}
       {todayEntry && (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={enter ? { opacity: 0, y: 12 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
           className="card relative"
@@ -252,7 +297,7 @@ export default function JournalPage() {
                   return (
                     <motion.div
                       key={entry.id}
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={enter ? { opacity: 0, y: 12 } : false}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.03 * i, duration: 0.35, ease: "easeOut" }}
                       className="card cursor-pointer transition-all hover:bg-secondary/50"
@@ -297,7 +342,7 @@ export default function JournalPage() {
 
       {entries.length === 0 && (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={enter ? { opacity: 0, y: 12 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
           className="relative flex flex-col items-center justify-center py-20 text-center"
@@ -312,11 +357,24 @@ export default function JournalPage() {
             {search ? t("journal.tryDifferent") : t("journal.startJourney")}
           </p>
           {!search && (
-            <button onClick={() => { setSelectedDate(today); setShowEntry(true); }} className="btn-primary flex items-center gap-2">
-              <Plus className="h-4 w-4" />
+            <button onClick={() => { setSelectedDate(today); setShowEntry(true); }} className="flex items-center gap-2 rounded-xl border border-foreground/20 bg-background/40 px-3.5 py-2 text-sm font-medium text-foreground/60 backdrop-blur-md transition-all hover:border-foreground/40 hover:text-foreground active:scale-95">
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
               {t("journal.writeFirst")}
             </button>
           )}
+        </motion.div>
+      )}
+        </>
+      )}
+
+      {tab === "wellness" && (
+        <motion.div
+          initial={enter ? { opacity: 0, y: 12 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="relative"
+        >
+          <Wellness embedded />
         </motion.div>
       )}
 
@@ -325,7 +383,7 @@ export default function JournalPage() {
         {showEntry && (
           <JournalEntryModal
             date={selectedDate || today}
-            existingEntry={selectedDate ? data.journalEntries.find((e) => e.date === selectedDate) : undefined}
+            existingEntry={selectedDate ? allEntries.find((e) => e.date === selectedDate) : undefined}
             onSave={(entryData) => {
               const entry = storage.createJournalEntry(entryData);
               // Wire mentioned tasks into the Brain graph.
@@ -358,22 +416,7 @@ function JournalEntryModal({
   onSave: (data: any) => void;
   onClose: () => void;
 }) {
-  const { t, lang } = useI18n();
-  const {
-    supported: voiceSupported,
-    listening: voiceListening,
-    processing: voiceProcessing,
-    duration: voiceDuration,
-    start: startVoice,
-    stop: stopVoice,
-    formatDuration,
-  } = useVoiceDictation({
-    lang,
-    onFinal: (text) => {
-      if (!text.trim()) return;
-      setContent((c) => (c ? c.trimEnd() + "\n\n" : "") + text.trim());
-    },
-  });
+  const { t } = useI18n();
   const [title, setTitle] = useState(existingEntry?.title || "");
   const [content, setContent] = useState(existingEntry?.content || "");
   const [mood, setMood] = useState<Mood>(existingEntry?.mood || "neutral");
@@ -383,7 +426,7 @@ function JournalEntryModal({
     existingEntry?.reflectionPrompts || []
   );
   const [draftSaved, setDraftSaved] = useState(false);
-  const DRAFT_KEY = "lexis-journal-draft";
+  const DRAFT_KEY = "orleia-journal-draft";
 
   // Restore an unsaved draft when writing a fresh entry
   useEffect(() => {
@@ -435,7 +478,7 @@ function JournalEntryModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
       onClick={onClose}
     >
       <motion.div
@@ -498,39 +541,6 @@ function JournalEntryModal({
               placeholder={t("journal.whatHappened")}
               className="w-full min-h-[200px] bg-muted rounded-xl p-3 border-none outline-none resize-none text-sm leading-relaxed"
             />
-            <div className="absolute top-2 right-2 flex items-center gap-2">
-              {voiceListening || voiceProcessing ? (
-                <div className="flex items-center gap-2 rounded-full bg-red-500/15 px-3 py-1">
-                  {voiceProcessing ? (
-                    <Loader2 className="h-4 w-4 text-red-500 animate-spin" />
-                  ) : (
-                    <Mic className="h-4 w-4 text-red-500 animate-pulse" />
-                  )}
-                  {voiceListening && (
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      {formatDuration(voiceDuration)}
-                    </span>
-                  )}
-                  <button
-                    onClick={stopVoice}
-                    aria-label={t("assistant.stop")}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white transition-transform duration-150 active:scale-90"
-                  >
-                    <Square className="h-2.5 w-2.5 fill-current" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={startVoice}
-                  disabled={!voiceSupported}
-                  title={voiceSupported ? t("assistant.tapToSpeak") : t("assistant.voiceUnsupported")}
-                  aria-label={t("assistant.tapToSpeak")}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 bg-secondary/40 text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-                >
-                  <Mic className="h-4 w-4" />
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Gratitude */}

@@ -6,11 +6,16 @@
 // reminders that browser notifications use - but it works on
 // EVERY device (including iOS Safari, where the Notification
 // API doesn't exist). Fully local, zero servers.
+//
+// Push split (notifications while the app is CLOSED):
+//   - visible: server push schedule is kept EMPTY (in-app owns it)
+//   - hidden / closed: a forward-looking schedule is uploaded via
+//     sendBeacon, and the cron pushes those through the service worker
 // ============================================================
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Check, X, Flame, Clock, MessageSquare, BellOff, Wind } from "lucide-react";
+import { Bell, Check, X, Flame, Clock, MessageSquare, BellOff, Wind, CalendarDays } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { getGraph, ensureWired } from "@/lib/graph/engine";
 import {
@@ -23,8 +28,18 @@ import {
 } from "@/lib/reminders";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import {
+  buildFutureSchedule,
+  clearPushSchedule,
+  registerPushOnServer,
+  isPushSupported,
+  ensureServiceWorker,
+  beaconSchedule,
+  uploadSchedule,
+} from "@/lib/push-reminders";
 
 const KIND_ICON: Record<ReminderItem["kind"], typeof Flame> = {
+  event: CalendarDays,
   habit: Flame,
   task: Clock,
   mention: MessageSquare,
@@ -32,6 +47,17 @@ const KIND_ICON: Record<ReminderItem["kind"], typeof Flame> = {
 };
 
 const KEY_OF = (i: ReminderItem) => `${i.kind}:${i.id}`;
+
+/** Light tick for bell presses (no-op where vibration is unsupported). */
+const hapticTick = () => {
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(8);
+    }
+  } catch {
+    /* ignore */
+  }
+};
 
 function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -65,7 +91,7 @@ export function ReminderCenter() {
       ensureWired();
       const list = pendingReminders(storage.getData(), getGraph());
       setItems(list);
-      window.dispatchEvent(new CustomEvent("lexis:reminders-count", { detail: list.length }));
+      window.dispatchEvent(new CustomEvent("orleia:reminders-count", { detail: list.length }));
       checkAndNotify();
       const keys = new Set(list.map(KEY_OF));
       if (bootRef.current) {
@@ -84,24 +110,160 @@ export function ReminderCenter() {
     }
   };
 
+  // ---- Push while the app is CLOSED -----------------------------
+  // ALWAYS-ON schedule sync: the forward-looking schedule is uploaded
+  // on open, on every data change (debounced), on a timer, and on hide.
+  // The old design armed the schedule ONLY on pagehide — mobile browsers
+  // usually skip that event when an app is swiped away, so the server
+  // never learned the schedule and background push silently died.
+  const pushAllowed = () => {
+    try {
+      const settings = getReminderSettings();
+      return (
+        settings.enabled &&
+        settings.desktopNotifications !== false &&
+        isPushSupported() &&
+        typeof Notification !== "undefined" &&
+        Notification.permission === "granted"
+      );
+    } catch {
+      return false;
+    }
+  };
+
+  /** Full (async) sync — open, data changes, timer. */
+  const syncSchedule = () => {
+    if (!pushAllowed()) {
+      clearPushSchedule().catch(() => {});
+      return;
+    }
+    uploadSchedule(buildFutureSchedule(storage.getData()));
+  };
+
+  const pushOnHide = () => {
+    try {
+      const settings = getReminderSettings();
+      if (
+        !settings.enabled ||
+        settings.desktopNotifications === false ||
+        !isPushSupported() ||
+        typeof Notification === "undefined" ||
+        Notification.permission !== "granted"
+      ) {
+        beaconScheduleFromCache([]); // opt-out: keep the server empty
+        return;
+      }
+      beaconScheduleFromCache(buildFutureSchedule(storage.getData()));
+    } catch {
+      // best-effort: nothing we can do during teardown
+    }
+  };
+
+  /** Beacon needs the endpoint synchronously — read it from localStorage. */
+  const beaconScheduleFromCache = (items: ReturnType<typeof buildFutureSchedule>) => {
+    try {
+      const endpoint = localStorage.getItem("orleia-push-endpoint");
+      if (!endpoint) return;
+      beaconSchedule(endpoint, items);
+    } catch {
+      // ignore
+    }
+  };
+
+  // Register the service worker + subscription on open, then upload the
+  // schedule immediately — the server can notify even if the tab never
+  // gets a proper hide/close event.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      ensureServiceWorker()
+        .then(() => registerPushOnServer())
+        .then(() => syncSchedule())
+        .catch(() => {});
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  // Ask for notification permission ONCE, on a real user gesture —
+  // browsers block unprompted permission requests, so without this the
+  // app can never deliver notifications on a fresh device.
+  useEffect(() => {
+    if (typeof Notification === "undefined" || Notification.permission !== "default") return;
+    const flag = "orleia-push-asked";
+    try {
+      if (localStorage.getItem(flag)) return;
+    } catch {
+      return;
+    }
+    const ask = () => {
+      try {
+        localStorage.setItem(flag, "1");
+      } catch {
+        /* ignore */
+      }
+      try {
+        void Notification.requestPermission();
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener("pointerdown", ask);
+      window.removeEventListener("keydown", ask);
+    };
+    window.addEventListener("pointerdown", ask);
+    window.addEventListener("keydown", ask);
+    return () => {
+      window.removeEventListener("pointerdown", ask);
+      window.removeEventListener("keydown", ask);
+    };
+  }, []);
+
+  // Hidden -> re-arm via beacon (fastest path). Visible -> nothing to do:
+  // the service worker swallows system pushes while a window is visible,
+  // so leaving the schedule armed can never double-notify.
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") pushOnHide();
+    };
+    const onHide = () => pushOnHide();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pagehide", onHide);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Bootstrap + keep in sync with data changes, a periodic re-check,
   // and tab visibility.
   useEffect(() => {
     const unsub = storage.subscribe(refresh);
     const t0 = window.setTimeout(refresh, 4000);
     const iv = window.setInterval(refresh, 5 * 60 * 1000);
+    // Re-upload the schedule periodically (window shift) and after every
+    // data change (debounced) — new/edited reminders reach the server
+    // without depending on the user hiding the tab.
+    const syncIv = window.setInterval(syncSchedule, 15 * 60 * 1000);
+    let syncTimer: number | undefined;
+    const onData = () => {
+      if (syncTimer) window.clearTimeout(syncTimer);
+      syncTimer = window.setTimeout(syncSchedule, 2000);
+    };
+    const unsubData = storage.subscribe(onData);
     const onVis = () => {
       if (document.visibilityState === "visible") refresh();
     };
     document.addEventListener("visibilitychange", onVis);
     const onToggle = () => setOpen((o) => !o);
-    window.addEventListener("lexis:toggle-reminders", onToggle);
+    window.addEventListener("orleia:toggle-reminders", onToggle);
     return () => {
       unsub();
+      unsubData();
       window.clearTimeout(t0);
       window.clearInterval(iv);
+      window.clearInterval(syncIv);
+      if (syncTimer) window.clearTimeout(syncTimer);
       document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("lexis:toggle-reminders", onToggle);
+      window.removeEventListener("orleia:toggle-reminders", onToggle);
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -121,21 +283,6 @@ export function ReminderCenter() {
 
   return (
     <>
-      {/* Mobile floating bell (desktop uses the sidebar bell). Hidden on
-          Noor - it's a full-screen interface and the bell would float over
-          the composer. NOTE: only `fixed` - never mix with `relative`, that
-          pulls it into the flex row and shoves the whole page off-center. */}
-      {pathname !== "/noor" && (
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-24 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-lg transition-all duration-200 active:scale-95 md:hidden"
-        aria-label={t("reminders.bell")}
-      >
-        <Bell className="h-5 w-5" />
-        <Badge count={items.length} />
-      </button>
-      )}
-
       {/* Panel - right drawer. Pure CSS slide: framer's touch-device
           animation kill-switch would otherwise snap it open/closed on
           phones/tablets. Respects data-reduced-motion via the global CSS. */}
@@ -167,7 +314,7 @@ export function ReminderCenter() {
               )}
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="rounded-lg p-2.5 -m-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label={t("reminders.dismiss")}
               >
                 <X className="h-4 w-4" />
@@ -248,7 +395,7 @@ export function ReminderCenter() {
               <span className="block truncate text-sm font-semibold">{toast?.title}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground leading-snug">
                 {toast?.body}
-                {toast && toastMore > 0 ? ` · +${toastMore} ${t("reminders.more")}` : ""}
+                {toast && toastMore > 0 ? ` Â· +${toastMore} ${t("reminders.more")}` : ""}
               </span>
             </span>
             <button
@@ -273,13 +420,13 @@ export function ReminderBell({ collapsed }: { collapsed: boolean }) {
 
   useEffect(() => {
     const onCount = (e: Event) => setCount((e as CustomEvent<number>).detail || 0);
-    window.addEventListener("lexis:reminders-count", onCount);
-    return () => window.removeEventListener("lexis:reminders-count", onCount);
+    window.addEventListener("orleia:reminders-count", onCount);
+    return () => window.removeEventListener("orleia:reminders-count", onCount);
   }, []);
 
   return (
     <button
-      onClick={() => window.dispatchEvent(new CustomEvent("lexis:toggle-reminders"))}
+      onClick={() => { hapticTick(); window.dispatchEvent(new CustomEvent("orleia:toggle-reminders")); }}
       className={cn(
         "relative hidden md:flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs text-muted-foreground/60 transition-all duration-200 hover:text-foreground hover:bg-sidebar-hover",
         collapsed && "justify-center px-2"

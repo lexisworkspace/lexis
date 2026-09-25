@@ -27,7 +27,7 @@ function isAndroidChrome(): boolean {
   return isAndroid && !isStandalone;
 }
 
-const DISMISS_KEY = "lexis-pwa-prompt-dismissed";
+const DISMISS_KEY = "orleia-pwa-prompt-dismissed";
 
 export function PWAInstallPrompt() {
   const [show, setShow] = useState(false);
@@ -84,8 +84,8 @@ export function PWAInstallPrompt() {
                 <Smartphone className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-sm font-bold">Install Lexis</h3>
-                <p className="text-xs text-muted-foreground">Add to your home screen</p>
+                <h3 className="text-sm font-bold">{t("pwa.install_orleia")}</h3>
+                <p className="text-xs text-muted-foreground">{t("pwa.add_to_your_home_screen")}</p>
               </div>
             </div>
             <button onClick={dismiss} className="rounded-lg p-1 text-muted-foreground hover:bg-accent">
@@ -101,8 +101,8 @@ export function PWAInstallPrompt() {
                   1
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Tap the Share button</p>
-                  <p className="text-xs text-muted-foreground">The square icon with an arrow in the bottom toolbar</p>
+                  <p className="text-sm font-medium">{t("pwa.tap_the_share_button")}</p>
+                  <p className="text-xs text-muted-foreground">{t("pwa.the_square_icon_with_an_arrow_in_the_bot")}</p>
                 </div>
                 <Share className="ml-auto h-5 w-5 shrink-0 text-muted-foreground" />
               </div>
@@ -114,7 +114,7 @@ export function PWAInstallPrompt() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Tap &ldquo;Add to Home Screen&rdquo;</p>
-                  <p className="text-xs text-muted-foreground">Scroll down in the share menu</p>
+                  <p className="text-xs text-muted-foreground">{t("pwa.scroll_down_in_the_share_menu")}</p>
                 </div>
                 <Plus className="ml-auto h-5 w-5 shrink-0 text-muted-foreground" />
               </div>
@@ -126,7 +126,7 @@ export function PWAInstallPrompt() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Tap &ldquo;Add&rdquo;</p>
-                  <p className="text-xs text-muted-foreground">Lexis will appear on your home screen</p>
+                  <p className="text-xs text-muted-foreground">{t("pwa.orleia_will_appear_on_your_home_screen")}</p>
                 </div>
               </div>
 
@@ -150,7 +150,7 @@ export function PWAInstallPrompt() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Tap the ⋮ menu button</p>
-                  <p className="text-xs text-muted-foreground">Top-right corner of Chrome</p>
+                  <p className="text-xs text-muted-foreground">{t("pwa.top_right_corner_of_chrome")}</p>
                 </div>
               </div>
               <div className="flex gap-3 rounded-xl bg-accent p-3">
@@ -159,16 +159,14 @@ export function PWAInstallPrompt() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Tap &ldquo;Install app&rdquo; or &ldquo;Add to Home screen&rdquo;</p>
-                  <p className="text-xs text-muted-foreground">You may need to scroll down</p>
+                  <p className="text-xs text-muted-foreground">{t("pwa.you_may_need_to_scroll_down")}</p>
                 </div>
                 <Plus className="ml-auto h-5 w-5 shrink-0 text-muted-foreground" />
               </div>
               <button
                 onClick={dismiss}
                 className="w-full rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
-              >
-                Got it!
-              </button>
+              >{t("pwa.got_it")}</button>
             </div>
           )}
 

@@ -55,7 +55,7 @@ function mdToHtml(md: string): string {
 }
 
 /**
- * Import parsed tasks + documents into the live Lexis data.
+ * Import parsed tasks + documents into the live Orleia data.
  * - Tasks map to lists by name (created on demand), keep priority/due/status/tags.
  * - Documents map to folders by name (created on demand), content converted to HTML.
  * - Dedup: skip items whose title already exists (case-insensitive) to avoid
@@ -132,7 +132,7 @@ export function commitImport(
       completedAt: t.status === "done" ? now : null,
       tags: t.tags || [],
       listId: listIdFor(t.list),
-      recurring: "none",
+      projectId: null, recurring: "none",
       recurringDays: undefined,
       recurringEndDate: null,
       estimatedMinutes: null,
@@ -167,6 +167,7 @@ export function commitImport(
       archived: false,
       favorite: false,
       attachments: [],
+      projectId: null,
       createdAt: now,
       updatedAt: now,
     });

@@ -8,7 +8,7 @@ import { User, LogOut, Monitor, Smartphone, Tablet, Cloud, Check } from "lucide-
 export function SyncSettings({ refresh }: { refresh: () => void }) {
   const { t } = useI18n();
   const { user, signOut, session } = useAuth();
-  const isGuest = typeof window !== "undefined" && localStorage.getItem("lexis-guest-mode") === "1";
+  const isGuest = typeof window !== "undefined" && localStorage.getItem("orleia-guest-mode") === "1";
 
   const providerName = user?.app_metadata?.provider === "google" ? "Google"
     : user?.app_metadata?.provider === "apple" ? "Apple"

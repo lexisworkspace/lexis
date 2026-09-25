@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis Brain - graph builder
+// Orleia Brain - graph builder
 // Pure function: AppData (+ optional AI concept cache) -> GraphIndex.
 // No storage/network imports - fully testable.
 // ============================================================

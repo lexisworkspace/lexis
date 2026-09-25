@@ -41,6 +41,9 @@ export type ActionType =
   | "export_data"
   | "read_data"
   | "update_settings"
+  | "create_event"
+  | "create_form"
+  | "create_board"
   | "navigate";
 
 // ============================================================
@@ -618,7 +621,7 @@ export function detectAction(query: string): AIAction {
   }
 
   // --- SEARCH (excluding navigation pages) ---
-  const navPages = ['dashboard', 'habits', 'tasks', 'notes', 'grid', 'noor', 'mindfulness', 'documents', 'settings'];
+  const navPages = ['dashboard', 'habits', 'tasks', 'notes', 'grid', 'noor', 'mindfulness', 'documents', 'settings', 'projects', 'deck', 'calendar', 'journal'];
   if (
     /\b(?:search|find|look\s+(?:up|for)|show\s+me)\b\s+(.+?)(?:\s+(?:in|about|for))?\s*(?:$|\.)/i.test(q) &&
     !/(?:create|add|make|write|delete|remove|log)\b/i.test(q) &&
@@ -633,6 +636,57 @@ export function detectAction(query: string): AIAction {
         type: "search_data",
         params: { query: searchMatch[1].trim() },
         confidence: 0.7,
+      };
+    }
+
+    // --- ORLEIA OFFICE: CALENDAR / FORMS / BOARD ---
+    // "schedule a meeting friday" / "add event dentist tomorrow 3pm"
+    const eventMatch = q.match(
+      /\b(?:schedule|add|create|put|new)\b.{0,20}?\b(event|meeting|appointment)\b(?:\s+(?:called|named|for|:))?\s*([\w\s-]+?)(?:\s+(?:on|at|this|next|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b.*)?$/i
+    );
+    if (eventMatch && !isQuestion) {
+      const title = eventMatch[2].trim();
+      if (title) {
+        const params: Record<string, any> = { title };
+        if (timeInfo?.dueDate) params.date = timeInfo.dueDate;
+        const tm = q.match(/\b(?:at|from)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+        if (tm) {
+          let h = parseInt(tm[1]);
+          const m = tm[2] ? tm[2] : "00";
+          const ap = tm[3]?.toLowerCase();
+          if (ap === "pm" && h < 12) h += 12;
+          if (ap === "am" && h === 12) h = 0;
+          params.time = `${String(h).padStart(2, "0")}:${m}`;
+        }
+        return { matched: true, type: "create_event", params, confidence: 0.8 };
+      }
+    }
+
+    // "create a feedback form" / "new form for workshop signups"
+    const formMatch = q.match(
+      /\b(?:create|add|make|new|generate)\b.{0,20}?\bform\b(?:\s+(?:called|named|for|about|to))?\s*([\w\s-]*)$/i
+    );
+    if (formMatch && !isQuestion) {
+      const subject = formMatch[1].trim();
+      return {
+        matched: true,
+        type: "create_form",
+        params: { subject: subject || "Untitled form" },
+        confidence: 0.8,
+      };
+    }
+
+    // "create a board" / "new whiteboard for the kitchen redesign"
+    const boardMatch = q.match(
+      /\b(?:create|add|make|new|start)\b.{0,20}?\b(?:board|whiteboard)\b(?:\s+(?:called|named|for|about))?\s*([\w\s-]*)$/i
+    );
+    if (boardMatch && !isQuestion) {
+      const subject = boardMatch[1].trim();
+      return {
+        matched: true,
+        type: "create_board",
+        params: { subject: subject || "Untitled board" },
+        confidence: 0.8,
       };
     }
   }
@@ -1043,7 +1097,7 @@ export function executeCreateTask(params: Record<string, any>): ActionResult<Tas
     completedAt: null,
     tags: params.tags || [],
     listId: params.listId || "inbox",
-    recurring: "none",
+    projectId: null, recurring: "none",
     recurringEndDate: null,
     estimatedMinutes: null,
   });
@@ -1160,7 +1214,7 @@ export function executeCreateNote(params: Record<string, any>): ActionResult<Not
     content: params.content || "",
     contentHtml: params.content || "",
     folderId: params.folderId || "general",
-    tags: params.tags || [],
+    projectId: null, tags: params.tags || [],
     pinned: false,
     archived: false,
     favorite: false,
@@ -1170,6 +1224,57 @@ export function executeCreateNote(params: Record<string, any>): ActionResult<Not
     success: true,
     message: `📓 Created a new document: **${note.title}**. You can find it in your Documents section.`,
     data: note,
+  };
+}
+
+// ============================================================
+// Orleia Office actions: Calendar / Forms / Board
+// ============================================================
+
+export function executeCreateEvent(params: Record<string, any>): ActionResult {
+  const ev = storage.addCalendarEvent({
+    title: params.title || "Untitled event",
+    date: params.date || getToday(),
+    time: params.time || null,
+    color: "#6366f1",
+    repeat: "none",
+    notes: "",
+  });
+  return {
+    success: true,
+    message: `📅 Scheduled **${ev.title}** on ${ev.date}${ev.time ? ` at ${ev.time}` : ""}. You'll find it in Calendar.`,
+    data: ev,
+  };
+}
+
+export function executeCreateForm(params: Record<string, any>): ActionResult {
+  const subject = params.subject || "Untitled form";
+  const form = storage.addForm({
+    title: subject,
+    description: "",
+    questions: [
+      { id: Math.random().toString(36).slice(2), type: "text", label: "Your feedback", options: [], required: false },
+      { id: Math.random().toString(36).slice(2), type: "rating", label: `How would you rate ${subject.toLowerCase()}?`, options: [], required: false },
+    ],
+  });
+  return {
+    success: true,
+    message: `📋 Created form **${form.title}** with 2 starter questions. Open Forms to edit it and share the link.`,
+    data: form,
+  };
+}
+
+export function executeCreateBoard(params: Record<string, any>): ActionResult {
+  const board = storage.addBoard({
+    name: params.subject || "Untitled board",
+    stickies: [],
+    shapes: [],
+    projectId: null,
+  });
+  return {
+    success: true,
+    message: `🎨 Created board **${board.name}**. Open Board to start adding stickies and sketches — or ask me to brainstorm ideas onto it.`,
+    data: board,
   };
 }
 
@@ -1303,12 +1408,12 @@ export function executeExportData(): ActionResult {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "lexis-backup.json";
+    a.download = "orleia-backup.json";
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     return {
       success: true,
-      message: "📦 Your full Lexis workspace was exported as **lexis-backup.json**.",
+      message: "📦 Your full Orleia workspace was exported as **orleia-backup.json**.",
     };
   } catch {
     return { success: false, message: "Export failed. Try Settings → Export instead." };
@@ -1317,9 +1422,24 @@ export function executeExportData(): ActionResult {
 export function executeNavigate(params: Record<string, any>): ActionResult {
   const page = params.page;
   if (!page) return { success: false, message: "Where would you like to go?" };
-  const validPages = ["dashboard", "habits", "tasks", "notes", "grid", "noor", "mindfulness", "documents"];
-  const target = validPages.find(p => p.toLowerCase() === page.toLowerCase());
-  if (!target) return { success: false, message: "I don't know where \"" + page + "\" is. Try: habits, tasks, notes, grid, noor, mindfulness, or documents." };
+  // Full app map: nav items + Office tools + aliases for anything the user
+  // might naturally call these (incl. the old Lexis-era names).
+  const validPages: Record<string, string> = {
+    "dashboard": "dashboard", "home": "dashboard",
+    "habits": "habits", "journal": "journal", "mindfulness": "journal", "wellness": "journal",
+    "tasks": "tasks", "todos": "tasks", "todo": "tasks",
+    "notes": "notes", "note": "notes",
+    "documents": "documents", "docs": "documents", "document": "documents",
+    "grid": "grid", "spreadsheet": "grid", "sheets": "grid",
+    "deck": "deck", "decks": "deck", "presentations": "deck", "slides": "deck",
+    "calendar": "calendar", "events": "calendar",
+    "projects": "projects", "project": "projects",
+    "noor": "noor", "chat": "noor", "ai": "noor",
+    "settings": "settings",
+  };
+  const norm = String(page).toLowerCase().trim();
+  const target = validPages[norm];
+  if (!target) return { success: false, message: "I don't know where \"" + page + "\" is. Try: dashboard, habits, journal, tasks, notes, documents, grid, deck, calendar, projects, noor, or settings." };
   if (typeof window !== "undefined") {
     window.location.href = target === "dashboard" ? "/" : "/" + target;
   }
@@ -1461,6 +1581,12 @@ export function executeAction(action: AIAction): ActionResult {
       return executeSearch(action.params);
     case "update_settings":
       return executeUpdateSettings(action.params);
+    case "create_event":
+      return executeCreateEvent(action.params);
+    case "create_form":
+      return executeCreateForm(action.params);
+    case "create_board":
+      return executeCreateBoard(action.params);
     case "export_data":
     case "navigate":
       return executeNavigate(action.params);
@@ -1487,7 +1613,8 @@ const ACTION_TYPES: ActionType[] = [
   "create_task", "complete_task", "update_task", "delete_task",
   "create_journal", "update_journal",
   "create_note", "update_note", "delete_note",
-  "search_data", "export_data", "read_data", "update_settings", 
+  "search_data", "export_data", "read_data", "update_settings",
+  "create_event", "create_form", "create_board",
 ];
 
 function isActionType(v: string): v is ActionType {
@@ -1515,7 +1642,7 @@ export {
 };
 
 /**
- * Scan a reply for embedded LEXIS_ACTION { ... } blocks (the LLM's tool
+ * Scan a reply for embedded ORLEIA_ACTION { ... } blocks (the LLM's tool
  * contract: it emits one line to request an action, then a confirmation
  * sentence). Execute every block for real and return the reply with each
  * block replaced by its natural confirmation message - so the user never
@@ -1548,6 +1675,9 @@ const ACTION_VERB: Record<string, string> = {
   create_task: "created",
   create_note: "created",
   create_journal: "created",
+  create_event: "scheduled",
+  create_form: "created",
+  create_board: "created",
   create_routine: "created",
   log_habit: "logged",
   unlog_habit: "unlogged",
@@ -1570,6 +1700,9 @@ const ACTION_NOUN: Record<string, string> = {
   create_task: "task",
   create_note: "note",
   create_journal: "journal entry",
+  create_event: "calendar event",
+  create_form: "form",
+  create_board: "board",
   create_routine: "routine",
   log_habit: "habit",
   unlog_habit: "habit",
@@ -1672,7 +1805,7 @@ function normalizeTime(v: string): string {
 /**
  * Replace placeholder values the model sometimes emits (e.g. "<tomorrow's
  * YYYY-MM-DD>", "<today>", "<HH:MM>") with real computed values, so a task
- * created from a LEXIS_ACTION block always gets an actual date, not a
+ * created from a ORLEIA_ACTION block always gets an actual date, not a
  * literal string the user would see in their Tasks list.
  */
 function resolvePlaceholders(json: string): string {

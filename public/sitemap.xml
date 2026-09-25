@@ -1,73 +1,109 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://lexisapp.xyz/</loc>
+    <loc>https://www.orleia.app/</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/what-is-lexis</loc>
-    <changefreq>monthly</changefreq>
+    <loc>https://www.orleia.app/noor</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/notion-alternative</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://lexisapp.xyz/obsidian-alternative</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-  <url>
-    <loc>https://lexisapp.xyz/local-first-productivity</loc>
+    <loc>https://www.orleia.app/what-is-orleia</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/privacy</loc>
+    <loc>https://www.orleia.app/local-first-productivity</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/notion-alternative</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/obsidian-alternative</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/privacy</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/terms</loc>
+    <loc>https://www.orleia.app/terms</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/disclaimer</loc>
+    <loc>https://www.orleia.app/cookies</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/refund</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/gdpr</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/ccpa</loc>
+    <lastmod>2026-09-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://www.orleia.app/accessibility</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/cookies</loc>
+    <loc>https://www.orleia.app/disclaimer</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/eula</loc>
+    <loc>https://www.orleia.app/eula</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://lexisapp.xyz/gdpr</loc>
+    <loc>https://www.orleia.app/acceptable-use</loc>
+    <lastmod>2026-09-16</lastmod>
     <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
+    <priority>0.3</priority>
   </url>
-  <url>
-    <loc>https://lexisapp.xyz/ccpa</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
+    <url>
+    <loc>https://www.orleia.app/pricing</loc>
+    <lastmod>2026-09-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
   </url>
-  <url>
-    <loc>https://lexisapp.xyz/acceptable-use</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
-  </url>
-  <url>
-    <loc>https://lexisapp.xyz/accessibility</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
+<url>
+    <loc>https://www.orleia.app/changelog</loc>
+    <lastmod>2026-09-16</lastmod>
   </url>
 </urlset>

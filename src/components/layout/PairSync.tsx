@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import type { PairAction } from "@/lib/pair-actions";
 
 /* ------------------------------------------------------------------ */
-/* The desktop pairing bridge (only exists inside Lexis Desktop).     */
+/* The desktop pairing bridge (only exists inside Orleia Desktop).     */
 /* In a plain browser tab there is nothing to pair with, so the step  */
 /* explains that instead of failing.                                  */
 /* ------------------------------------------------------------------ */
@@ -21,7 +21,7 @@ interface PairingInfo {
   expiresAt: number;
 }
 
-interface LexisPairingApi {
+interface OrleiaPairingApi {
   available: boolean;
   start: () => Promise<PairingInfo>;
   stop: () => Promise<boolean>;
@@ -31,15 +31,15 @@ interface LexisPairingApi {
 
 declare global {
   interface Window {
-    lexisPairing?: LexisPairingApi;
+    orleiaPairing?: OrleiaPairingApi;
   }
 }
 
 export function PairSync({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) {
   const { t } = useI18n();
-  const pairing = typeof window !== "undefined" ? window.lexisPairing : undefined;
+  const pairing = typeof window !== "undefined" ? window.orleiaPairing : undefined;
   const [state, setState] = useState<"checking" | "unavailable" | "starting" | "active" | "error">(
-    typeof window !== "undefined" && window.lexisPairing ? "starting" : "checking"
+    typeof window !== "undefined" && window.orleiaPairing ? "starting" : "checking"
   );
   const [info, setInfo] = useState<PairingInfo | null>(null);
   const [qrData, setQrData] = useState<string>("");
@@ -96,7 +96,7 @@ export function PairSync({ onDone, onSkip }: { onDone: () => void; onSkip: () =>
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
       <div className="mt-14 flex w-full justify-center md:mt-16">
         <p className="text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-          LEXIS<span className="text-foreground/60">OS</span>
+          ORLEIA<span className="text-foreground/60">OS</span>
         </p>
       </div>
 
@@ -180,7 +180,7 @@ export function PairSync({ onDone, onSkip }: { onDone: () => void; onSkip: () =>
           )}
           {state === "unavailable" && (
             <a
-              href="https://lexisapp.xyz"
+              href="https://www.orleia.app"
               target="_blank"
               rel="noreferrer"
               className="inline-flex w-full items-center justify-center rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]"

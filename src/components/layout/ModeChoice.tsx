@@ -5,20 +5,20 @@ import { motion } from "framer-motion";
 import { LayoutGrid, PenTool, Copy, Check, Lock } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
-import type { LexisMode } from "@/types";
+import type { OrleiaMode } from "@/types";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
-/* The big choice: how do you want to use Lexis?                      */
+/* The big choice: how do you want to use Orleia?                      */
 /* Workspace (available now, the default) vs Canvas / Clone (soon).   */
 /* ------------------------------------------------------------------ */
 
 export function ModeChoice({ onDone }: { onDone: () => void }) {
   const { t } = useI18n();
-  const [mode, setMode] = useState<LexisMode>(storage.getLexisMode());
+  const [mode, setMode] = useState<OrleiaMode>(storage.getOrleiaMode());
 
   const options: {
-    key: LexisMode;
+    key: OrleiaMode;
     icon: React.ComponentType<{ className?: string }>;
     name: string;
     desc: string;
@@ -53,7 +53,7 @@ export function ModeChoice({ onDone }: { onDone: () => void }) {
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-6 flex justify-center">
             <p className="text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-              LEXIS<span className="text-foreground/60">OS</span>
+              ORLEIA<span className="text-foreground/60">OS</span>
             </p>
           </div>
 
@@ -135,7 +135,7 @@ export function ModeChoice({ onDone }: { onDone: () => void }) {
 
           <button
             onClick={() => {
-              storage.updateLexisMode(mode);
+              storage.updateOrleiaMode(mode);
               onDone();
             }}
             className="mt-6 w-full rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]"

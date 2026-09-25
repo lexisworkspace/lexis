@@ -3,23 +3,23 @@
 import { openDB, DBSchema, IDBPDatabase } from "idb";
 import { AppData } from "@/types";
 
-const DB_NAME = "lexis";
+const DB_NAME = "orleia";
 const DB_VERSION = 1;
 const STORE_NAME = "appData";
 const DATA_KEY = "main";
 
-interface LexisDB extends DBSchema {
+interface OrleiaDB extends DBSchema {
   appData: {
     key: string;
     value: AppData;
   };
 }
 
-let dbPromise: Promise<IDBPDatabase<LexisDB>> | null = null;
+let dbPromise: Promise<IDBPDatabase<OrleiaDB>> | null = null;
 
-function getDB(): Promise<IDBPDatabase<LexisDB>> {
+function getDB(): Promise<IDBPDatabase<OrleiaDB>> {
   if (!dbPromise) {
-    dbPromise = openDB<LexisDB>(DB_NAME, DB_VERSION, {
+    dbPromise = openDB<OrleiaDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         if (!db.objectStoreNames.contains(STORE_NAME)) {
           db.createObjectStore(STORE_NAME);

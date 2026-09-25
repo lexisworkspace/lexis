@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Reorder,
+  useDragControls,
+  AnimatePresence,
+  motion,
+  LayoutGroup,
+} from "framer-motion";
 import {
   Plus,
   ListTodo,
@@ -24,25 +31,56 @@ import {
   ArrowDown,
   CheckCircle2,
   Circle,
+  GripVertical,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
+import { useHydrated, useFirstVisit } from "@/lib/use-hydrated";
 import { cn, getToday, formatDate, generateId } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { Task, TaskPriority, TaskStatus, RecurringType, ViewMode, PRIORITY_CONFIG, STATUS_CONFIG, DAYS_OF_WEEK } from "@/types";
 
 export default function TasksPage() {
   const { t } = useI18n();
+  const VIEW_KEY = "orleia-tasks-view";
   const [data, setData] = useState(storage.getData());
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const hydrated = useHydrated();
+  const enter = useFirstVisit("tasks");
   const [showForm, setShowForm] = useState(false);
+  // View mode persists across reloads/visits (per device). Kanban & calendar
+  // are desktop layouts, so on narrow screens list wins on init.
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const v = localStorage.getItem(VIEW_KEY);
+      if (v === "list") return "list";
+      if ((v === "kanban" || v === "calendar") && typeof window !== "undefined" && window.innerWidth >= 768) return v;
+    } catch { /* ignore */ }
+    return "list";
+  });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
-  const [quickAdd, setQuickAdd] = useState("");
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
 
   const refresh = () => setData({ ...storage.getData() });
   useEffect(() => storage.subscribe(() => setData({ ...storage.getData() })), []);
+
+  const changeView = (mode: ViewMode) => {
+    setViewMode(mode);
+    try { localStorage.setItem(VIEW_KEY, mode); } catch { /* ignore */ }
+  };
+
+  // Shortcut / deep-link: open the New Task form (Ctrl+Shift+T or ?new=1).
+  const router = useRouter();
+  useEffect(() => {
+    const openNew = () => { setEditingTask(null); setShowForm(true); };
+    window.addEventListener("orleia:new-task", openNew);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") === "1") {
+      openNew();
+      router.replace("/tasks", { scroll: false });
+    }
+    return () => window.removeEventListener("orleia:new-task", openNew);
+  }, [router]);
 
   const tasks = data.tasks
     .filter((t) => t.status !== "archived")
@@ -69,6 +107,23 @@ export default function TasksPage() {
     .filter((t) => !t.dueDate && t.status !== "done")
     .sort((a, b) => a.order - b.order);
 
+  // Optimistic local order while dragging: persist only on drag END.
+  // Persisting every onReorder tick replaced the array with fresh objects,
+  // which broke framer-motion's drag tracking (snapping / dropped drags).
+  const [dragOrder, setDragOrder] = useState<Task[] | null>(null);
+  const dragCommitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const displayedOtherTasks = dragOrder ?? otherTasks;
+  const handleReorder = (next: Task[]) => {
+    setDragOrder(next);
+    if (dragCommitTimer.current) clearTimeout(dragCommitTimer.current);
+    dragCommitTimer.current = setTimeout(() => {
+      storage.reorderTasks(next.map((t) => t.id));
+      setDragOrder(null);
+      refresh();
+    }, 500); // commits shortly after the last reorder event of a drag
+  };
+  useEffect(() => () => { if (dragCommitTimer.current) clearTimeout(dragCommitTimer.current); }, []);
+
   const moveTask = (id: string, dir: -1 | 1) => {
     const idx = otherTasks.findIndex((t) => t.id === id);
     const swap = idx + dir;
@@ -89,12 +144,36 @@ export default function TasksPage() {
     }
   };
 
+  // Hydration gate: the SSR tree shows default data, then hydration swaps
+  // in real localStorage data and replays every entrance animation —
+  // the "blocks double load" flicker. Show a static skeleton until
+  // mounted; real content then mounts once, cleanly.
+  if (!hydrated) {
+    return (
+      <div className="relative space-y-6 md:space-y-8" aria-busy="true" aria-live="polite">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-40 animate-pulse rounded-lg bg-muted" />
+            <div className="h-3 w-56 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="h-9 w-24 animate-pulse rounded-xl bg-muted" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />
+          ))}
+        </div>
+        <div className="h-40 animate-pulse rounded-2xl bg-muted" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative space-y-6 md:space-y-8">
 
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={enter ? { opacity: 0, y: 12 } : false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
         className="flex flex-wrap items-start justify-between gap-3 relative"
@@ -118,18 +197,18 @@ export default function TasksPage() {
             ].map(({ mode, icon: Icon }) => (
               <button
                 key={mode}
-                onClick={() => setViewMode(mode)}
+                onClick={() => changeView(mode)}
                 className={cn(
                   "rounded px-1.5 py-1 transition-all text-xs",
-                  viewMode === mode ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                  viewMode === mode ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
               </button>
             ))}
           </div>
-          <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
-            <Plus className="h-4 w-4" />
+          <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="flex shrink-0 items-center gap-2 rounded-xl border border-foreground/20 bg-transparent px-3.5 py-2 text-sm font-medium text-foreground/60 transition-all hover:border-foreground/40 hover:text-foreground active:scale-95">
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
             <span className="hidden sm:inline">{t("tasks.addTask")}</span>
           </button>
         </div>
@@ -137,7 +216,7 @@ export default function TasksPage() {
 
       {/* Filters */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={enter ? { opacity: 0, y: 12 } : false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
         className="relative"
@@ -149,8 +228,8 @@ export default function TasksPage() {
                 key={s}
                 onClick={() => setFilterStatus(s as any)}
                 className={cn(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-all",
-                  filterStatus === s ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                  "rounded px-3 py-1.5 text-xs font-medium transition-all min-h-[32px] min-w-[40px]",
+                  filterStatus === s ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 {s === "all" ? t("tasks.all") : t(s === "todo" ? "tasks.toDo" : s === "in_progress" ? "tasks.inProgress" : "tasks.done")}
@@ -163,8 +242,8 @@ export default function TasksPage() {
                 key={p}
                 onClick={() => setFilterPriority(p)}
                 className={cn(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-all",
-                  filterPriority === p ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"
+                  "rounded px-3 py-1.5 text-xs font-medium transition-all min-h-[32px] min-w-[40px]",
+                  filterPriority === p ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
                 )}
               >
                 {p === "all" ? t("tasks.all") : t("tasks." + p)}
@@ -173,49 +252,6 @@ export default function TasksPage() {
           </div>
         </div>
       </motion.div>
-
-      {/* Quick Add */}
-      {viewMode === "list" && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const title = quickAdd.trim();
-            if (!title) return;
-            storage.createTask({
-              title,
-              description: "",
-              status: "todo",
-              priority: "medium",
-              dueDate: null,
-              dueTime: null,
-              tags: [],
-              listId: null,
-              recurring: "none",
-              recurringEndDate: null,
-              estimatedMinutes: null,
-              completedAt: null,
-            });
-            setQuickAdd("");
-            refresh();
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={quickAdd}
-            onChange={(e) => setQuickAdd(e.target.value)}
-            placeholder={t("tasks.quickAdd")}
-            className="input-field"
-          />
-          <button
-            type="submit"
-            disabled={!quickAdd.trim()}
-            className="btn-primary shrink-0 px-4"
-            title={t("tasks.addTask")}
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </form>
-      )}
 
       {/* List View */}
       {viewMode === "list" && (
@@ -229,7 +265,7 @@ export default function TasksPage() {
               </h3>
               <div className="space-y-2">
                 {overdueTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onRefresh={refresh} />
+                  <TaskCard key={task.id} task={task} onRefresh={refresh} onEdit={() => { setEditingTask(task); setShowForm(true); }} />
                 ))}
               </div>
             </div>
@@ -244,7 +280,7 @@ export default function TasksPage() {
             {todayTasks.length > 0 ? (
               <div className="space-y-2">
                 {todayTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onRefresh={refresh} />
+                  <TaskCard key={task.id} task={task} onRefresh={refresh} onEdit={() => { setEditingTask(task); setShowForm(true); }} />
                 ))}
               </div>
             ) : (
@@ -261,30 +297,37 @@ export default function TasksPage() {
               </h3>
               <div className="space-y-2">
                 {upcomingTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} onRefresh={refresh} />
+                  <TaskCard key={task.id} task={task} onRefresh={refresh} onEdit={() => { setEditingTask(task); setShowForm(true); }} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Remaining (no due date) - manually ordered */}
+          {/* Remaining (no due date) - manually ordered, drag to reorder */}
           {otherTasks.length > 0 && (
             <div>
               <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-muted-foreground" />
                 {t("tasks.other")}
               </h3>
-              <div className="space-y-2">
-                {otherTasks.map((task) => (
-                  <TaskCard
+              <Reorder.Group
+                axis="y"
+                values={displayedOtherTasks}
+                onReorder={handleReorder}
+                className="space-y-2"
+                as="ul"
+              >
+                {displayedOtherTasks.map((task) => (
+                  <SortableTaskCard
                     key={task.id}
                     task={task}
                     onRefresh={refresh}
+                    onEdit={() => { setEditingTask(task); setShowForm(true); }}
                     onMoveUp={() => moveTask(task.id, -1)}
                     onMoveDown={() => moveTask(task.id, 1)}
                   />
                 ))}
-              </div>
+              </Reorder.Group>
             </div>
           )}
 
@@ -298,7 +341,7 @@ export default function TasksPage() {
                 </summary>
                 <div className="space-y-2 mt-2">
                   {tasks.filter((t) => t.status === "done").map((task) => (
-                    <TaskCard key={task.id} task={task} onRefresh={refresh} />
+                    <TaskCard key={task.id} task={task} onRefresh={refresh} onEdit={() => { setEditingTask(task); setShowForm(true); }} />
                   ))}
                 </div>
               </details>
@@ -379,7 +422,7 @@ export default function TasksPage() {
       )}        {/* Empty State */}
       {tasks.length === 0 && viewMode === "list" && (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={enter ? { opacity: 0, y: 12 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
           className="relative flex flex-col items-center justify-center py-20 text-center"
@@ -389,9 +432,9 @@ export default function TasksPage() {
           </div>
           <h3 className="text-lg font-bold tracking-tight mb-1">{t("tasks.noTasksYet")}</h3>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed max-w-xs">{t("tasks.createFirst")}</p>
-          <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="btn-primary flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Task
+          <button onClick={() => { setEditingTask(null); setShowForm(true); }} className="flex items-center gap-2 rounded-xl border border-foreground/20 bg-transparent px-3.5 py-2 text-sm font-medium text-foreground/60 transition-all hover:border-foreground/40 hover:text-foreground active:scale-95">
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+            {t("tasks.addTask")}
           </button>
         </motion.div>
       )}
@@ -419,20 +462,13 @@ export default function TasksPage() {
   );
 }
 
-function TaskCard({ task, onRefresh, onMoveUp, onMoveDown }: { task: Task; onRefresh: () => void; onMoveUp?: () => void; onMoveDown?: () => void }) {
+// Shared card interior so the plain and drag-sortable variants stay identical.
+function TaskCardBody({ task, onRefresh, onEdit }: { task: Task; onRefresh: () => void; onEdit?: () => void }) {
   const { t } = useI18n();
   const today = getToday();
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        "card p-3 flex items-center gap-3 group transition-all",
-        task.status === "done" && "opacity-60"
-      )}
-    >
+    <>
       <button
         onClick={() => { storage.toggleTask(task.id); onRefresh(); }}
         className="shrink-0"
@@ -463,14 +499,14 @@ function TaskCard({ task, onRefresh, onMoveUp, onMoveDown }: { task: Task; onRef
             <span className="tag bg-muted text-muted-foreground text-[10px]">{t("tasks.urgent")}</span>
           )}
         </div>
-        <div className="flex items-center gap-3 mt-0.5">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
           {task.dueDate && (
             <span className={cn(
-              "text-xs flex items-center gap-1",
+              "text-xs flex items-center gap-1 min-w-0",
               task.dueDate < today && task.status !== "done" ? "text-muted-foreground" : "text-muted-foreground"
             )}>
-              <Clock className="h-3 w-3" />
-              {formatDate(task.dueDate)}
+              <Clock className="h-3 w-3 shrink-0" />
+              <span className="truncate">{formatDate(task.dueDate)}</span>
             </span>
           )}
           {task.recurring !== "none" && (
@@ -481,30 +517,111 @@ function TaskCard({ task, onRefresh, onMoveUp, onMoveDown }: { task: Task; onRef
                 : task.recurring === "daily" ? t("tasks.daily") : task.recurring === "weekly" ? t("tasks.weeklyPick") : t("tasks.monthly")}
             </span>
           )}
-          <span className={cn(
-            "text-xs px-1.5 py-0.5 rounded",
-            task.priority === "urgent" ? "bg-muted text-muted-foreground" :
-            task.priority === "high" ? "bg-muted text-muted-foreground" :
-            task.priority === "medium" ? "bg-muted text-muted-foreground" :
-            "bg-muted text-muted-foreground"
-          )}>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
             {t("tasks." + task.priority)}
           </span>
         </div>
-      </div>              <div className="touch-reveal flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {onMoveUp && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} className="btn-ghost p-1 text-muted-foreground hover:text-foreground" title={t("tasks.moveUp")}>
-                    <ChevronUp className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                {onMoveDown && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} className="btn-ghost p-1 text-muted-foreground hover:text-foreground" title={t("tasks.moveDown")}>
-                    <ChevronDown className="h-3.5 w-3.5" />
-                  </button>
-                )}
-                <button onClick={(e) => { e.stopPropagation(); storage.deleteTask(task.id); onRefresh(); }} className="btn-ghost p-1 text-muted-foreground hover:text-foreground"><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
+      </div>
+
+      <div className="touch-reveal flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onEdit && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+            className="btn-ghost p-1 text-muted-foreground hover:text-foreground"
+            title={t("tasks.editTask")}
+            aria-label={t("tasks.editTask")}
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); storage.deleteTask(task.id); onRefresh(); }}
+          className="btn-ghost p-1 text-muted-foreground hover:text-foreground"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </>
+  );
+}
+
+function TaskCard({ task, onRefresh, onEdit }: { task: Task; onRefresh: () => void; onEdit?: () => void }) {
+  return (
+    <motion.div
+      layout
+      initial={false}  // cards appear instantly; layout animations unaffected
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+      className={cn(
+        "card p-3 flex items-center gap-3 group transition-all",
+        task.status === "done" && "opacity-60"
+      )}
+    >
+      <TaskCardBody task={task} onRefresh={onRefresh} onEdit={onEdit} />
     </motion.div>
+  );
+}
+
+/** Draggable variant used in the manually-ordered "Other" group. */
+function SortableTaskCard({ task, onRefresh, onEdit, onMoveUp, onMoveDown }: {
+  task: Task;
+  onRefresh: () => void;
+  onEdit: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}) {
+  const { t } = useI18n();
+  const controls = useDragControls();
+  const atTop = task.order <= 0;
+
+  return (
+    <Reorder.Item
+      value={task}
+      dragListener={false}
+      dragControls={controls}
+      whileDrag={{
+        scale: 1.02,
+        boxShadow: "0 12px 32px rgba(0,0,0,0.35)",
+        zIndex: 30,
+      }}
+      transition={{ type: "spring", stiffness: 380, damping: 32 }}
+      className={cn(
+        "card p-3 flex items-center gap-2 group list-none",
+        task.status === "done" && "opacity-60"
+      )}
+    >
+      <button
+        onPointerDown={(e) => controls.start(e)}
+        className="shrink-0 cursor-grab touch-none rounded p-0.5 text-muted-foreground/40 hover:text-foreground active:cursor-grabbing"
+        aria-label={t("tasks.dragToReorder")}
+        title={t("tasks.dragToReorder")}
+        style={{ touchAction: "none" }}
+      >
+        <GripVertical className="h-4 w-4" />
+      </button>
+
+      <TaskCardBody task={task} onRefresh={onRefresh} onEdit={onEdit} />
+
+      <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+        <motion.button
+          whileTap={{ scale: 0.8, y: -1 }}
+          onClick={() => onMoveUp()}
+          disabled={atTop}
+          className="btn-ghost p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-25"
+          title={t("tasks.moveUp")}
+        >
+          <ChevronUp className="h-3.5 w-3.5" />
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.8, y: 1 }}
+          onClick={() => onMoveDown()}
+          className="btn-ghost p-0.5 text-muted-foreground hover:text-foreground"
+          title={t("tasks.moveDown")}
+        >
+          <ChevronDown className="h-3.5 w-3.5" />
+        </motion.button>
+      </div>
+    </Reorder.Item>
   );
 }
 
@@ -645,7 +762,7 @@ function TaskForm({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
       onClick={onClose}
     >
       <motion.div
@@ -706,21 +823,21 @@ function TaskForm({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">{t("tasks.dueDate")}</label>
+              <label className="text-xs font-medium mb-1 block sm:text-sm sm:mb-1.5">{t("tasks.dueDate")}</label>
               <input
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="input-field"
+                className="input-field-sm"
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">{t("tasks.dueTime")}</label>
+              <label className="text-xs font-medium mb-1 block sm:text-sm sm:mb-1.5">{t("tasks.dueTime")}</label>
               <input
                 type="time"
                 value={dueTime}
                 onChange={(e) => setDueTime(e.target.value)}
-                className="input-field"
+                className="input-field-sm"
               />
             </div>
           </div>
@@ -770,7 +887,12 @@ function TaskForm({
           )}
 
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} className="btn-secondary flex-1">{t("common.cancel")}</button>
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-foreground/20 bg-transparent px-3.5 py-2 text-sm font-medium text-foreground/60 transition-all hover:border-foreground/40 hover:text-foreground active:scale-95"
+            >
+              {t("common.cancel")}
+            </button>
             <button
               onClick={() => {
                 if (!title.trim()) return;
@@ -791,7 +913,7 @@ function TaskForm({
                 });
               }}
               disabled={!title.trim()}
-              className="btn-primary flex-1"
+              className="flex-1 rounded-xl border border-foreground/20 bg-transparent px-3.5 py-2 text-sm font-medium text-foreground/60 transition-all hover:border-foreground/40 hover:text-foreground active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
             >
               {task ? t("tasks.saveChanges") : t("tasks.addTask")}
             </button>

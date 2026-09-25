@@ -71,33 +71,30 @@ export function calculateStreak(logDates: string[]): { current: number; longest:
   if (logDates.length === 0) return { current: 0, longest: 0 };
 
   const sorted = [...new Set(logDates)].sort().reverse();
-  let current = 0;
-  let longest = 1;
-  let tempStreak = 1;
 
   const today = getToday();
   const yesterday = format(addDays(parseISO(today), -1), "yyyy-MM-dd");
 
-  // Check if streak is still active (logged today or yesterday)
+  // Current streak: consecutive days counted BACKWARD from the most recent
+  // log, as long as that log is today or yesterday (streak still alive).
+  // The old loop only assigned `current` when it hit a gap, so a perfectly
+  // consecutive streak (the best users!) computed current = 0 — which
+  // silently suppressed every habit reminder for exactly the people the
+  // feature exists for.
+  let current = 0;
   const lastLog = sorted[0];
-  if (lastLog !== today && lastLog !== yesterday) {
-    current = 0;
-  } else {
-    for (let i = 0; i < sorted.length; i++) {
-      const currentDate = sorted[i];
-      const expectedPrev = format(addDays(parseISO(currentDate), -1), "yyyy-MM-dd");
-      if (i < sorted.length - 1 && sorted[i + 1] === expectedPrev) {
-        tempStreak++;
-      } else {
-        if (i === 0) current = tempStreak;
-        longest = Math.max(longest, tempStreak);
-        tempStreak = 1;
-      }
+  if (lastLog === today || lastLog === yesterday) {
+    current = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      const expectedPrev = format(addDays(parseISO(sorted[i - 1]), -1), "yyyy-MM-dd");
+      if (sorted[i] === expectedPrev) current++;
+      else break;
     }
   }
 
   // Calculate longest streak from all logs
-  tempStreak = 1;
+  let longest = 1;
+  let tempStreak = 1;
   const asc = [...sorted].reverse();
   for (let i = 0; i < asc.length - 1; i++) {
     const expectedNext = format(addDays(parseISO(asc[i]), 1), "yyyy-MM-dd");

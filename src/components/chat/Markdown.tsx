@@ -34,6 +34,7 @@ export function Markdown({ content }: { content: string }) {
           img: (props) => (
             <img
               className="my-2.5 max-h-96 w-auto max-w-full rounded-2xl border border-border object-contain"
+              alt={(props.alt as string) || "Image shared in the conversation"}
               {...dom(props)}
             />
           ),

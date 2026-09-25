@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis - global search
+// Orleia - global search
 // Searches every content module at once (notes, tasks, journal,
 // habits) and returns ranked, grouped results with snippets.
 // Pure function over AppData - instant, private, no API calls.
@@ -7,7 +7,7 @@
 
 import type { AppData } from "@/types";
 
-export type SearchKind = "note" | "task" | "journal" | "habit";
+export type SearchKind = "note" | "task" | "journal" | "habit" | "spreadsheet";
 
 export interface SearchResult {
   kind: SearchKind;
@@ -26,10 +26,11 @@ export interface SearchGroup {
 }
 
 export const SEARCH_LABELS: Record<SearchKind, string> = {
-  note: "Documents",
+  note: "Notes",
   task: "Tasks",
   journal: "Journal",
   habit: "Habits",
+  spreadsheet: "Grid",
 };
 
 function plainText(html: string): string {
@@ -84,7 +85,7 @@ export function globalSearch(data: AppData, rawQuery: string, perGroup = 5): Sea
       id: n.id,
       title,
       snippet: tl.includes(q) ? content.slice(0, 90) || "—" : snippetAround(content, q),
-      href: `/documents?open=${n.id}`,
+      href: `/notes?open=${n.id}`,
       score,
       updatedAt: n.updatedAt,
     });
@@ -157,6 +158,31 @@ export function globalSearch(data: AppData, rawQuery: string, perGroup = 5): Sea
     });
   }
 
+  const spreadsheetResults: SearchResult[] = [];
+  for (const ss of data.spreadsheets) {
+    const title = ss.name || "Untitled spreadsheet";
+    const tl = title.toLowerCase();
+    let score = 0;
+    if (tl.includes(q)) score += 6;
+    // Content match: sheet names + cell values (formulas excluded).
+    const cellText = ss.sheets
+      .map((s) => Object.values(s.cells || {}).map((c) => c?.value || "").join(" "))
+      .join(" ")
+      .toLowerCase();
+    if (cellText.includes(q)) score += 3;
+    if (score === 0) continue;
+    score += recencyBonus(ss.updatedAt);
+    spreadsheetResults.push({
+      kind: "spreadsheet",
+      id: ss.id,
+      title,
+      snippet: tl.includes(q) ? `${ss.sheets.length} sheet${ss.sheets.length === 1 ? "" : "s"}` : snippetAround(cellText.slice(0, 400), q),
+      href: `/grid?open=${ss.id}`,
+      score,
+      updatedAt: ss.updatedAt,
+    });
+  }
+
   const sort = (a: SearchResult, b: SearchResult) =>
     b.score - a.score || b.updatedAt.localeCompare(a.updatedAt);
 
@@ -168,6 +194,7 @@ export function globalSearch(data: AppData, rawQuery: string, perGroup = 5): Sea
 
   const groups = [
     build("note", SEARCH_LABELS.note, noteResults),
+    build("spreadsheet", SEARCH_LABELS.spreadsheet, spreadsheetResults),
     build("task", SEARCH_LABELS.task, taskResults),
     build("journal", SEARCH_LABELS.journal, journalResults),
     build("habit", SEARCH_LABELS.habit, habitResults),

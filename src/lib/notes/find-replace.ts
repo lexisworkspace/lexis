@@ -16,7 +16,7 @@ export interface FindState {
   index: number;
 }
 
-const key = new PluginKey("lexisFindReplace");
+const key = new PluginKey("orleiaFindReplace");
 const EMPTY: FindState = { query: "", replaceText: "", caseSensitive: false, matches: [], index: -1 };
 
 function escapeRe(s: string): string {
@@ -120,7 +120,7 @@ export const FindReplace = Extension.create({
               state.doc,
               st.matches.map((m, i) =>
                 Decoration.inline(m.from, m.to, {
-                  class: i === st.index ? "lexis-find-current" : "lexis-find-match",
+                  class: i === st.index ? "orleia-find-current" : "orleia-find-match",
                 })
               )
             );

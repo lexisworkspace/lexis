@@ -1,6 +1,6 @@
 "use client";
 
-// Lexis biometric unlock — WebAuthn-based fingerprint/face unlock.
+// Orleia biometric unlock — WebAuthn-based fingerprint/face unlock.
 // Works alongside the existing password gate. Purely local —
 // the credential never leaves the device.
 //
@@ -9,8 +9,8 @@
 //   2. On next unlock, user can choose "Use fingerprint/face"
 //   3. WebAuthn verifies → unlocks the workspace
 
-const PASSKEY_CREDENTIAL_KEY = "lexis-passkey-credential";
-const PASSKEY_ENABLED_KEY = "lexis-passkey-enabled";
+const PASSKEY_CREDENTIAL_KEY = "orleia-passkey-credential";
+const PASSKEY_ENABLED_KEY = "orleia-passkey-enabled";
 
 // ── Check if biometrics are available ──
 
@@ -46,11 +46,11 @@ export async function registerBiometric(): Promise<{ ok: boolean; error?: string
     const credential = await navigator.credentials.create({
       publicKey: {
         challenge,
-        rp: { name: "Lexis", id: window.location.hostname },
+        rp: { name: "Orleia", id: window.location.hostname },
         user: {
           id: userId,
-          name: "lexis-user",
-          displayName: "Lexis User",
+          name: "orleia-user",
+          displayName: "Orleia User",
         },
         pubKeyCredParams: [
           { alg: -7, type: "public-key" },   // ES256

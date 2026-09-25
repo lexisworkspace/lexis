@@ -1,13 +1,13 @@
-// NoorMark - the first "o" of the Noor wordmark, cropped straight from the
-// actual logo (the ring + diagonal slash). White mark; callers add
-// "invert dark:invert-0" on light backgrounds.
+// NoorMark - the Noor monogram ("n" in a ring), from the 2026 rebrand.
+// White mark on transparent; callers add "invert dark:invert-0" on light
+// backgrounds. Variants: /noor-mark-white.png, /noor-mark-black.png.
 
 import { cn } from "@/lib/utils";
 
 export function NoorMark({ className }: { className?: string }) {
   return (
     <img
-      src="/noor-o.png"
+      src="/noor-mark-white.png"
       alt=""
       aria-hidden="true"
       className={cn("object-contain", className)}

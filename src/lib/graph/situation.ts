@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis Brain - situation model
+// Orleia Brain - situation model
 // Turns AppData + GraphIndex into a deterministic "today" snapshot.
 // Consumed by the dashboard AND injected into Noor's context.
 // ============================================================
@@ -15,6 +15,7 @@ export interface RiskItem {
   detail: string;
   reason?: string;
   href: string;
+  streak?: number;
 }
 
 export interface ConnectionItem {
@@ -99,6 +100,7 @@ function atRiskHabits(data: AppData, graph: GraphIndex): RiskItem[] {
         detail: `${streak.current}-day streak - log today to keep it`,
         reason,
         href: "/habits",
+        streak: streak.current,
       },
     });
   }
@@ -163,8 +165,9 @@ function moodLine(data: AppData): string {
   if (scores.length === 0) return "";
   const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
   const trend = scores.length >= 2 ? scores[0] - scores[scores.length - 1] : 0;
-  const dir = trend > 0.4 ? "rising" : trend < -0.4 ? "dipping" : "steady";
-  return `avg mood ${avg.toFixed(1)}/10, ${dir}`;
+  const dir = trend > 4 ? "rising" : trend < -4 ? "dipping" : "steady";
+  // getMoodScore returns 0-100; present on the 0-10 scale the app uses.
+  return `avg mood ${(avg / 10).toFixed(1)}/10, ${dir}`;
 }
 
 const MS_DAY = 86400000;

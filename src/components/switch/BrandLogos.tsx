@@ -1,7 +1,7 @@
 "use client";
 
 /* ------------------------------------------------------------------ */
-/* Brand logo SVGs for the Lexis Switch source picker.                */
+/* Brand logo SVGs for the Orleia Switch source picker.                */
 /* Each component renders a 20×20 icon matching the brand's identity. */
 /* ------------------------------------------------------------------ */
 

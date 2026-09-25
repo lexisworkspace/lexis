@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis Brain - knowledge graph types
+// Orleia Brain - knowledge graph types
 // The Brain is a derived, local graph over all AppData entities.
 // Pure types only; no runtime dependencies.
 // ============================================================

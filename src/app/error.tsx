@@ -28,6 +28,16 @@ export default function PageError({
           Error digest: {error.digest}
         </p>
       )}
+      {error?.message && (
+        <details className="mt-4 max-w-xl text-left">
+          <summary className="cursor-pointer text-xs text-muted-foreground/70 hover:text-foreground">
+            Technical details
+          </summary>
+          <pre className="mt-2 overflow-auto whitespace-pre-wrap rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+            {error.message}
+          </pre>
+        </details>
+      )}
     </div>
   );
 }

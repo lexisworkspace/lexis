@@ -1,6 +1,6 @@
 "use client";
 
-// Lexis P2P sync — WebRTC peer-to-peer, no server needed.
+// Orleia P2P sync — WebRTC peer-to-peer, no server needed.
 // Devices connect directly and sync data in real-time.
 // Works on same WiFi (instant) and across networks (NAT traversal).
 
@@ -121,7 +121,7 @@ export async function createOffer(): Promise<string> {
   stopP2P();
   peerConnection = new RTCPeerConnection({ iceServers: STUN_SERVERS });
 
-  const channel = peerConnection.createDataChannel("lexis-sync", { ordered: true });
+  const channel = peerConnection.createDataChannel("orleia-sync", { ordered: true });
   setupDataChannel(channel);
 
   peerConnection.oniceconnectionstatechange = () => {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardApi } from '@/lib/apiGuard';
+import { callChat } from '@/lib/ai-provider';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -17,25 +18,16 @@ interface BrainBody {
 }
 
 async function callEthos(messages: { role: string; content: string }[], maxTokens: number): Promise<string | null> {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) return null;
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 50000);
-    const res = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: ETHOS,
-        messages,
-        temperature: 0.4,
-        max_tokens: maxTokens,
-      }),
-      signal: controller.signal,
+    const call = await callChat({
+      model: ETHOS,
+      messages,
+      temperature: 0.4,
+      max_tokens: maxTokens,
+      timeoutMs: 50_000,
     });
-    clearTimeout(timeout);
-    if (!res.ok) return null;
-    const data = await res.json();
+    if (!call.ok || !call.response) return null;
+    const data = await call.response.json();
     const content: string = data?.choices?.[0]?.message?.content || '';
     return content || null;
   } catch {
@@ -43,7 +35,7 @@ async function callEthos(messages: { role: string; content: string }[], maxToken
   }
 }
 
-const ENTITIES_PROMPT = `You are the entity-extraction engine of Lexis, a local-first productivity app. Extract the IMPORTANT concepts from each provided item: topics, projects, people, places, skills, recurring themes. Rules:
+const ENTITIES_PROMPT = `You are the entity-extraction engine of Orleia, a local-first productivity app. Extract the IMPORTANT concepts from each provided item: topics, projects, people, places, skills, recurring themes. Rules:
 - Return ONLY a JSON array, one object per item, in the same order: [{"key":"...","concepts":["concept1","concept2"]}]
 - 2-6 concise concepts per item (2-4 words each, lowercase).
 - Skip trivial filler words; prefer concepts that would help connect this item to OTHER notes/tasks/journal entries.
@@ -74,7 +66,7 @@ function parseEntities(raw: string): { key: string; concepts: string[] }[] {
   }
 }
 
-const BRIEFING_PROMPT = `You are Noor, the warm, wise AI companion inside Lexis - the user's personal productivity workspace. Below is a snapshot of the user's CURRENT situation (SITUATION). Write a short daily read for them.
+const BRIEFING_PROMPT = `You are Noor, the warm, wise AI companion inside Orleia - the user's personal productivity workspace. Below is a snapshot of the user's CURRENT situation (SITUATION). Write a short daily read for them.
 Rules:
 - Return ONLY a JSON object: {"briefing":"...","chips":[{"label":"...","href":"..."}]}
 - briefing: 2-3 warm, human sentences in a mentor voice. Reference real specifics from the SITUATION (names of habits/tasks, streaks at risk, connections). Never invent numbers.
@@ -105,7 +97,7 @@ function parseBriefing(raw: string): { briefing: string; chips: { label: string;
 }
 
 export async function POST(req: Request) {
-  const denied = guardApi(req, { unlimited: true });
+  const denied = guardApi(req, { perMinute: 120, perDay: 5000 });
   if (denied) return denied;
 
   let body: BrainBody;

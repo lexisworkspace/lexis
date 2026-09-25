@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   CheckCircle2,
+  Sparkles,
   TrendingUp,
   Target,
   Flame,
@@ -20,9 +21,13 @@ import {
   Smile,
   Meh,
   Frown,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { storage } from "@/lib/storage";
+import { petById, petSvg } from "@/lib/pets";
+import { PET_STAGE_SIZE, petStage } from "@/lib/pet-habits";
 import { cn, formatDate, getToday, truncate } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { ensureWired, getGraph } from "@/lib/graph/engine";
@@ -449,7 +454,7 @@ export function PomodoroWidget() {
               onClick={() => setRunning(!running)}
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
-                running ? "bg-primary-500/15 text-primary-500" : "bg-secondary text-muted-foreground hover:text-foreground"
+                running ? "border border-primary-500/40 bg-primary-500/10 text-primary-500" : "border border-foreground/15 bg-transparent text-muted-foreground hover:border-foreground/40 hover:text-foreground"
               )}
             >
               {running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
@@ -479,7 +484,7 @@ const MOODS = [
   { key: "awful", icon: Frown, label: "Awful", color: "text-red-500 bg-red-500/10" },
 ];
 
-const MOOD_KEY = "lexis-mood-log";
+const MOOD_KEY = "orleia-mood-log";
 
 export function MoodWidget() {
   const [logged, setLogged] = useState<string | null>(null);
@@ -532,6 +537,141 @@ export function MoodWidget() {
 /* Widget Registry — maps id → component                              */
 /* ------------------------------------------------------------------ */
 
+
+/* ------------------------------------------------------------------ */
+/* Weekly Wrapped - shareable week summary                             */
+/* ------------------------------------------------------------------ */
+
+export function WeeklyWrappedWidget() {
+  const { t } = useI18n();
+  const { data } = useDashboardData();
+
+  const { start, end } = (() => {
+    const d = new Date();
+    const day = (d.getDay() + 6) % 7; // Monday-first
+    const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    const iso = (x: Date) =>
+      `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+    return { start: iso(mon), end: iso(sun) };
+  })();
+  const inWeek = (ds: string | null) => !!ds && ds >= start && ds <= end;
+
+  const tasksDone = data.tasks.filter((x) => x.status === "done" && inWeek((x.completedAt || "").slice(0, 10))).length;
+  const habitLogs = data.habitLogs.filter((l) => inWeek(l.date)).length;
+  const entries = data.journalEntries.filter((e) => inWeek(e.date));
+  const words = entries.reduce((a, e) => a + (e.content || "").split(/\s+/).filter(Boolean).length, 0);
+  const SC = { amazing: 5, good: 4, neutral: 3, bad: 2, terrible: 1 } as const;
+  const withMood = entries.filter((e) => e.mood);
+  const avgMood = withMood.length
+    ? (withMood.reduce((a, e) => a + SC[e.mood], 0) / withMood.length).toFixed(1)
+    : null;
+  const bestStreak = data.habits.length
+    ? Math.max(...data.habits.map((h) =>
+        data.habitLogs.filter((l) => l.habitId === h.id).length))
+    : 0;
+  const total = tasksDone + habitLogs + entries.length;
+
+  const Stat = ({ v, label }: { v: string | number; label: string }) => (
+    <div className="rounded-xl bg-muted/60 px-2 py-2.5 text-center">
+      <p className="text-xl font-bold leading-none">{v}</p>
+      <p className="mt-1 text-[10px] leading-tight text-muted-foreground">{label}</p>
+    </div>
+  );
+
+  return (
+    <div className="card relative overflow-hidden">
+      <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-primary-500/10 blur-2xl" aria-hidden />
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-primary-500" />
+          <h3 className="text-sm font-semibold">{t("dash.wrappedTitle")}</h3>
+        </div>
+        <span className="text-[10px] text-muted-foreground">
+          {new Date(start).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          {" - "}
+          {new Date(end).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+        </span>
+      </div>
+      {total === 0 ? (
+        <p className="py-4 text-center text-xs text-muted-foreground">{t("dash.wrappedEmpty2")}</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <Stat v={tasksDone} label={t("dash.wrappedTasks")} />
+          <Stat v={habitLogs} label={t("dash.wrappedHabits")} />
+          <Stat v={entries.length} label={t("dash.wrappedEntries")} />
+          <Stat v={words} label={t("dash.wrappedWords")} />
+          <Stat v={avgMood ?? "-"} label={t("dash.wrappedMood")} />
+          <Stat v={bestStreak} label={t("dash.wrappedStreak")} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Pet — the companion greets you on the Dashboard                     */
+/* ------------------------------------------------------------------ */
+
+export function PetWidget() {
+  const { t } = useI18n();
+  const { data } = useDashboardData();
+
+  const today = getToday();
+  const pet = petById(data.profile?.pet);
+  if (!pet) return null;
+
+  const mealsToday = data.habitLogs.filter((l) => l.date === today).length;
+  const meals = data.habitLogs.length;
+  const stage = petStage(meals);
+  const name = (data.profile?.petName || "").trim() || pet.name;
+  const shields = data.streakFreezeTokens ?? 0;
+
+  // Time-of-day greeting: the pet is alive on the home screen.
+  const hour = new Date().getHours();
+  const moodKey =
+    mealsToday === 0
+      ? "habits.pet.hungry"
+      : hour < 5
+        ? "dash.pet.night"
+        : hour < 12
+          ? "dash.pet.morning"
+          : hour < 18
+            ? "dash.pet.afternoon"
+            : "dash.pet.evening";
+
+  return (
+    <div className="card flex items-center gap-4">
+      <motion.div
+        animate={mealsToday > 0 ? { y: [0, -3, 0] } : { y: 0 }}
+        transition={{ duration: 2.4, repeat: mealsToday > 0 ? Infinity : 0, ease: "easeInOut" }}
+        className={cn(PET_STAGE_SIZE[stage.label], "shrink-0")}
+        dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }}
+      />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-semibold">{name}</p>
+          {shields > 0 && (
+            <span className="inline-flex items-center gap-0.5 text-[11px] text-sky-400">
+              <ShieldCheck className="h-3 w-3" />
+              {shields}
+            </span>
+          )}
+        </div>
+        <p className={cn("text-xs", mealsToday === 0 ? "text-amber-500" : "text-muted-foreground")}>
+          {t(moodKey).replace("{name}", name)}
+        </p>
+      </div>
+      <Link
+        href="/habits"
+        className="shrink-0 rounded-xl border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+      >
+        {(mealsToday === 0 ? t("dash.pet.feed") : t("dash.pet.visit")).replace("{name}", name)}
+      </Link>
+    </div>
+  );}
+
 export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   productivity: ProductivityWidget,
   stats: StatsWidget,
@@ -543,4 +683,6 @@ export const WIDGET_COMPONENTS: Record<string, React.ComponentType> = {
   "quick-note": QuickNoteWidget,
   pomodoro: PomodoroWidget,
   mood: MoodWidget,
+  wrapped: WeeklyWrappedWidget,
+  pet: PetWidget,
 };

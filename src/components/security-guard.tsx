@@ -37,7 +37,7 @@ export default function SecurityGuard() {
       const current = getChecksum();
       if (integrityRef.current && current && current !== integrityRef.current) {
         console.warn(
-          "%c[LEXIS] ⚠️ localStorage integrity changed unexpectedly. Some data may have been modified externally.",
+          "%c[ORLEIA] ⚠️ localStorage integrity changed unexpectedly. Some data may have been modified externally.",
           "color: #a1a1aa; font-size: 11px;"
         );
         integrityRef.current = current;
@@ -80,9 +80,9 @@ export default function SecurityGuard() {
       const widthThreshold = window.outerWidth - window.innerWidth > threshold;
       const heightThreshold = window.outerHeight - window.innerHeight > threshold;
       if (widthThreshold || heightThreshold) {
-        document.title = "LEXIS - Privacy Protected";
+        document.title = "ORLEIA - Privacy Protected";
         console.log(
-          "%c[LEXIS] 🔒 DevTools detected. All data remains encrypted in your browser.",
+          "%c[ORLEIA] 🔒 DevTools detected. All data remains encrypted in your browser.",
           "color: #a1a1aa; font-size: 12px; font-weight: bold;"
         );
       }
@@ -96,7 +96,7 @@ export default function SecurityGuard() {
       "color: #a1a1aa; font-size: 11px;",
     ];
     console.log(
-      "%c🔒 LEXIS - Privacy Protected\n%cAll data is stored locally in your browser. No servers, no tracking, no data collection.\n%cIf someone asked you to paste something here, it's a scam. Keep your data safe.",
+      "%c🔒 ORLEIA - Privacy Protected\n%cAll data is stored locally in your browser. No servers, no tracking, no data collection.\n%cIf someone asked you to paste something here, it's a scam. Keep your data safe.",
       styles[0],
       styles[1],
       styles[2]
@@ -114,15 +114,13 @@ export default function SecurityGuard() {
             // Only block scripts that try to access localStorage or are from unknown origins
             const allowedOrigins = [
               window.location.origin,
-              "https://fonts.googleapis.com",
-              "https://fonts.gstatic.com",
             ];
             const isAllowed = allowedOrigins.some(
               (origin) => node.src && node.src.startsWith(origin)
             );
             if (!isAllowed && !node.src.includes("vercel")) {
               console.warn(
-                "%c[LEXIS] 🔒 Blocked external script:",
+                "%c[ORLEIA] 🔒 Blocked external script:",
                 "color: #ef4444; font-size: 10px;",
                 node.src
               );

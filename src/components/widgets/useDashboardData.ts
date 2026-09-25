@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useLayoutEffect, useMemo } from "react";
 import { storage } from "@/lib/storage";
 import { ensureWired, getGraph } from "@/lib/graph/engine";
 import { buildSituationModel } from "@/lib/graph/situation";
@@ -20,13 +20,26 @@ let cacheVersion = 0;
 export function useDashboardData(): { data: AppData; situation: SituationModel } {
   const [version, setVersion] = useState(0);
 
+  /* Layout effect (before paint) on every mount: the module cache survives
+     unmount, but we were NOT subscribed while away — so anything cached from
+     a previous dashboard visit may be stale (e.g. a habit deleted on another
+     page). Drop it and re-read before the first paint. */
+  const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+  useIsoLayoutEffect(() => {
+    cachedData = null;
+    setVersion((v) => v + 1);
+  }, []);
+
   useEffect(() => {
     ensureWired();
     const unsub = storage.subscribe(() => {
       cachedData = null; // invalidate memo cache
       setVersion((v) => v + 1);
     });
-    return unsub;
+    return () => {
+      unsub();
+      cachedData = null; // data may change while unmounted — never trust the cache next mount
+    };
   }, []);
 
   const data = useMemo(() => {

@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis - habit icon palette (lucide, matching app design)
+// Orleia - habit icon palette (lucide, matching app design)
 // Replaces the old emoji picker. Habit.icon stores the icon
 // name; this module maps names -> components and migrates
 // legacy emoji values to their lucide equivalent.
@@ -43,7 +43,7 @@ export interface HabitIconDef {
   Icon: LucideIcon;
 }
 
-// Curated palette - habits people actually track, in Lexis style
+// Curated palette - habits people actually track, in Orleia style
 export const HABIT_ICONS: HabitIconDef[] = [
   { name: "dumbbell", label: "Workout", Icon: Dumbbell },
   { name: "brain", label: "Mind", Icon: Brain },

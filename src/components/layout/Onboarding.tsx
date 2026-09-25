@@ -21,11 +21,9 @@ import {
 import type { AccentColor } from "@/types";
 import { storage } from "@/lib/storage";
 import { LANGUAGES, useI18n } from "@/lib/i18n";
-import type { LanguageDef } from "@/lib/i18n";
 import type { NoorRelationship } from "@/types";
 import { cn } from "@/lib/utils";
-import { VoiceSetup } from "./VoiceSetup";
-import { LexisSwitch } from "../switch/LexisSwitch";
+import { OrleiaSwitch } from "../switch/OrleiaSwitch";
 import { ShellMock } from "./tutorial-mockups";
 
 
@@ -33,7 +31,7 @@ import { ShellMock } from "./tutorial-mockups";
 /* Welcome screen: Apple-style typewriter greeting, space to continue  */
 /* ------------------------------------------------------------------ */
 
-/* Greetings in the languages Lexis ships in - typed one after another,
+/* Greetings in the languages Orleia ships in - typed one after another,
    cycling forever until the user continues. */
 const GREETINGS: string[] = [
   "welcome",
@@ -139,7 +137,7 @@ function WelcomeScreen({ onDone }: { onDone: () => void }) {
         transition={{ delay: 0.3, duration: 0.8 }}
         className="mb-10 text-xs font-sans tracking-[0.5em] text-muted-foreground/40"
       >
-        LEXIS<span className="text-foreground/60">OS</span>
+        ORLEIA<span className="text-foreground/60">OS</span>
       </motion.p>
 
       <motion.h1
@@ -203,7 +201,7 @@ function AgeGate({ onDone }: { onDone: () => void }) {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background px-6 text-center">
         <p className="mb-10 text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-          LEXIS<span className="text-foreground/60">OS</span>
+          ORLEIA<span className="text-foreground/60">OS</span>
         </p>
         <motion.h1
           initial={{ opacity: 0, y: 10 }}
@@ -234,7 +232,7 @@ function AgeGate({ onDone }: { onDone: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background px-6 text-center">
       <p className="mb-10 text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-        LEXIS<span className="text-foreground/60">OS</span>
+        ORLEIA<span className="text-foreground/60">OS</span>
       </p>
       <motion.h1
         initial={{ opacity: 0, y: 10 }}
@@ -377,7 +375,7 @@ function ProfilePicker({ onDone, onSkip }: { onDone: () => void; onSkip: () => v
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
       <div className="mt-14 flex w-full justify-center md:mt-16">
         <p className="text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-          LEXIS<span className="text-foreground/60">OS</span>
+          ORLEIA<span className="text-foreground/60">OS</span>
         </p>
       </div>
 
@@ -614,81 +612,6 @@ function ProfilePicker({ onDone, onSkip }: { onDone: () => void; onSkip: () => v
     </div>
   );
 }
-
-/* ------------------------------------------------------------------ */
-/* Language picking: Apple-style list, picked before the intro slides  */
-/* ------------------------------------------------------------------ */
-
-function LanguagePicker({ onDone }: { onDone: () => void }) {
-  const { t } = useI18n();
-  const [selected, setSelected] = useState<string>(
-    () => (storage.getData().theme.language as string) || "en"
-  );
-
-  const pick = (l: LanguageDef) => {
-    storage.updateTheme({ language: l.code });
-    document.documentElement.setAttribute("lang", l.code);
-    document.documentElement.setAttribute("dir", l.dir);
-    setSelected(l.code);
-  };
-
-  return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
-      {/* Wordmark, consistent with the welcome screen */}
-      <div className="mt-14 flex w-full justify-center md:mt-16">
-        <p className="text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-          LEXIS<span className="text-foreground/60">OS</span>
-        </p>
-      </div>
-
-      <motion.h1
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="mt-10 text-center font-serif text-3xl font-light tracking-tight text-foreground md:text-4xl"
-      >
-        {t("onboarding.chooseLanguage")}
-      </motion.h1>
-
-      {/* Scrollable language list (native names, touch-friendly rows) */}
-      <div className="mt-8 w-full flex-1 overflow-y-auto px-6 pb-4">
-        <div className="mx-auto flex w-full max-w-sm flex-col gap-1.5">
-          {LANGUAGES.map((l) => {
-            const active = selected === l.code;
-            return (
-              <button
-                key={l.code}
-                onClick={() => pick(l)}
-                className={cn(
-                  "flex items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left text-base transition-all",
-                  active
-                    ? "border-amber-500/40 bg-amber-500/10 text-foreground"
-                    : "border-border bg-secondary/40 text-muted-foreground hover:border-muted-foreground/30"
-                )}
-              >
-                <span className="font-medium">{l.name}</span>
-                {active && <Check className="h-4 w-4 shrink-0 text-amber-400" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Continue - always visible at the bottom */}
-      <div className="w-full px-6 pb-10 pt-4">
-        <div className="mx-auto w-full max-w-sm">
-          <button
-            onClick={onDone}
-            className="w-full rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]"
-          >
-            {t("onboarding.continue")}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------------ */
 /* Appearance: theme, font size and accessibility, before the slides  */
 /* ------------------------------------------------------------------ */
@@ -712,6 +635,7 @@ function AppearancePicker({ onDone }: { onDone: () => void }) {
   const [dyslexia, setDyslexia] = useState(!!initial.dyslexiaFriendly);
   const [contrast, setContrast] = useState(!!initial.highContrast);
   const [reduced, setReduced] = useState(!!initial.reducedMotion);
+  const [underline, setUnderline] = useState(!!initial.underlineLinks);
 
   const pickTheme = (m: "light" | "dark" | "system") => {
     storage.updateTheme({ theme: m });
@@ -727,13 +651,17 @@ function AppearancePicker({ onDone }: { onDone: () => void }) {
     setSize(s);
   };
   const toggleA11y = (
-    key: "dyslexiaFriendly" | "highContrast" | "reducedMotion",
+    key: "dyslexiaFriendly" | "highContrast" | "reducedMotion" | "underlineLinks",
     attr: string,
     set: (v: boolean) => void,
     val: boolean
   ) => {
     storage.updateTheme({ [key]: val });
-    document.documentElement.setAttribute(attr, String(val));
+    if (attr === "high-contrast" || attr === "underline-links") {
+      document.documentElement.classList.toggle(attr, val);
+    } else {
+      document.documentElement.setAttribute(attr, String(val));
+    }
     set(val);
   };
 
@@ -742,7 +670,7 @@ function AppearancePicker({ onDone }: { onDone: () => void }) {
       {/* Wordmark, consistent with the welcome + language screens */}
       <div className="mt-14 flex w-full justify-center md:mt-16">
         <p className="text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-          LEXIS<span className="text-foreground/60">OS</span>
+          ORLEIA<span className="text-foreground/60">OS</span>
         </p>
       </div>
 
@@ -837,10 +765,9 @@ function AppearancePicker({ onDone }: { onDone: () => void }) {
                   set: setDyslexia,
                   label: t("settings.dyslexia"),
                   desc: t("settings.dyslexiaDesc"),
-                },
-                {
+                },                {
                   key: "highContrast" as const,
-                  attr: "data-contrast",
+                  attr: "high-contrast",
                   active: contrast,
                   set: setContrast,
                   label: t("settings.contrast"),
@@ -853,6 +780,14 @@ function AppearancePicker({ onDone }: { onDone: () => void }) {
                   set: setReduced,
                   label: t("settings.reducedMotion"),
                   desc: t("settings.reducedMotionDesc"),
+                },
+                {
+                  key: "underlineLinks" as const,
+                  attr: "underline-links",
+                  active: underline,
+                  set: setUnderline,
+                  label: t("settings.underlineLinks"),
+                  desc: t("settings.underlineLinksDesc"),
                 },
               ].map((opt) => (
                 <button
@@ -923,7 +858,7 @@ function RelationshipPicker({ onDone }: { onDone: () => void }) {
         <div className="mx-auto w-full max-w-sm">
           <div className="mb-6 flex justify-center">
             <p className="text-xs font-sans tracking-[0.5em] text-muted-foreground/40">
-              LEXIS<span className="text-foreground/60">OS</span>
+              ORLEIA<span className="text-foreground/60">OS</span>
             </p>
           </div>
 
@@ -1073,7 +1008,7 @@ function IntroSlides({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);
   const steps = [
     {
-      title: "LEXIS",
+      title: "ORLEIA",
       subtitle: t("onboarding.s1.subtitle"),
       description: t("onboarding.s1.description"),
       visual: ShellMock,
@@ -1188,10 +1123,10 @@ function IntroSlides({ onDone }: { onDone: () => void }) {
  *   -> 3 intro slides (workspace, tools, privacy)
  *   -> about you (optional profile)
  *   -> relationship with Noor (observer / assistant / operator)
- *   -> voice picker -> Lexis Switch (optional import)
+ *   -> voice picker -> Orleia Switch (optional import)
  *   -> done (then password).
  */
-const ONBOARD_STEP_KEY = "lexis-onboarding-step";
+const ONBOARD_STEP_KEY = "orleia-onboarding-step";
 
 export function Onboarding({ onComplete }: { onComplete: () => void }) {
   const completedRef = useRef(false);
@@ -1200,13 +1135,9 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
     if (typeof window === "undefined") return true;
     return !localStorage.getItem(ONBOARD_STEP_KEY);
   });
-  const [showLanguage, setShowLanguage] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(ONBOARD_STEP_KEY) === "language";
-  });
   const [showAgeGate, setShowAgeGate] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem(ONBOARD_STEP_KEY) === "age";
+    return localStorage.getItem(ONBOARD_STEP_KEY) === "age" || localStorage.getItem(ONBOARD_STEP_KEY) === "language";
   });
   const [showAppearance, setShowAppearance] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -1241,7 +1172,7 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
     completedRef.current = true;
     localStorage.removeItem(ONBOARD_STEP_KEY);
     storage.completeOnboarding();
-    if (withTutorial) localStorage.setItem("lexis-tutorial-pending", "true");
+    if (withTutorial) localStorage.setItem("orleia-tutorial-pending", "true");
     onComplete();
   };
 
@@ -1254,10 +1185,10 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
   }, [showWelcome]);
 
   if (showSwitch) {
-    return <LexisSwitch onComplete={handleSwitchDone} />;
+    return <OrleiaSwitch onComplete={handleSwitchDone} />;
   }
   if (showVoice) {
-    return <VoiceSetup onDone={handleVoiceDone} onSkip={handleVoiceDone} />;
+    return null;
   }
   if (showProfile) {
     return (
@@ -1308,17 +1239,6 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
       />
     );
   }
-  if (showLanguage) {
-    return (
-      <LanguagePicker
-        onDone={() => {
-          setShowLanguage(false);
-          persistStep("age");
-          setShowAgeGate(true);
-        }}
-      />
-    );
-  }
   if (showAgeGate) {
     return (
       <AgeGate
@@ -1335,8 +1255,8 @@ export function Onboarding({ onComplete }: { onComplete: () => void }) {
       <WelcomeScreen
         onDone={() => {
           setShowWelcome(false);
-          persistStep("language");
-          setShowLanguage(true);
+          persistStep("age");
+          setShowAgeGate(true);
         }}
       />
     );

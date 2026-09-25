@@ -1,5 +1,5 @@
 // ============================================================
-// Lexis Brain - local linkers
+// Orleia Brain - local linkers
 // All edge computation here is pure, local, and offline.
 // Bounded so the graph rebuilds in milliseconds even on large
 // workspaces (caps on mention + similarity work).
