@@ -1,0 +1,57 @@
+#!/bin/sh
+# ============================================================
+# pre-commit secret scanner — blocks commits containing live
+# API keys / tokens. Scans the STAGED content (not the working
+# tree) so what you commit is exactly what gets scanned.
+#
+# Bypass in a genuine emergency (should stay rare):
+#   ORLEIA_SKIP_SECRET_SCAN=1 git commit ...
+# ============================================================
+
+if [ "$ORLEIA_SKIP_SECRET_SCAN" = "1" ]; then
+  exit 0
+fi
+
+# Patterns that indicate live credentials. Keep conservative:
+# each must be near-impossible to appear in normal code.
+# NOTE: no blank lines allowed — an empty regex matches everything.
+PATTERNS='nvapi-[A-Za-z0-9_-]{20,}
+vercel_blob_rw_[A-Za-z0-9_]+
+ghp_[A-Za-z0-9]{20,}
+github_pat_[A-Za-z0-9_]{20,}
+gho_[A-Za-z0-9]{20,}
+sk-ant-[A-Za-z0-9_-]{20,}
+sk-proj-[A-Za-z0-9_-]{20,}
+AKIA[0-9A-Z]{16}
+AIza[0-9A-Za-z_-]{35}
+xox[bpars]-[A-Za-z0-9-]{10,}
+glpat-[A-Za-z0-9_-]{20,}
+npm_[A-Za-z0-9]{30,}
+BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY
+eyJhbGciOi[JJA]'
+
+violations=""
+
+for f in $(git diff --cached --name-only --diff-filter=ACMR); do
+  # git show :f = staged blob content
+  hits=$(git show ":$f" 2>/dev/null | grep -nE "$PATTERNS" | head -5)
+  if [ -n "$hits" ]; then
+    violations="$violations
+$f:
+$hits"
+  fi
+done
+
+if [ -n "$violations" ]; then
+  echo ""
+  echo "  XXX  COMMIT BLOCKED — looks like live credentials are staged  XXX"
+  echo ""
+  echo "$violations"
+  echo ""
+  echo "  Remove the secret(s), or if this is a false positive, bypass with:"
+  echo "    ORLEIA_SKIP_SECRET_SCAN=1 git commit ..."
+  echo ""
+  exit 1
+fi
+
+exit 0
