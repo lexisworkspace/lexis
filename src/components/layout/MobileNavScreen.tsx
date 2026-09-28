@@ -47,11 +47,12 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
     onClose();
   };
 
-  /* Navigate first, close 140ms later — one swoosh, no snap. */
+  /* Close FIRST, then navigate — the card slides back over instantly
+     while the new page loads underneath (no dead wait on the sheet). */
   const goTo = (href: string) => {
     if (href === pathname) { close(); return; }
+    close();
     router.push(href);
-    window.setTimeout(close, 140);
   };
 
   /* Swipe LEFT anywhere on the sheet to fly it back under the app.
@@ -112,7 +113,7 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
           initial={{ x: "-12%" }}
           animate={{ x: 0 }}
           exit={{ x: "-12%" }}
-          transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+          transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
           className="fixed inset-y-0 left-0 z-[40] flex w-[82vw] max-w-[340px] flex-col bg-sidebar md:hidden"

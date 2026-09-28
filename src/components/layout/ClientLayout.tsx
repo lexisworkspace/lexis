@@ -52,6 +52,29 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [planIntroDone, setPlanIntroDone] = useState(true);
+  // Device-matched corner radius for the sliding main card (matches the
+  // physical screen curvature of the phone; UA-CH platform first, UA
+  // string as fallback, 28px default).
+  const [deviceRadius, setDeviceRadius] = useState(28);
+  useEffect(() => {
+    if (typeof navigator === "undefined") return;
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+    const plat = (nav.userAgentData?.platform || navigator.userAgent || "").toLowerCase();
+    const ua = navigator.userAgent.toLowerCase();
+    let r = 28; // generic / desktop
+    if (plat.includes("iphone") || ua.includes("iphone")) r = 42; // iPhone notch era
+    else if (plat.includes("ipad") || ua.includes("ipad")) r = 18;
+    else if (plat.includes("android")) {
+      if (ua.includes("sm-")) r = 38; // Samsung Galaxy
+      else if (ua.includes("pixel")) r = 40; // Google Pixel
+      else if (ua.includes("huawei") || ua.includes("honor")) r = 34;
+      else if (ua.includes("oneplus")) r = 40;
+      else if (ua.includes("xiaomi")) r = 38;
+      else r = 36; // generic Android
+    }
+    setDeviceRadius(r);
+    document.documentElement.style.setProperty("--orleia-card-radius", `${r}px`);
+  }, []);
   const landing = isLandingDomain();
   const isFullWidth = FULL_WIDTH_ROUTES.some(r => pathname.startsWith(r));
   // Sidebar collapse state (from Sidebar's custom event) so the main
