@@ -1049,7 +1049,7 @@ function GridPageInner() {
           <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
         </div>
         <h1 className="text-2xl font-bold tracking-tight">{t("nav.grid")}</h1>
-        <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("mode.mobileUnavailable")}</p>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("grid.mobileUnavailable")}</p>
       </div>
     );
   }

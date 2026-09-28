@@ -18,21 +18,48 @@ export function markSplashSeen() {
   }
 }
 
+/**
+ * Handoff point for the pre-hydration BootSplash (server-rendered, visible
+ * from first paint). Dispatched from SplashScreen on mount — and from
+ * ClientLayout on session reloads where the React splash doesn't mount.
+ */
+export const SPLASH_READY_EVENT = "orleia:splash-ready";
+
 interface SplashScreenProps {
   onComplete: () => void;
+  /**
+   * True once the app behind the splash is ready to show. The splash holds
+   * for a 1s minimum, then dismisses as soon as `ready` flips — it covers
+   * loading instead of stacking on top of it.
+   */
+  ready?: boolean;
 }
 
-export function SplashScreen({ onComplete }: SplashScreenProps) {
+export function SplashScreen({ onComplete, ready = true }: SplashScreenProps) {
   const [visible, setVisible] = useState(true);
+  const [minDone, setMinDone] = useState(false);
 
+  // BootSplash (pre-hydration HTML) removes itself the moment we mount —
+  // same wordmark, same background: the swap is invisible.
   useEffect(() => {
-    // After the roll animation finishes (~1s for "ORLEIA"), hold briefly, then fade
-    const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(onComplete, 600);
-    }, 2000);
+    window.dispatchEvent(new Event(SPLASH_READY_EVENT));
+  }, []);
+
+  // Minimum brand beat: 1s, then the splash gets out of the way.
+  useEffect(() => {
+    const timer = setTimeout(() => setMinDone(true), 1000);
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []);
+
+  // Dismiss only when BOTH the minimum has elapsed and the app is ready.
+  // On fast loads that's ~1s total; on slow ones the wordmark simply holds
+  // until there is something real to reveal behind it.
+  useEffect(() => {
+    if (!minDone || !ready) return;
+    setVisible(false);
+    const t = setTimeout(onComplete, 350); // let the fade finish
+    return () => clearTimeout(t);
+  }, [minDone, ready, onComplete]);
 
   return (
     <AnimatePresence>
@@ -40,7 +67,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
         <motion.div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-background"
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
         >
           <motion.img
             src="/orleia-wordmark.png"

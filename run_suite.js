@@ -64,7 +64,7 @@ const tests = [
   { id: 'T3-2', tier: 3, model: 'logos-1.0', q: 'Make me a study plan for an exam in 2 weeks.', note: 'structured plan' },
   { id: 'T3-3', tier: 3, model: 'logos-1.0', q: 'Make me an infographic about how to make the perfect coffee.', note: 'should emit chart/steps block' },
   { id: 'T3-4', tier: 3, model: 'logos-1.0', q: 'Translate "The early bird catches the worm" to Spanish, then to French, then explain the idiom.', note: 'all three' },
-  { id: 'T3-5', tier: 3, model: 'logos-1.0', q: 'Create a full morning routine: 2 habits, 2 tasks, and a note explaining why each one matters.', note: 'action parsing happens client-side; model should emit LEXIS_ACTION' },
+  { id: 'T3-5', tier: 3, model: 'logos-1.0', q: 'Create a full morning routine: 2 habits, 2 tasks, and a note explaining why each one matters.', note: 'action parsing happens client-side; model should emit ORLEIA_ACTION' },
 ];
 
 (async () => {

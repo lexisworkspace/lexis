@@ -21,8 +21,8 @@ export default function GlobalError({
             </div>
             <h1 className="text-lg font-bold tracking-tight">Something went wrong</h1>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              This is usually stale app state after an update. A quick reload
-              almost always fixes it - your data is safe on this device.
+              That's on us — nothing you did. Your workspace is safe: everything
+              lives on this device, so a quick reload almost always fixes it.
             </p>
             <button
               onClick={() => reset()}

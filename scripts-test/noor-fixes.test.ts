@@ -38,13 +38,13 @@ check(
 
 console.log("== 2. Bulk action reply -> one clean summary ==");
 // Replicates the shape of the model's real bulk output: preamble prose,
-// then several LEXIS_ACTION lines, no closing sentence.
+// then several ORLEIA_ACTION lines, no closing sentence.
 const bulkReply = `I'll create all the habits and tasks for your daily routine in bulk. Here they are:
-LEXIS_ACTION {"action":"create_habit","params":{"name":"Morning Stretching","frequency":"daily","timeOfDay":"09:00"}}
-LEXIS_ACTION {"action":"create_habit","params":{"name":"Meditation","frequency":"daily"}}
-LEXIS_ACTION {"action":"create_task","params":{"title":"Prepare Healthy Breakfast"}}
-LEXIS_ACTION {"action":"create_task","params":{"title":"Review Schedule and Prioritize Tasks"}}
-LEXIS_ACTION {"action":"create_habit","params":{"name":"Focus Work Block","frequency":"daily"}}
+ORLEIA_ACTION {"action":"create_habit","params":{"name":"Morning Stretching","frequency":"daily","timeOfDay":"09:00"}}
+ORLEIA_ACTION {"action":"create_habit","params":{"name":"Meditation","frequency":"daily"}}
+ORLEIA_ACTION {"action":"create_task","params":{"title":"Prepare Healthy Breakfast"}}
+ORLEIA_ACTION {"action":"create_task","params":{"title":"Review Schedule and Prioritize Tasks"}}
+ORLEIA_ACTION {"action":"create_habit","params":{"name":"Focus Work Block","frequency":"daily"}}
 `;
 const out1 = processActionReply(bulkReply) || "(null)";
 console.log("  output:", JSON.stringify(out1));
@@ -62,7 +62,7 @@ check("still ends with a short summary", out2.includes("Done!"), out2);
 
 console.log("== 4. Single action reply stays rich ==");
 const single = processActionReply(
-  'LEXIS_ACTION {"action":"create_habit","params":{"name":"Drink Water","frequency":"daily"}}'
+  'ORLEIA_ACTION {"action":"create_habit","params":{"name":"Drink Water","frequency":"daily"}}'
 ) || "(null)";
 console.log("  output:", JSON.stringify(single));
 check("single action keeps its full confirmation", single.includes("Drink Water") && single.includes("streak"), single);
@@ -70,8 +70,8 @@ check("single action keeps its full confirmation", single.includes("Drink Water"
 console.log("== 5. Model's own trailing 'Done' is not duplicated ==");
 const trailing = processActionReply(
   `Here you go:
-LEXIS_ACTION {"action":"create_habit","params":{"name":"Read 10 pages","frequency":"daily"}}
-LEXIS_ACTION {"action":"create_habit","params":{"name":"Journal for 5 minutes","frequency":"daily"}}
+ORLEIA_ACTION {"action":"create_habit","params":{"name":"Read 10 pages","frequency":"daily"}}
+ORLEIA_ACTION {"action":"create_habit","params":{"name":"Journal for 5 minutes","frequency":"daily"}}
 Done!`
 ) || "(null)";
 console.log("  output:", JSON.stringify(trailing));
@@ -81,9 +81,9 @@ console.log("== 6. Misspelled markers must never leak raw JSON ==");
 const leaked = `LEVIS_ACTION {"action":"create_task","params":{"title":"Define key features and functionalities of academic SaaS"}}`;
 const cleaned = stripActionRemnants(leaked);
 check("LEVIS_ACTION (missing X) is stripped", !/LEVIS_ACTION|create_task/.test(cleaned) && cleaned === "", cleaned);
-check("LEXIS_ACTION with space is stripped", stripActionRemnants(`ok\nLEXIS ACTION {"action":"create_task","params":{}}`) === "ok", stripActionRemnants(`ok\nLEXIS ACTION {"action":"create_task","params":{}}`));
-check("LEXIS-ACTION with hyphen is stripped", stripActionRemnants(`ok\nLEXIS-ACTION {"action":"create_task","params":{}}`) === "ok");
-check("LEXISACTION (no separator) is stripped", stripActionRemnants(`ok\nLEXISACTION{"action":"create_task","params":{}}`) === "ok");
+check("ORLEIA_ACTION with space is stripped", stripActionRemnants(`ok\nORLEIA ACTION {"action":"create_task","params":{}}`) === "ok", stripActionRemnants(`ok\nORLEIA ACTION {"action":"create_task","params":{}}`));
+check("ORLEIA-ACTION with hyphen is stripped", stripActionRemnants(`ok\nORLEIA-ACTION {"action":"create_task","params":{}}`) === "ok");
+check("ORLEIAACTION (no separator) is stripped", stripActionRemnants(`ok\nORLEIAACTION{"action":"create_task","params":{}}`) === "ok");
 const prose = "Here are the next steps for your project.";
 check("healthy stored reply is untouched", sanitizeStoredReply(prose) === prose);
 check("leaked stored reply is cleaned", sanitizeStoredReply(leaked) === "");

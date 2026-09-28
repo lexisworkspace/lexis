@@ -1365,3 +1365,122 @@ div[class*="fixed"][class*="inset-0"] {
 @media (prefers-reduced-motion: reduce) {
   .orleia-attach-in { animation-duration: 0.01ms; }
 }
+
+/* ============================================================
+   Liquid Glass — floating mobile buttons (iOS-style material).
+   Applied ONLY on Apple touch devices (html.ios-touch, set by
+   ClientLayout); Android and desktop keep the matte .orleia-glass-btn.
+   Geometry note: buttons are wrapped in a 50x50 hit-area (Apple HIG
+   wants >=44pt; 50 gives buffer) and the glass circle inside stays
+   40px so visual layout is unchanged.
+   ============================================================ */
+.orleia-hit-50 {
+  position: fixed;
+  width: 50px;
+  height: 50px;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.orleia-hit-50 > button {
+  width: 42px;
+  height: 42px;
+  padding: 0;
+}
+/* The decoded Apple Liquid Glass recipe (from the official SVG export):
+   FILL = black base + white 21% ("the muddy grey"), kept translucent so
+   blurred content still reads underneath. No CSS border — the edges are
+   shadow work: plus-darker rim ring (#E8E8E8), side rims (#D0D0D0, dx 1.25),
+   inner dark shadow from top (#282828), tight dark bottom edge (#282828),
+   and a deep light glow from the bottom (#E6E6E6, blur 15). */
+html.ios-touch .orleia-hit-50 > button.orleia-glass-btn {
+  background: linear-gradient(rgb(255 255 255 / 0.11), rgb(255 255 255 / 0.11)) rgb(0 0 0 / 0.66);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: none;
+  box-shadow:
+    0 8px 8px rgb(0 0 0 / 0.10),
+    0 0 0 0.5px rgb(232 232 232 / 0.35),
+    -1px 0 1px -0.5px rgb(208 208 208 / 0.30),
+    1px 0 1px -0.5px rgb(208 208 208 / 0.30),
+    inset 0 5px 5px -4px rgb(20 20 20 / 0.55),
+    inset 0 -5px 5px -4px rgb(20 20 20 / 0.45),
+    inset 0 -14px 15px -8px rgb(230 230 230 / 0.10);
+}
+html.ios-touch .orleia-hit-50 > button.orleia-glass-btn:active {
+  transform: scale(0.9);
+  background: linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.08)) rgb(0 0 0 / 0.74);
+}
+/* Icons read bigger inside the smaller 42px glass circle (iOS only). */
+html.ios-touch .orleia-hit-50 > button.orleia-glass-btn svg {
+  width: 23px;
+  height: 23px;
+}
+
+/* Liquid Glass search pill — decoded from the official search-bar SVG:
+   grey fill #999999 @17% (luminosity), rim ring + side rims #A6A6A6,
+   inner dark shadow from top + tight dark bottom edge (#1A1A1A),
+   deep light glow from the bottom (#E6E6E6). 42px tall to sit level
+   with the 42px buttons. Mic icon from the reference deliberately
+   omitted. iOS only — Android keeps the bordered secondary pill. */
+html.ios-touch .orleia-search-glass {
+  background: rgb(153 153 153 / 0.17);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: none;
+  box-shadow:
+    0 8px 8px rgb(0 0 0 / 0.04),
+    0 0 0 0.5px rgb(166 166 166 / 0.35),
+    -1px 0 1px -0.5px rgb(166 166 166 / 0.3),
+    1px 0 1px -0.5px rgb(166 166 166 / 0.3),
+    inset 0 5px 5px -4px rgb(26 26 26 / 0.55),
+    inset 0 -5px 5px -4px rgb(26 26 26 / 0.45),
+    inset 0 -14px 15px -8px rgb(230 230 230 / 0.10);
+}
+
+/* ---- LIGHT MODE variants ----
+   The recipes above are Apple's DARK glass (black base). In light mode
+   they rendered as ugly dark blobs with inverted shading. Light glass:
+   frosted white base, grey rims, white specular top, soft dark bottom
+   edge, white glow from below — iOS light-control shading. */
+html.ios-touch:not(.dark) .orleia-hit-50 > button.orleia-glass-btn {
+  background: linear-gradient(rgb(255 255 255 / 0.52), rgb(255 255 255 / 0.52)) rgb(255 255 255 / 0.30);
+  box-shadow:
+    0 8px 8px rgb(31 41 55 / 0.08),
+    0 0 0 0.5px rgb(120 120 120 / 0.35),
+    -1px 0 1px -0.5px rgb(120 120 120 / 0.30),
+    1px 0 1px -0.5px rgb(120 120 120 / 0.30),
+    inset 0 5px 5px -4px rgb(255 255 255 / 0.95),
+    inset 0 -5px 5px -4px rgb(80 80 90 / 0.16),
+    inset 0 -14px 15px -8px rgb(255 255 255 / 0.45);
+}
+html.ios-touch:not(.dark) .orleia-hit-50 > button.orleia-glass-btn:active {
+  background: linear-gradient(rgb(255 255 255 / 0.70), rgb(255 255 255 / 0.70)) rgb(255 255 255 / 0.45);
+}
+html.ios-touch:not(.dark) .orleia-search-glass {
+  background: rgb(255 255 255 / 0.42);
+  box-shadow:
+    0 8px 8px rgb(31 41 55 / 0.05),
+    0 0 0 0.5px rgb(120 120 120 / 0.32),
+    -1px 0 1px -0.5px rgb(120 120 120 / 0.28),
+    1px 0 1px -0.5px rgb(120 120 120 / 0.28),
+    inset 0 5px 5px -4px rgb(255 255 255 / 0.95),
+    inset 0 -5px 5px -4px rgb(80 80 90 / 0.14),
+    inset 0 -14px 15px -8px rgb(255 255 255 / 0.50);
+}
+
+/* UI chrome never becomes a text-selection target on touch: long-pressing
+   a nav item or icon button must not pop the iOS selection loupe. Inputs,
+   notes, and chat messages stay fully selectable (they are not covered). */
+html.ios-touch .orleia-app-shell :is(button, nav, [role="button"]) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Hide scrollbars while keeping scrollability (Noor mobile chats strip). */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

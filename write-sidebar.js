@@ -56,8 +56,8 @@ export function Sidebar({
 
   useEffect(() => {
     const onOpen = () => setMobileOpen(true);
-    window.addEventListener("lexis:open-drawer", onOpen);
-    return () => window.removeEventListener("lexis:open-drawer", onOpen);
+    window.addEventListener("orleia:open-drawer", onOpen);
+    return () => window.removeEventListener("orleia:open-drawer", onOpen);
   }, []);
 
   return (
@@ -99,17 +99,17 @@ export function Sidebar({
           collapsed && "justify-center px-2"
         )}>
           <img
-            src="/lexis-logo.png"
-            alt="LEXIS"
+            src="/orleia-logo.png"
+            alt="ORLEIA"
             className="h-11 w-11 rounded-xl object-contain shrink-0"
           />
-          {!collapsed && <h1 className="text-sm font-bold tracking-tight whitespace-nowrap">LEXIS</h1>}
+          {!collapsed && <h1 className="text-sm font-bold tracking-tight whitespace-nowrap">ORLEIA</h1>}
         </div>
 
         {/* Global search */}
         <div className="px-2 pt-3">
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent("lexis:open-search"))}
+            onClick={() => window.dispatchEvent(new CustomEvent("orleia:open-search"))}
             className={cn(
               "flex w-full items-center gap-2 rounded-xl border border-border/70 bg-secondary/40 px-2.5 py-2 text-xs text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground",
               collapsed && "justify-center px-0 border-transparent"
@@ -152,7 +152,7 @@ export function Sidebar({
           </ul>
         </nav>
 
-        {/* Lexis Tools */}
+        {/* Orleia Tools */}
         <div className="px-2 pb-2">
           <button
             onClick={() => setToolsOpen((v) => !v)}
@@ -205,7 +205,7 @@ export function Sidebar({
         <div className="border-t border-border p-3 space-y-1 overflow-hidden">
           <ReminderBell collapsed={collapsed} />
           <a
-            href="https://buymeacoffee.com/lexis"
+            href="https://buymeacoffee.com/orleia"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(

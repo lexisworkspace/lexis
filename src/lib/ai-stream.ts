@@ -22,6 +22,8 @@ import { buildSkillsBlock } from "./noor-skills";
 export { NoorCapError } from "./noor-cap";
 import { NoorCapError } from "./noor-cap";
 import { MODEL_PROFILES } from "./ai-models";
+import { isLocalModel, localModelById, probeOllama, streamOllama, isModelInstalled, ollamaSetupHint } from "./local-ai";
+import { buildNoorSystemPrompt } from "./noor-system";
 import { countFactInstruction } from "./count-guard";
 import { jailbreakOverride, jailbreakQueryReplacement } from "./jailbreak-guard";
 import {
@@ -47,6 +49,40 @@ async function streamLLM(
   /** Agent-only extra context (device environment + screen description). */
   agentContext = ""
 ): Promise<string | null> {
+  // ---- Local AI (Ollama) ----
+  // Runs entirely on the user's machine: same Noor prompt + guards, but no
+  // /api/chat round-trip, no NVIDIA dependency and no daily cap. Falls back
+  // to the cloud path only when this device has no reachable Ollama install
+  // (so the picker's local selection can never silently brick the chat).
+  if (isLocalModel(modelId)) {
+    const def = localModelById(modelId);
+    if (!def) return null;
+    const status = await probeOllama();
+    if (!status.reachable || !isModelInstalled(status, def)) {
+      const missing = !status.reachable
+        ? `${ollamaSetupHint()}`
+        : `Model not downloaded yet. Run: ollama pull ${def.ollamaTag}`;
+      return `**Local AI isn't ready.** ${missing}\n\nOnce it's running, pick **${def.name}** again — it runs on this computer, free and offline.`;
+    }
+    const localSystem = buildNoorSystemPrompt(modelId, opts);
+    const localMessages = conversationHistory
+      .slice(-12)
+      .filter((m) => (m as { kind?: string }).kind !== "usage-warning")
+      .map((m) => ({ role: m.role, content: withAttachmentContext(m) }));
+    const reply = await streamOllama(
+      def,
+      localSystem,
+      localMessages,
+      (delta) => {
+        // Local models emit plain text; route through the same visible-text
+        // interceptor so ORLEIA_ACTION lines still execute for real.
+        onToken(delta);
+      },
+      opts?.onThinking,
+      signal
+    );
+    return reply;
+  }
   const model = MODEL_PROFILES[modelId];
   if (!model) return null;
 
@@ -307,8 +343,11 @@ export async function chatStream(
   /** Agent-only extra context (device environment + screen description). */
   agentContext = ""
 ): Promise<string> {
-  const model = MODEL_PROFILES[modelId];
-  if (!model) {
+  // Local models have no cloud profile — skip the profile gate for them.
+  const model = isLocalModel(modelId)
+    ? null
+    : MODEL_PROFILES[modelId as "fast-1" | "core-1" | "agent-1"];
+  if (!model && !isLocalModel(modelId)) {
     const msg = "Invalid model selected. Please choose Fast, Core, or Agent.";
     opts.onToken(msg);
     return msg;
@@ -557,6 +596,13 @@ export async function chatStream(
     // Cap errors propagate to the UI's friendly upgrade message. Everything
     // else genuinely falls back to the local engine.
     if (e instanceof NoorCapError) throw e;
+    // Local model failed (Ollama down / model missing): say so plainly
+    // instead of dropping to the cloud offline robot.
+    if (isLocalModel(modelId)) {
+      const msg = `**${localModelById(modelId)?.name || "Local AI"} couldn't answer.** Is Ollama running? ${ollamaSetupHint()}`;
+      opts.onToken(msg);
+      return msg;
+    }
     /* fall through to the local engine */
   }
 

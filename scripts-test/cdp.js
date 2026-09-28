@@ -1,4 +1,4 @@
-// Minimal CDP driver for the running Lexis desktop app.
+// Minimal CDP driver for the running Orleia desktop app.
 // Usage: node scripts-test/cdp.js '<js expression>'
 // Connects to the first page target, evaluates, prints JSON.
 const http = require("http");

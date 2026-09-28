@@ -76,7 +76,7 @@ const config: Config = {
         sans: ["var(--font-instrument)", "system-ui", "sans-serif"],
         serif: ["var(--font-fraunces)", "Georgia", "serif"],
         heading: ["var(--font-instrument)", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        mono: ["JetBrains Mono Variable", "JetBrains Mono", "monospace"],
       },
       borderRadius: {
         "2xl": "1rem",
@@ -93,6 +93,8 @@ const config: Config = {
         "pulse-soft": "pulseSoft 2s ease-in-out infinite",
         "float": "float 3s ease-in-out infinite",
         "shimmer": "shimmer 2s linear infinite",
+        "marquee-vertical": "marquee-vertical var(--duration, 30s) linear infinite",
+        "fade-in-up": "fade-in-up 0.6s ease-out both",
       },
       keyframes: {
         fadeIn: {
@@ -122,6 +124,14 @@ const config: Config = {
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        "marquee-vertical": {
+          "0%": { transform: "translateY(0)" },
+          "100%": { transform: "translateY(-100%)" },
+        },
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(30px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
     },

@@ -89,7 +89,7 @@ async function main() {
     process.execPath,
     [
       "-e",
-      `process.env.LEXIS_APP_ORIGIN = "http://127.0.0.1:1";` +
+      `process.env.ORLEIA_APP_ORIGIN = "http://127.0.0.1:1";` +
         `const { startPairingServer } = require(${JSON.stringify(path.resolve(__dirname, "../desktop/pair-server"))});` +
         `startPairingServer({ port: ${PORT}, cacheDir: ${JSON.stringify(CACHE)} }).then(() => console.log("child-ready"));`,
     ],

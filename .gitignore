@@ -35,3 +35,12 @@ desktop-artifacts/
 
 # workflows (token scope limitation)
 .github/workflows/
+
+# local scratch & secrets (NEVER commit)
+/_tmp/
+scripts-test/lexis-env.txt
+*.bak
+/*.jpeg
+/*.png
+/*.mp4
+/*.zip

@@ -1,6 +1,6 @@
-# Lexis Security Audit - August 21, 2026
+# Orleia Security Audit - August 21, 2026
 
-Scope: the entire `/e/lexis` codebase (Next.js 15 app), its 3 server routes, headers,
+Scope: the entire `/e/orleia` codebase (Next.js 15 app), its 3 server routes, headers,
 client storage, and dependencies. Every finding below was either fixed and verified
 live, or is documented with a clear recommendation.
 
@@ -18,7 +18,7 @@ or submit arbitrarily large audio - a real cost + availability risk.
   (chat 20/min·300/day, tts 60/min·800/day, transcribe 20/min·300/day).
 - **Input caps** - chat: ≤80 messages, ≤12k chars each, ≤60k total, `maxTokens` ≤ 2500,
   temperature clamped 0-2; transcribe: audio ≤ ~4 MB, sample rate 8k-48k.
-- **Model allowlist** - only the 3 models Lexis actually uses can be requested.
+- **Model allowlist** - only the 3 models Orleia actually uses can be requested.
 - **Malformed-message guard** - non-object / non-string entries rejected with 400.
 
 **Verified live:** no-Origin → `403 Forbidden` · real browser Origin → `200` with a real
@@ -26,7 +26,7 @@ AI reply · `evil.example.com` → `403` · disallowed model → `400` · `maxTo
 → clamped · TTS: no-Origin → `403`, real Origin → `200` WAV.
 
 ### 2. MEDIUM - Plaintext password in localStorage
-**Before:** the local password was stored raw in `localStorage["lexis-password"]` -
+**Before:** the local password was stored raw in `localStorage["orleia-password"]` -
 anyone with device access (or an XSS) could read the actual password, which users often
 reuse across sites.
 
@@ -68,7 +68,7 @@ all capped/rejected server-side (see #1).
 
 1. **The Origin check is a deterrent, not a hard boundary.** The `Origin` header is
    client-controlled - a determined attacker can spoof it (e.g.
-   `curl -H "Origin: https://lexis-workspace.vercel.app"`). It stops casual abuse and
+   `curl -H "Origin: https://orleia-workspace.vercel.app"`). It stops casual abuse and
    scrapers; rate limits are the backstop. For hard quota protection at scale:
    - **Vercel Firewall / rate limiting** on the 3 API routes (platform-level, per-IP
      across instances), or
@@ -78,7 +78,7 @@ all capped/rejected server-side (see #1).
    with cold instances. Fine for a personal app; see #1 for scale.
 3. **npm audit: 2 HIGH flags, not exploitable here:**
    - `GHSA-955p-x3mx-jcvp` (Next.js server-action disclosure, Moderate) - **requires
-     Server Actions; Lexis has none** (route handlers only). Fix = Next 15.5.21, which
+     Server Actions; Orleia has none** (route handlers only). Fix = Next 15.5.21, which
      needs React 19 - deferred; revisit when upgrading.
    - PostCSS advisories - build-time/dev tooling only; never exposed in the deployed
      bundle.
@@ -93,9 +93,9 @@ all capped/rejected server-side (see #1).
 
 ```bash
 # guard behavior (after deploy):
-curl -X POST https://lexis-workspace.vercel.app/api/chat -H 'Content-Type: application/json' \
+curl -X POST https://orleia-workspace.vercel.app/api/chat -H 'Content-Type: application/json' \
   -d '{"model":"meta/llama-3.1-8b-instruct","messages":[{"role":"user","content":"hi"}]}'   # -> 403
-curl -X POST ... -H 'Origin: https://lexis-workspace.vercel.app' ...                          # -> 200
+curl -X POST ... -H 'Origin: https://orleia-workspace.vercel.app' ...                          # -> 200
 # headers:
-curl -sI https://lexis-workspace.vercel.app/assistant | grep -iE 'content-security|permissions'
+curl -sI https://orleia-workspace.vercel.app/assistant | grep -iE 'content-security|permissions'
 ```

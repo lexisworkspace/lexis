@@ -1,10 +1,10 @@
-// Uploads the Lexis 1.17.1 installers to Vercel Blob at exact paths (no random suffix)
+// Uploads the Orleia 1.17.1 installers to Vercel Blob at exact paths (no random suffix)
 // so the landing page links keep working. Token read from the pulled env file.
 const { put } = require("@vercel/blob");
 const fs = require("fs");
 const path = require("path");
 
-const envFile = "scripts-test/lexis-env.txt";
+const envFile = "scripts-test/orleia-env.txt";
 const env = fs.readFileSync(envFile, "utf8");
 const match = env.match(/BLOB_READ_WRITE_TOKEN="([^"]+)"/);
 if (!match) {
@@ -14,10 +14,10 @@ if (!match) {
 process.env.BLOB_READ_WRITE_TOKEN = match[1];
 
 const files = [
-  { local: "desktop/dist/Lexis-1.17.1-mac-arm64.zip", name: "downloads/Lexis-1.17.1-mac-arm64.zip", type: "application/zip" },
-  { local: "desktop/dist/Lexis-1.17.1-mac-x64.zip", name: "downloads/Lexis-1.17.1-mac-x64.zip", type: "application/zip" },
-  { local: "desktop/dist/Lexis-1.17.1-linux-x86_64.AppImage", name: "downloads/Lexis-1.17.1-linux-x86_64.AppImage", type: "application/octet-stream" },
-  { local: "desktop/dist/Lexis-1.17.1-linux-amd64.deb", name: "downloads/Lexis-1.17.1-linux-amd64.deb", type: "application/vnd.debian.binary-package" },
+  { local: "desktop/dist/Orleia-1.17.1-mac-arm64.zip", name: "downloads/Orleia-1.17.1-mac-arm64.zip", type: "application/zip" },
+  { local: "desktop/dist/Orleia-1.17.1-mac-x64.zip", name: "downloads/Orleia-1.17.1-mac-x64.zip", type: "application/zip" },
+  { local: "desktop/dist/Orleia-1.17.1-linux-x86_64.AppImage", name: "downloads/Orleia-1.17.1-linux-x86_64.AppImage", type: "application/octet-stream" },
+  { local: "desktop/dist/Orleia-1.17.1-linux-amd64.deb", name: "downloads/Orleia-1.17.1-linux-amd64.deb", type: "application/vnd.debian.binary-package" },
 ];
 
 (async () => {

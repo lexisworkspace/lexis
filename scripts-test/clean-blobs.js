@@ -2,7 +2,7 @@
 const { del, list } = require("@vercel/blob");
 const fs = require("fs");
 
-const env = fs.readFileSync("scripts-test/lexis-env.txt", "utf8");
+const env = fs.readFileSync("scripts-test/orleia-env.txt", "utf8");
 const match = env.match(/BLOB_READ_WRITE_TOKEN="([^"]+)"/);
 if (!match) {
   console.error("No token");

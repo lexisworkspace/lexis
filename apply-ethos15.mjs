@@ -71,8 +71,8 @@ patch("src/app/landing/page.tsx", [
    '    name: "Ethos 1.5",\n    tag: "DEEP REASONING",\n    desc: "The ultimate authority in reasoning. Now powered by NVIDIA Nemotron 3 - frontier-scale analytical power.",'],
   ['"Three distinct AI modes - Ethos, Logos, and Verse - powered by NVIDIA. From quick answers to deep strategic thinking - Noor understands your context.",',
    '"Three distinct AI modes - Ethos 1.5, Logos, and Verse - powered by NVIDIA. From quick answers to deep strategic thinking - Noor understands your context.",'],
-  ['    title: "Lexis v1.0",',
-   '    title: "Lexis v1.1",'],
+  ['    title: "Orleia v1.0",',
+   '    title: "Orleia v1.1",'],
   ['BUILT WITH CARE &middot; FOR THE CURIOUS &middot; v1.0.0',
    'BUILT WITH CARE &middot; FOR THE CURIOUS &middot; v1.1.0'],
 ]);
@@ -81,8 +81,8 @@ patch("src/app/landing/page.tsx", [
 {
   const p = path.resolve("src/lib/i18n.ts");
   let c = fs.readFileSync(p, "utf8");
-  const before = (c.match(/Lexis v1\.0/g) || []).length;
-  c = c.split("Lexis v1.0").join("Lexis v1.1");
+  const before = (c.match(/Orleia v1\.0/g) || []).length;
+  c = c.split("Orleia v1.0").join("Orleia v1.1");
   fs.writeFileSync(p, c);
   console.log(`src/lib/i18n.ts: ${before} version strings updated`);
 }

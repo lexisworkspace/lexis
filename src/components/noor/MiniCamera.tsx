@@ -9,6 +9,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X as XIcon, Check, RefreshCw } from "lucide-react";
 import { cn, generateId } from "@/lib/utils";
 
@@ -102,78 +103,92 @@ export function MiniCamera({ open, onClose, onCapture }: MiniCameraProps) {
     stopAndClose();
   };
 
-  return (
+  // Portal to <body>: the floating top-bar buttons are mounted at the root
+  // stacking context, so a camera nested inside <main> could never paint
+  // above them regardless of z-index.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 sm:p-8"
-      onClick={stopAndClose}
+      className="fixed inset-0 z-[80] bg-black"
+      role="dialog"
+      aria-label="Camera"
     >
-      <div
-        className="relative aspect-[3/4] w-full max-w-[min(92vw,420px)] max-h-[82dvh] overflow-hidden rounded-[32px] bg-black shadow-2xl sm:aspect-[4/3] sm:max-w-[min(70vw,640px)] sm:max-h-[78dvh]"
-        role="dialog"
-        aria-label="Camera"
-        onClick={(e) => e.stopPropagation()}
+      {error ? (
+        <div className="flex h-full items-center justify-center px-8 text-center text-xs text-white/60">
+          {error}
+        </div>
+      ) : (
+        <video
+          ref={videoRef}
+          playsInline
+          muted
+          className={cn("absolute inset-0 h-full w-full object-cover", facing === "user" && "scale-x-[-1]")}
+        />
+      )}
+      {snapped && (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={snapped.dataUrl} alt="Captured" className="absolute inset-0 h-full w-full object-cover" />
+      )}
+
+      {/* Bottom gradient so controls read on any scene */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/70 to-transparent" />
+
+      {/* Close - top left, iOS camera style */}
+      <button
+        onClick={stopAndClose}
+        className="absolute left-5 flex h-11 w-11 items-center justify-center rounded-full bg-black/45 text-white"
+        style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
+        aria-label="Close camera"
       >
-        {error ? (
-          <div className="flex h-full items-center justify-center px-8 text-center text-xs text-white/60">
-            {error}
-          </div>
-        ) : (
-          <video
-            ref={videoRef}
-            playsInline
-            muted
-            className={cn("h-full w-full object-cover", facing === "user" && "scale-x-[-1]")}
-          />
-        )}
-        {snapped && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={snapped.dataUrl} alt="Captured" className="absolute inset-0 h-full w-full object-cover" />
-        )}
+        <XIcon className="h-5 w-5" />
+      </button>
 
-        {/* Bottom gradient so controls read on any scene */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/55 to-transparent" />
-
-        {snapped ? (
-          /* Captured: discard (x) / keep (tick) - round, inside the frame */
-          <div className="absolute inset-x-0 bottom-5 flex items-center justify-between px-8">
+      {snapped ? (
+        /* Captured: discard (x) / keep (tick) - iOS style */
+        <div
+          className="absolute inset-x-0 flex items-center justify-between px-10"
+          style={{ bottom: "calc(2rem + env(safe-area-inset-bottom, 0px))" }}
+        >
+          <button
+            onClick={() => setSnapped(null)}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+            aria-label="Discard photo"
+          >
+            <XIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={confirm}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 text-white"
+            aria-label="Keep photo"
+          >
+            <Check className="h-6 w-6" />
+          </button>
+        </div>
+      ) : (
+        !error && (
+          <>
+            {/* Shutter - big white ring near the bottom, native camera style */}
             <button
-              onClick={() => setSnapped(null)}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white"
-              aria-label="Discard photo"
+              onClick={snap}
+              className="absolute left-1/2 -translate-x-1/2 rounded-full border-4 border-white/90 p-[6px]"
+              style={{ bottom: "calc(2.5rem + env(safe-area-inset-bottom, 0px))" }}
+              aria-label="Take photo"
             >
-              <XIcon className="h-5 w-5" />
+              <span className="block h-[64px] w-[64px] rounded-full bg-white" />
             </button>
+            {/* Flip camera - right of the shutter */}
             <button
-              onClick={confirm}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-black/45 text-white"
-              aria-label="Keep photo"
+              onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))}
+              className="absolute right-8 flex h-12 w-12 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+              style={{ bottom: "calc(3rem + env(safe-area-inset-bottom, 0px))" }}
+              aria-label="Switch camera"
             >
-              <Check className="h-5 w-5" />
+              <RefreshCw className="h-5 w-5" />
             </button>
-          </div>
-        ) : (
-          !error && (
-            <>
-              {/* Shutter - inside the frame, no icon, iOS style */}
-              <button
-                onClick={snap}
-                className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full border-[3px] border-white/90 p-[5px]"
-                aria-label="Take photo"
-              >
-                <span className="block h-[52px] w-[52px] rounded-full bg-white" />
-              </button>
-              {/* Flip camera - the only icon before capture */}
-              <button
-                onClick={() => setFacing((f) => (f === "user" ? "environment" : "user"))}
-                className="absolute bottom-8 right-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white"
-                aria-label="Switch camera"
-              >
-                <RefreshCw className="h-4 w-4" />
-              </button>
-            </>
-          )
-        )}
-      </div>
-    </div>
+          </>
+        )
+      )}
+    </div>,
+    document.body
   );
 }

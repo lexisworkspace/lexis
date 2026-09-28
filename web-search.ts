@@ -145,7 +145,7 @@ export function buildSearchBlock(sources: AISource[]): string {
     "\n\n" +
     (hasWeb
       ? "WEB SEARCH RESULTS (live results from the web - up to date):"
-      : "WORKSPACE SEARCH RESULTS (real data from the user's Lexis workspace - live facts, not guesses):") +
+      : "WORKSPACE SEARCH RESULTS (real data from the user's Orleia workspace - live facts, not guesses):") +
     "\n" +
     lines.join("\n") +
     "\n\nUse these results when they are relevant. Cite them inline like [1], [2] next to the facts you use. If none are relevant, say so briefly and answer from what you know."

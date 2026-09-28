@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { haptic } from "@/lib/haptics";
 import { ReminderCenter } from "./ReminderCenter";
 import { Sidebar } from "./Sidebar";
 import { MobileTopBar } from "./MobileTopBar";
@@ -13,11 +14,11 @@ import { IntroFlow } from "./IntroFlow";
 import { AgeGate } from "./AgeGate";
 import { motion, MotionConfig } from "framer-motion";
 import { storage } from "@/lib/storage";
-import { haptic } from "@/lib/haptics";
 import { useShortcuts } from "@/lib/useShortcuts";
 import { GlobalSearch } from "./GlobalSearch";
 import { ensureNoorBackground } from "@/lib/noor-background";
 import { NoorToast } from "./NoorToast";
+import { UndoToast } from "./UndoToast";
 import { PlanIntro } from "./PlanIntro";
 import { RoutePrefetcher } from "./RoutePrefetcher";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [storageReady, setStorageReady] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
+  // Shows on fresh page loads; holds until storage init completes (min 1s) —
+  // a cover for hydration + init, never a delay after them.
   const [showSplash, setShowSplash] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [ageGateDone, setAgeGateDone] = useState(true);
@@ -59,9 +62,45 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     window.addEventListener("orleia:sidebar-collapsed", onCollapse);
     return () => window.removeEventListener("orleia:sidebar-collapsed", onCollapse);
   }, []);
+  // Mirror of mobileNavOpen for the touch handlers (no stale closure).
+  const mobileNavOpenRef = useRef(false);
+  useEffect(() => { mobileNavOpenRef.current = mobileNavOpen; }, [mobileNavOpen]);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  // iOS-style edge gesture for the SIDEBAR (kept — feels native):
+  // OPEN only from the left 80px edge; swipe LEFT anywhere closes while
+  // the nav screen is up. The right-edge swipe-back (router.back) stays
+  // removed — that one conflicted with scrolling.
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
+      const startedAtEdge = touchStartX.current <= 80;
+      const opening = dx > 0 && startedAtEdge;
+      const closing = dx < 0 && mobileNavOpenRef.current;
+      if (!opening && !closing) return;
+      if (String(window.getSelection?.() ?? "").length > 0) return;
+      haptic.tick();
+      window.dispatchEvent(new CustomEvent("orleia:toggle-sidebar", { detail: opening }));
+    }
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Platform classes for CSS: iOS gets Liquid Glass buttons + chrome
+  // no-select; non-landing hosts get body.orleia-app (kills the iOS
+  // rubber-band chaining behind fixed bars).
+  useEffect(() => {
+    const ua = navigator.userAgent;
+    const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (ios) document.documentElement.classList.add("ios-touch");
+    if (!isLandingDomain()) document.body.classList.add("orleia-app");
+  }, []);
 
   // Global keyboard shortcuts (Ctrl+K search, new note/task/habit, sidebar, settings)
   useShortcuts();
@@ -76,6 +115,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLandingDomain()) return;
     setShowSplash(isFreshLoad());
+    // Hand the pre-hydration BootSplash over: either the React splash above
+    // takes the same spot seamlessly, or the app paints right away.
+    window.dispatchEvent(new Event("orleia:splash-ready"));
     try {
       setPlanIntroDone(window.localStorage.getItem("orleia.planIntroSeen.v1") === "1");
     } catch {
@@ -100,19 +142,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     setMobileNavOpen(o => !o);
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
+  // All edge-swipe gestures were removed (swipe-back + swipe-open-sidebar
+  // both conflicted with natural scrolling/system gestures).
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
-      haptic.tick();
-      window.dispatchEvent(new CustomEvent("orleia:toggle-sidebar", { detail: dx > 0 }));
-    }
-  }, []);
+  // NOTE: The iOS-style right-edge swipe-back (router.back()) was removed —
+  // NOTE: All edge-swipe gestures were removed — the right-edge swipe-back
+  // (router.back) and the left-edge swipe-to-open-sidebar both conflicted
+  // with natural scrolling/system gestures. Sidebar opens via the hamburger.
 
   const handleSplashComplete = useCallback(() => {
     markSplashSeen();
@@ -180,10 +216,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 <>
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <NoorToast />
+      <UndoToast />
       <PetReactions />
       <RoutePrefetcher />
       {showSplash && !splashDone && (
-        <SplashScreen onComplete={handleSplashComplete} />
+        <SplashScreen onComplete={handleSplashComplete} ready={storageReady} />
       )}
 
       {storageReady && !ageGateDone && <AgeGate onConfirmed={() => setAgeGateDone(true)} />}
@@ -202,7 +239,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <TutorialFlow onComplete={() => setShowTutorial(false)} />
       )}
 
-      {storageReady && !needsOnboarding && (!showSplash || splashDone) && (
+      {/* The shell mounts as soon as storage is ready — while the splash is
+          still covering it. The splash is a cover (reveals the already-
+          rendered app), not a delay (nothing renders until it's done). */}
+      {storageReady && !needsOnboarding && (
         <>
           {/* Second screen: full-page nav, OUTSIDE the shell so nothing can overlap it */}
           <MobileNavScreen open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
@@ -215,7 +255,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <Sidebar />
             <ReminderCenter />
             <main id="main-content" className={`flex-1 ${isFullWidth ? "" : "pt-[calc(4rem+env(safe-area-inset-top,0px))] md:pt-0"} md:transition-[padding] md:duration-300 md:ease-in-out ${sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"}`} tabIndex={-1}
-              onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}>
               {/* Keyed remount with enter-only fade. Deliberately NO
                   AnimatePresence: with App Router children it is the source
                   of both stacked-page and black-screen hangs. React unmounts

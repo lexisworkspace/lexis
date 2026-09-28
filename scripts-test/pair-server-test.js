@@ -26,7 +26,7 @@ async function run() {
   // page - the server reverse-proxies the real app (no longer a static
   // pair page), so the shell must be the Next.js app document.
   const page = await fetch(base + "/").then((r) => r.text());
-  check("proxy serves the real app shell", page.includes("LEXIS") && page.includes("_next/static"));
+  check("proxy serves the real app shell", page.includes("ORLEIA") && page.includes("_next/static"));
 
   // ping
   const ping = await q("/api/ping");

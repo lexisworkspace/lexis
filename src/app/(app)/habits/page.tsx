@@ -21,6 +21,8 @@ import {
   BarChart3,
   Zap,
 } from "lucide-react";
+import { useLongPress, LongPressMenu } from "@/components/ui/long-press";
+import { showUndo } from "@/lib/undo-toast";
 import { storage } from "@/lib/storage";
 import { useHydrated, useFirstVisit } from "@/lib/use-hydrated";
 import { ai } from "@/lib/ai";
@@ -219,24 +221,45 @@ export default function HabitsPage() {
           const completionRate = stats.daysInMonth > 0 ? Math.round((stats.monthLogs / stats.daysInMonth) * 100) : 0;
 
           return (
-            <motion.div
+            <HabitCardShell
               key={habit.id}
-              initial={enter ? { opacity: 0, y: 20 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 * i }}
-              className={cn(
-                "card cursor-pointer transition-all duration-200",
-                selectedHabit === habit.id && "ring-2 ring-primary-500"
-              )}
-              onClick={() => setSelectedHabit(selectedHabit === habit.id ? null : habit.id)}
+              habit={habit}
+              selected={selectedHabit === habit.id}
+              onSelect={() => setSelectedHabit(selectedHabit === habit.id ? null : habit.id)}
+              onEdit={() => { setEditingHabit(habit); setShowForm(true); }}
+              onDelete={() => {
+                // Capture BEFORE deletion so undo restores everything verbatim
+                // (habit + its logs + calendar mirrors are all cascaded).
+                const snapshot = storage.getData();
+                const habitLogs = snapshot.habitLogs.filter((l) => l.habitId === habit.id);
+                const calendarEvents = (snapshot.calendarEvents || []).filter((e) => e.notes === "sync:habit:" + habit.id);
+                storage.deleteHabit(habit.id);
+                refresh();
+                showUndo(t("habits.deletedToast") || "Habit deleted", () => {
+                  const d = storage.getData();
+                  const habit2 = snapshot.habits.find((h) => h.id === habit.id);
+                  if (habit2) d.habits.push(habit2);
+                  d.habitLogs.push(...habitLogs);
+                  d.calendarEvents = [...(d.calendarEvents || []), ...calendarEvents];
+                  storage.saveData();
+                  refresh();
+                });
+              }}
+              enterDelay={0.05 * i}
+              enter={enter}
             >
               <div className="relative">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     const wasLogged = storage.isHabitLogged(habit.id, today);
-                    if (wasLogged) storage.unlogHabit(habit.id, today);
-                    else storage.logHabit(habit.id, today);
+                    if (wasLogged) {
+                      storage.unlogHabit(habit.id, today);
+                      setGameToast(t("habits.unloggedToast") || "Logged off for today");
+                    } else {
+                      storage.logHabit(habit.id, today);
+                      setGameToast(`✅ ${habit.name}`);
+                    }
                     // First feed of the day: the pet celebrates.
                     const fedNow = storage.getData().habitLogs.filter((l) => l.date === today).length;
                     if (!wasLogged && fedNow === 1) {
@@ -270,7 +293,7 @@ export default function HabitsPage() {
                   )}
                 </div>
               </div>
-            </motion.div>
+            </HabitCardShell>
           );
 
           return null;
@@ -719,6 +742,69 @@ function HabitForm({
           </div>
         </div>
       </motion.div>
+    </motion.div>
+  );
+}
+
+/**
+ * Wrapper that keeps the habit card's motion/selection behavior identical
+ * while adding the Apple-style long-press context menu (log, edit, delete).
+ */
+function HabitCardShell({
+  habit,
+  selected,
+  onSelect,
+  onEdit,
+  onDelete,
+  enter,
+  enterDelay,
+  children,
+}: {
+  habit: Habit;
+  selected: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  enter: boolean;
+  enterDelay: number;
+  children: React.ReactNode;
+}) {
+  const { t } = useI18n();
+  const { menu, closeMenu, longPressProps } = useLongPress();
+  return (
+    <motion.div
+      initial={enter ? { opacity: 0, y: 20 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: enterDelay }}
+      className={cn(
+        "card cursor-pointer transition-all duration-200",
+        selected && "ring-2 ring-primary-500"
+      )}
+      onClick={onSelect}
+      {...longPressProps(habit.id)}
+    >
+      {children}
+      <LongPressMenu menu={menu} onClose={closeMenu}>
+        <button
+          onClick={() => { closeMenu(); const today = getToday(); if (storage.isHabitLogged(habit.id, today)) storage.unlogHabit(habit.id, today); else storage.logHabit(habit.id, today); onSelect(); }}
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" /> {t("habits.done")}
+        </button>
+        <button
+          onClick={() => { closeMenu(); onEdit(); }}
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+        >
+          <Edit3 className="h-3.5 w-3.5" /> {t("habits.editHabit")}
+        </button>
+        <div className="border-t border-border" />
+        <button
+          onClick={() => { closeMenu(); if (confirm(t("habits.deleteHabitConfirm") || "Delete this habit?")) onDelete(); }}
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-muted"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+        </button>
+      </LongPressMenu>
     </motion.div>
   );
 }

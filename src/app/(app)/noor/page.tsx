@@ -29,6 +29,8 @@ import {
   X as XIcon,
   Trash2,
   PanelRight,
+  Info,
+  Copy,
   RefreshCw,
   Copy as CopyIcon,
   Zap,
@@ -46,7 +48,9 @@ import {
   Camera,
   ImagePlus,
   Paperclip,
+  Laptop,
 } from "lucide-react";
+import { LOCAL_MODELS, probeOllama, isModelInstalled, ollamaSetupHint, type OllamaStatus, type LocalModelDef } from "@/lib/local-ai";
 import { storage } from "@/lib/storage";
 import { buildSituationModel } from "@/lib/graph/situation";
 import { getGraph } from "@/lib/graph/engine";
@@ -64,6 +68,7 @@ import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource } f
 import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
 import { useVoiceDictation } from "@/lib/useVoiceDictation";
+import { haptic } from "@/lib/haptics";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 
 const MODEL_META: Record<string, string> = {
@@ -71,13 +76,20 @@ const MODEL_META: Record<string, string> = {
   "core-1": "Core",
 };
 
-// Resolve any stored model id (including legacy ids from old conversations)
+// Resolve any stored model id (including legacy ids from old conversations).
+// Local AI ids ("local-*") pass through unchanged — they are valid models.
 function resolveModelId(id: string): string {
+  if (id.startsWith("local-")) return id;
   return MODEL_ALIASES[id] || (MODEL_META[id] ? id : "core-1");
 }
 
 function msgLabel(id?: string): string {
-  return MODEL_META[resolveModelId(id || "core-1")] || "Core";
+  const resolved = resolveModelId(id || "core-1");
+  if (resolved.startsWith("local-")) {
+    const def = LOCAL_MODELS.find((m) => m.id === resolved);
+    return def ? def.name : "Local";
+  }
+  return MODEL_META[resolved] || "Core";
 }
 
 interface Attachment {
@@ -205,7 +217,12 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AIModel>(getSafeModel(data.selectedModel));
   const [showModelPicker, setShowModelPicker] = useState(false);
+  // Local AI (Ollama): sub-list expansion + live install probe.
+  const [localOpen, setLocalOpen] = useState(false);
+  const [ollama, setOllama] = useState<OllamaStatus | null>(null);
   const [showChats, setShowChats] = useState(false);
+  const [localInfo, setLocalInfo] = useState<LocalModelDef | null>(null);
+  const localInfoRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobile();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesBoxRef = useRef<HTMLDivElement>(null);
@@ -456,6 +473,7 @@ export default function AssistantPage() {
 
   function getSafeModel(m: unknown): AIModel {
     if (typeof m === "string") {
+      if (m.startsWith("local-")) return m; // Local AI model — valid
       if (AI_MODELS.some((x) => x.id === m)) return m as AIModel;
       const aliased = MODEL_ALIASES[m];
       if (aliased) return aliased;
@@ -475,6 +493,9 @@ export default function AssistantPage() {
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
+      // Interacting with the model-info popup must NOT close the picker
+      // dropdown underneath it — the popup lives outside the picker refs.
+      if (localInfoRef.current && localInfoRef.current.contains(e.target as Node)) return;
       if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
         setShowModelPicker(false);
       }
@@ -1244,6 +1265,37 @@ try {
     "Ready when you are.",
     "Let's make today count.",
   ];
+  // Noor mobile empty state: chats strip above the pill (press-hold to
+  // rename/delete), glass pill with inline model picker, big watermark.
+  const [mobileChatMenu, setMobileChatMenu] = useState<{ x: number; y: number; id: string } | null>(null);
+  const mobileMenuHold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdPos = useRef({ x: 0, y: 0 });
+  const mobileMenuJustOpened = useRef(false);
+  const openMobileChatMenu = (x: number, y: number, id: string) => {
+    mobileMenuJustOpened.current = true;
+    setMobileChatMenu({ x, y, id });
+    haptic.tick();
+  };
+  const startMobileHold = (e: React.TouchEvent, id: string) => {
+    const t0 = e.touches[0];
+    holdPos.current = { x: t0.clientX, y: t0.clientY };
+    mobileMenuJustOpened.current = false;
+    if (mobileMenuHold.current) clearTimeout(mobileMenuHold.current);
+    mobileMenuHold.current = setTimeout(() => {
+      openMobileChatMenu(holdPos.current.x, holdPos.current.y, id);
+    }, 480);
+  };
+  const cancelMobileHold = () => {
+    if (mobileMenuHold.current) { clearTimeout(mobileMenuHold.current); mobileMenuHold.current = null; }
+  };
+  const tapMobileChat = (id: string) => {
+    // A just-fired long-press must not ALSO load the chat on release.
+    if (mobileMenuJustOpened.current) { mobileMenuJustOpened.current = false; return; }
+    loadConversation(id);
+  };
+  const mobileChatsSorted = [...conversations].sort(
+    (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
   const greeting = (() => {
     const h = new Date().getHours();
     const base =
@@ -1437,26 +1489,36 @@ try {
         {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
             same 64px clearance the shell gives other pages); compact again at
             md where the buttons unmount. */}
-        <div className="shrink-0 flex items-center justify-between gap-2 border-b border-border/60 px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3">
+        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3",
+          "border-b-0", "md:border-b")}>
           <div className="flex items-center min-w-0 gap-1">
-            <img
-              src="/noor-mark-white.png"
-              alt="Noor"
-              className="h-8 w-8 object-contain invert dark:invert-0 sm:h-9 sm:w-9"
-            />
+            {!isMobile && (
+              <img
+                src="/noor-mark-white.png"
+                alt="Noor"
+                className="h-8 w-8 object-contain invert dark:invert-0 sm:h-9 sm:w-9"
+              />
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {/* Model picker */}
-            <div className="relative" ref={modelPickerRef}>
+            {/* Model picker — desktop only on this bar; mobile picks the model
+                from the chip inside the composer pill. */}
+            <div className={cn("relative", isMobile && "hidden")} ref={modelPickerRef}>
               <button
-                onClick={() => setShowModelPicker(!showModelPicker)}
+                onClick={() => {
+                  const next = !showModelPicker;
+                  setShowModelPicker(next);
+                  // Refresh the local-install status every time the picker
+                  // opens so the ready dots are never stale.
+                  if (next) void probeOllama().then(setOllama);
+                }}
                 className={cn(
                   "flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-medium transition-all duration-200 border sm:px-3.5 sm:py-2.5",
                   "hover:bg-secondary",
                   showModelPicker ? "border border-foreground/40 text-foreground" : "border border-transparent"
                 )}
               >
-                <span className="hidden sm:inline">{MODEL_META[selectedModel]}</span>
+                <span className="hidden sm:inline">{MODEL_META[selectedModel] || msgLabel(selectedModel)}</span>
                 <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", showModelPicker && "rotate-180")} />
               </button>
               <AnimatePresence>
@@ -1491,6 +1553,89 @@ try {
                       );
                     })}
                     <div className="my-1.5 h-px bg-border/60" />
+                    {/* ---- Local AI (Ollama) — runs on this computer, no cap ---- */}
+                    <button
+                      onClick={() => {
+                        const next = !localOpen;
+                        setLocalOpen(next);
+                        if (next && !ollama) void probeOllama().then(setOllama);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
+                    >
+                      <Laptop className="h-4 w-4 text-emerald-500" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">{t("assistant.localAI")}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{t("assistant.localAISub")}</p>
+                      </div>
+                      <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", localOpen && "rotate-180")} />
+                    </button>
+                    {localOpen && (
+                      <div className="mt-1 space-y-0.5">
+                        {ollama && !ollama.reachable && (
+                          <div className="mx-1 mb-1 rounded-xl bg-amber-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
+                            {t("assistant.localAIUnreachable")}
+                            <span className="mt-1 block break-all font-mono text-[10px] opacity-80">{ollamaSetupHint()}</span>
+                          </div>
+                        )}
+                        {LOCAL_MODELS.map((m) => {
+                          const active = selectedModel === m.id;
+                          const installed = ollama ? isModelInstalled(ollama, m) : null;
+                          return (
+                            <button
+                              key={m.id}
+                              onClick={() => changeModel(m.id)}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
+                                active ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
+                              )}
+                            >                              <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={m.logo}
+                                  alt=""
+                                  className={cn("absolute inset-0 h-full w-full rounded-lg object-contain p-1.5", m.logoDark && "dark:hidden")}
+                                  onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+                                />
+                                {m.logoDark && (
+                                  <img
+                                    src={m.logoDark}
+                                    alt=""
+                                    className="absolute inset-0 h-full w-full rounded-lg object-contain p-1.5 hidden dark:block"
+                                    onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+                                  />
+                                )}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">{m.name}</span>
+                                  <span className="text-[10px] text-muted-foreground/60">{m.family}</span>
+                                  {active && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
+                                </div>
+                                <span
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={(e) => { e.stopPropagation(); setLocalInfo(m); }}
+                                  className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground/70 transition-colors hover:text-foreground"
+                                >
+                                  <Info className="h-3 w-3" />
+                                  {t("assistant.localInfo")}
+                                </span>
+                              </div>
+                              <div className="flex shrink-0 flex-col items-end gap-0.5">
+                                <span className="text-[10px] text-muted-foreground/70">~{m.sizeGb} GB</span>
+                                {installed !== null && installed && (
+                                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-500"><Check className="h-3 w-3" />{t("assistant.localReady")}</span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                        <p className="px-3 pb-1 pt-1.5 text-[10px] leading-relaxed text-muted-foreground/60">{t("assistant.localAIHint")}</p>
+                      </div>
+                    )}
+                    <div className="my-1.5 h-px bg-border/60" />
                     <a
                       href="/settings?cat=skills"
                       className="flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
@@ -1507,23 +1652,39 @@ try {
                 )}
               </AnimatePresence>
             </div>
-            {/* Chats toggle */}
-            <button
-              onClick={() => setShowChats(!showChats)}
-              className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
-                showChats
-                  ? "bg-primary-500/10 border-primary-500/30 text-primary-500"
-                  : "border-transparent hover:bg-secondary text-muted-foreground"
-              )}
-              title={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
-              aria-label={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
-              aria-expanded={showChats}
-            >
-              <PanelRight className="h-5 w-5" />
-            </button>
+            {/* Chats toggle — desktop only. On mobile the "Chats" button above
+                the pill replaces it in the empty state. */}
+            {!isMobile && (
+              <button
+                onClick={() => setShowChats(!showChats)}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
+                  showChats
+                    ? "bg-primary-500/10 border-primary-500/30 text-primary-500"
+                    : "border-transparent hover:bg-secondary text-muted-foreground"
+                )}
+                title={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
+                aria-label={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
+                aria-expanded={showChats}
+              >
+                <PanelRight className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Noor watermark — mobile empty state only: big mark, 50% transparent,
+            centered above the pill. Purely decorative. */}
+        {isMobile && isEmptyChat && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/noor-mark-white.png"
+              alt=""
+              className="h-44 w-44 object-contain opacity-10 invert dark:invert-0"
+            />
+          </div>
+        )}
 
         {/* Messages */}
         <div ref={messagesBoxRef} className={cn("flex-1 overflow-y-auto px-2 md:px-6", isEmptyChat && "hidden")}>
@@ -1616,11 +1777,13 @@ try {
               const msgModel = resolveModelId(msg.model || "core-1");
               return (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="group flex justify-start">
-                  <div className="max-w-[85%] rounded-[28px] rounded-tl-lg bg-secondary/60 border border-border/60 px-5 py-4 shadow-sm">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <span className="text-[11px] font-semibold text-foreground/60">Noor</span>
+                  {/* Noor replies are plain text — no bubble, no chrome. The
+                      user's own messages keep their bubble for contrast. */}
+                  <div className="max-w-[92%] py-1">
+                    <div className="mb-1 flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-foreground/50">Noor</span>
                       <span className="text-[10px] text-muted-foreground/40">· {MODEL_META[msgModel]}</span>
-                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/40 border border-border/50 rounded-full px-1.5 py-px">{t("assistant.aiLabel")}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/40">{t("assistant.aiLabel")}</span>
                     </div>
                     <div className="text-[15px] leading-relaxed text-foreground/90">
                       <Markdown content={msg.content} />
@@ -1821,22 +1984,45 @@ try {
           </div>
         </div>
 
+        {/* Mobile chat long-press menu (press-hold a chat chip above the pill) */}
+        {mobileChatMenu && (
+          <>
+            <div className="fixed inset-0 z-[190]" onClick={() => setMobileChatMenu(null)} />
+            <div
+              className="fixed z-[200] w-48 overflow-hidden rounded-2xl border border-border/60 bg-popover shadow-2xl"
+              style={{
+                left: Math.max(8, Math.min(mobileChatMenu.x, (typeof window !== "undefined" ? window.innerWidth : 400) - 200)),
+                top: Math.max(8, Math.min(mobileChatMenu.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 200)),
+              }}
+            >
+              <button
+                onClick={() => { startRename(mobileChatMenu.id, conversations.find((c) => c.id === mobileChatMenu.id)?.title || ""); setMobileChatMenu(null); setShowChats(true); }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+              >
+                <Pencil className="h-3.5 w-3.5" /> {t("assistant.rename")}
+              </button>
+              <button
+                onClick={() => { const id = mobileChatMenu.id; setMobileChatMenu(null); deleteConversation(id, { stopPropagation: () => {} } as unknown as React.MouseEvent); }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-muted"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+              </button>
+            </div>
+          </>
+        )}
+
         {/* Input */}
         <div
           className={cn(
             "shrink-0 px-3 pb-12 sm:px-6 sm:pb-6",
             isEmptyChat
-              ? "flex-1 flex flex-col justify-end border-t border-border/60 bg-background/80 backdrop-blur-sm pt-0 sm:pt-4 lg:items-center lg:justify-center lg:border-t-0 lg:bg-transparent lg:backdrop-blur-none lg:pt-0"
-              : "border-t border-border/60 bg-background/80 backdrop-blur-sm pt-0 sm:pt-4"
+              ? "flex-1 flex flex-col justify-end bg-background/80 backdrop-blur-sm pt-0 sm:pt-4 lg:items-center lg:justify-center lg:bg-transparent lg:backdrop-blur-none lg:pt-0"
+              : "bg-background/80 backdrop-blur-sm pt-0 sm:pt-4"
           )}
         >
           <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl" : "mx-auto lg:max-w-4xl")}>
-            {isEmptyChat && (
-              <div className="hidden lg:flex mb-6 flex-col items-center text-center">
-                <h1 className="font-semibold text-3xl tracking-tight text-foreground sm:text-4xl">{greeting.base}</h1>
-                <p className="mt-2 text-sm text-muted-foreground">{greeting.sub}</p>
-              </div>
-            )}
+            {/* Mobile: chats access lives in the floating glass circle
+                (second row, under the hamburger) rendered at page root. */}
             {!isEmptyChat && !input.trim() && !loading && !generatingImage && !searching && (
               <div className="mb-2 flex justify-start">
                 <button
@@ -1850,7 +2036,123 @@ try {
                 </button>
               </div>
             )}
-            <div className={cn("border border-border bg-secondary/40 pl-4 pr-2 py-2 transition-all focus-within:border-primary-500/40 focus-within:ring-2 focus-within:ring-primary-500/10", composerMultiline || attachments.length > 0 ? "rounded-[20px]" : "rounded-full")}>
+            {/* On mobile the pill IS the Liquid Glass control: bigger (52px),
+                squircle corners (iOS-style, not a full pill), model picker
+                inside on the left, + and mic on the right. Desktop keeps the
+                exact previous composer. */}
+            <div
+              className={cn(
+                isMobile
+                  ? "orleia-search-glass pl-2 pr-1.5 py-1.5 " + (composerMultiline || attachments.length > 0 ? "rounded-[24px]" : "rounded-[26px]")
+                  : "border border-border bg-secondary/40 pl-4 pr-2 py-2 transition-all focus-within:border-primary-500/40 focus-within:ring-2 focus-within:ring-primary-500/10 " + (composerMultiline || attachments.length > 0 ? "rounded-[20px]" : "rounded-full")
+              )}
+            >
+              {/* Inline model picker (mobile): the current model as a chip.
+                  The dropdown reuses showModelPicker state; on mobile it is
+                  anchored HERE (bottom-full) instead of the hidden header. */}
+              {isMobile && (
+                <div className="relative order-first mr-2" ref={modelPickerRef}>
+                  <button
+                    onClick={() => {
+                      const next = !showModelPicker;
+                      setShowModelPicker(next);
+                      if (next) void probeOllama().then(setOllama);
+                    }}
+                    className="flex h-9 items-center gap-1 rounded-full bg-background/60 px-2.5 text-xs font-medium text-muted-foreground transition-all active:scale-95"
+                    aria-label={t("assistant.models")}
+                  >
+                    <span>{MODEL_META[selectedModel] || msgLabel(selectedModel)}</span>
+                    <ChevronDown className={cn("h-3 w-3 transition-transform", showModelPicker && "rotate-180")} />
+                  </button>
+                  {showModelPicker && (
+                    <div className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-background shadow-2xl p-2 z-50">
+                      <p className="text-[9px] font-mono tracking-wider text-muted-foreground/40 px-3 py-1.5 uppercase">{t("assistant.models")}</p>
+                      {AI_MODELS.map((m) => (
+                        <button
+                          key={m.id}
+                          onClick={() => changeModel(m.id)}
+                          className={cn(
+                            "w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
+                            selectedModel === m.id ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
+                          )}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{m.name}</span>
+                              {selectedModel === m.id && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
+                          </div>
+                        </button>
+                      ))}
+                      <div className="my-1.5 h-px bg-border/60" />
+                      <button
+                        onClick={() => { const next = !localOpen; setLocalOpen(next); if (next && !ollama) void probeOllama().then(setOllama); }}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
+                      >
+                        <Laptop className="h-4 w-4 text-emerald-500" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{t("assistant.localAI")}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{t("assistant.localAISub")}</p>
+                        </div>
+                        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", localOpen && "rotate-180")} />
+                      </button>
+                      {localOpen && LOCAL_MODELS.map((m) => {
+                        const active = selectedModel === m.id;
+                        const installed = ollama ? isModelInstalled(ollama, m) : null;
+                        return (
+                          <button
+                            key={m.id}
+                            onClick={() => changeModel(m.id)}
+                            className={cn(
+                              "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
+                              active ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
+                            )}
+                          >
+                            <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={m.logo}
+                                alt=""
+                                className={cn("absolute inset-0 h-full w-full rounded-lg object-contain p-1.5", m.logoDark && "dark:hidden")}
+                                onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+                              />
+                              {m.logoDark && (
+                                <img
+                                  src={m.logoDark}
+                                  alt=""
+                                  className="absolute inset-0 h-full w-full rounded-lg object-contain p-1.5 hidden dark:block"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+                                />
+                              )}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{m.name}</span>
+                                <span className="text-[10px] text-muted-foreground/60">{m.family}</span>
+                              </div>
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.stopPropagation(); setLocalInfo(m); }}
+                                className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground/70 transition-colors hover:text-foreground"
+                              >
+                                <Info className="h-3 w-3" />
+                                {t("assistant.localInfo")}
+                              </span>
+                            </div>
+                            {installed !== null && installed && (
+                              <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-emerald-500"><Check className="h-3 w-3" />{t("assistant.localReady")}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Attached items live INSIDE the composer - thumbnail row on top,
                   ChatGPT-style. No filenames; the thumbnail is the label. */}
               {attachments.length > 0 && (
@@ -2068,6 +2370,89 @@ try {
           </div>
         </div>
       </div>
+
+      {/* Local model info popup — full details (pull command, exact model
+          tag, parameters, memory) without cluttering the picker rows. */}
+      {localInfo && (
+        <div ref={localInfoRef} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-6" onClick={() => setLocalInfo(null)}>
+          <div
+            role="dialog"
+            aria-label={t("assistant.localInfo")}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs rounded-3xl border border-border bg-card p-5 shadow-2xl"
+          >
+            <div className="flex items-center gap-3">
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={localInfo.logo} alt="" className={cn("absolute inset-0 h-full w-full rounded-lg object-contain p-1.5", localInfo.logoDark && "dark:hidden")} />
+                {localInfo.logoDark && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={localInfo.logoDark} alt="" className="absolute inset-0 h-full w-full rounded-lg object-contain p-1.5 hidden dark:block" />
+                )}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{localInfo.name}</p>
+                <p className="text-[11px] text-muted-foreground">{localInfo.family}</p>
+              </div>
+            </div>
+            <dl className="mt-4 space-y-2 text-[12px]">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="shrink-0 text-muted-foreground">{t("assistant.localInfoTag")}</dt>
+                <dd className="break-all text-right font-mono text-[11px]">{localInfo.ollamaTag}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">{t("assistant.localInfoParams")}</dt>
+                <dd className="font-medium">{localInfo.params}</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">{t("assistant.localInfoRam")}</dt>
+                <dd className="font-medium">~{localInfo.vramGb} GB</dd>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <dt className="shrink-0 text-muted-foreground">{t("assistant.localInfoPull")}</dt>
+                <dd className="break-all text-right font-mono text-[11px]">ollama pull {localInfo.ollamaTag}</dd>
+              </div>
+            </dl>
+            <button
+              onClick={() => { void navigator.clipboard?.writeText(`ollama pull ${localInfo.ollamaTag}`); }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-secondary px-3 py-2 text-xs font-medium transition-colors hover:bg-secondary/70"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              <span className="break-all font-mono text-[11px]">ollama pull {localInfo.ollamaTag}</span>
+            </button>
+            <button
+              onClick={() => setLocalInfo(null)}
+              className="mt-2 w-full rounded-xl px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {t("common.close")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile: chats access — a floating Liquid Glass circle in a second
+          row under the hamburger (matches MobileTopBar's other buttons;
+          opens the mobile chats drawer). Rendered at page root so no
+          transformed ancestor can trap its fixed positioning. */}
+      {isMobile && mobileChatsSorted.length > 0 && (
+        <div
+          className="orleia-hit-50 left-4 md:hidden"
+          style={{ top: "calc(4rem + env(safe-area-inset-top, 0px))" }}
+        >
+          <button
+            onClick={() => { haptic.tick(); setShowChats(true); }}
+            className="orleia-glass-btn"
+            aria-label={t("assistant.chats")}
+          >
+            <MessageSquare className="h-5 w-5" />
+            {mobileChatsSorted.length > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-500 px-1 text-[9px] font-bold text-white">
+                {mobileChatsSorted.length > 9 ? "9+" : mobileChatsSorted.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Desktop chats panel (right side) - CSS transition so it glides on
           every device (framer-motion is globally disabled on touch UIs to

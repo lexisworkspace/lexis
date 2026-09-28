@@ -1,9 +1,9 @@
-// Lexis Desktop — preload bridge.
+// Orleia Desktop — preload bridge.
 // Exposes ONLY the APIs below to the renderer. Everything else is sandboxed.
 
 const { contextBridge, ipcRenderer } = require("electron");
 
-contextBridge.exposeInMainWorld("lexisDesktop", {
+contextBridge.exposeInMainWorld("orleiaDesktop", {
   // ── Pairing (existing) ──────────────────────────────────────────────────
   pairing: {
     available: true,
@@ -95,7 +95,7 @@ contextBridge.exposeInMainWorld("lexisDesktop", {
   },
 
   // ── Legacy pairing bridge (backward compat) ─────────────────────────────
-  lexisPairing: {
+  orleiaPairing: {
     available: true,
     start: () => ipcRenderer.invoke("pairing:start"),
     stop: () => ipcRenderer.invoke("pairing:stop"),
@@ -120,4 +120,16 @@ contextBridge.exposeInMainWorld("lexisDesktop", {
       });
     },
   },
+});
+
+// ── Agent device workspace ────────────────────────────────────────────────
+contextBridge.exposeInMainWorld("orleiaWorkspace", {
+  available: true,
+  get: () => ipcRenderer.invoke("workspace:get"),
+  pick: () => ipcRenderer.invoke("workspace:pick"),
+  disconnect: () => ipcRenderer.invoke("workspace:disconnect"),
+  list: (rel) => ipcRenderer.invoke("workspace:list", rel),
+  read: (rel) => ipcRenderer.invoke("workspace:read", rel),
+  write: (rel, content) => ipcRenderer.invoke("workspace:write", rel, content),
+  remove: (rel) => ipcRenderer.invoke("workspace:remove", rel),
 });

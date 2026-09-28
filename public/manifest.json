@@ -33,6 +33,23 @@
     "business",
     "utilities"
   ],
+  "shortcuts": [
+    {
+      "name": "Log a habit",
+      "short_name": "Log habit",
+      "url": "/habits?new=1"
+    },
+    {
+      "name": "Ask Noor",
+      "short_name": "Noor",
+      "url": "/noor"
+    },
+    {
+      "name": "New task",
+      "short_name": "New task",
+      "url": "/tasks?new=1"
+    }
+  ],
   "lang": "en",
   "dir": "ltr"
 }

@@ -1,9 +1,9 @@
-// Lexis pairing server - a tiny local-only HTTP server started on demand.
+// Orleia pairing server - a tiny local-only HTTP server started on demand.
 //
 // It runs in the Electron MAIN process (the sandboxed page cannot listen for
 // connections). When the user taps "Pair with phone", the main process calls
 // startPairingServer(), which:
-//   - reverse-proxies the REAL Lexis web app at GET / and /pair, so the phone
+//   - reverse-proxies the REAL Orleia web app at GET / and /pair, so the phone
 //     runs the exact same app (mobile UI included) over the LAN
 //   - serves the workspace JSON at GET /api/data?token=... (validated, one
 //     session token, 24-hour expiry) so the app can bootstrap the desktop data
@@ -36,7 +36,7 @@ const zlib = require("zlib");
 
 // Overridable via env so tests can prove offline serving (point it at a dead
 // origin after warming the cache against the real one).
-const APP_ORIGIN = process.env.LEXIS_APP_ORIGIN || "https://app.lexisapp.xyz";
+const APP_ORIGIN = process.env.ORLEIA_APP_ORIGIN || "https://app.orleia.app";
 
 let server = null;
 let sessionToken = null;
@@ -137,8 +137,8 @@ function serveCantLoad(res) {
     res.end(
       '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>' +
         '<body style="background:#0a0a0a;color:#fafafa;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:24px">' +
-        '<div><h1 style="font-family:Georgia,serif;font-weight:300;font-size:24px">Can\'t load Lexis</h1>' +
-        '<p style="color:rgba(250,250,250,.55);font-size:13px;margin-top:8px">Lexis Desktop couldn\'t reach the app server. Check your internet connection and try again.</p></div></body></html>'
+        '<div><h1 style="font-family:Georgia,serif;font-weight:300;font-size:24px">Can\'t load Orleia</h1>' +
+        '<p style="color:rgba(250,250,250,.55);font-size:13px;margin-top:8px">Orleia Desktop couldn\'t reach the app server. Check your internet connection and try again.</p></div></body></html>'
     );
   } catch (_) {}
 }
@@ -158,7 +158,7 @@ function fetchAndCache(url, key) {
       {
         method: "GET",
         headers: {
-          "user-agent": "LexisDesktopPairing/1.0",
+          "user-agent": "OrleiaDesktopPairing/1.0",
           accept: "*/*",
           "accept-encoding": "gzip",
         },
@@ -310,7 +310,7 @@ async function handle(req, res) {
   if (pathname === "/api/data") {
     const token = url.searchParams.get("token") || "";
     if (!sessionToken || token !== sessionToken || Date.now() > sessionExpires) {
-      sendJson(res, 401, { error: "Pairing token missing, invalid, or expired. Scan a fresh QR code from Lexis Desktop." });
+      sendJson(res, 401, { error: "Pairing token missing, invalid, or expired. Scan a fresh QR code from Orleia Desktop." });
       return;
     }
     try {
@@ -334,7 +334,7 @@ async function handle(req, res) {
   if (pathname === "/api/action" && req.method === "POST") {
     const token = url.searchParams.get("token") || "";
     if (!sessionToken || token !== sessionToken || Date.now() > sessionExpires) {
-      sendJson(res, 401, { error: "Pairing token missing, invalid, or expired. Scan a fresh QR code from Lexis Desktop." });
+      sendJson(res, 401, { error: "Pairing token missing, invalid, or expired. Scan a fresh QR code from Orleia Desktop." });
       return;
     }
     try {
@@ -363,7 +363,7 @@ async function handle(req, res) {
 
   // Health/ping used by the pair page to confirm the desktop is reachable.
   if (pathname === "/api/ping") {
-    sendJson(res, 200, { ok: true, app: "lexis" });
+    sendJson(res, 200, { ok: true, app: "orleia" });
     return;
   }
 

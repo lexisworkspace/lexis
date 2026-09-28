@@ -30,7 +30,11 @@ import {
   Quote,
   Star,
   Download,
+  Share2,
 } from "lucide-react";
+import { useLongPress } from "@/components/ui/long-press";
+import { shareText, noteToText } from "@/lib/share";
+import { showUndo } from "@/lib/undo-toast";
 import { saveAs } from "file-saver";
 import { markdownToHtml } from "@/lib/notes/markdown";
 import { storage } from "@/lib/storage";
@@ -162,17 +166,35 @@ export default function NotesPage() {
     [refresh]
   );
 
-  // Delete note
+  // Delete note — with undo (captures the note so restore is verbatim)
   const deleteNote = useCallback(
     (id: string) => {
+      const snapshot = storage.getData();
+      const noteSnapshot = snapshot.notes.find((n) => n.id === id);
       storage.deleteNote(id);
       if (selectedNote?.id === id) setSelectedNote(null);
       refresh();
+      if (noteSnapshot) {
+        showUndo(t("notes.deletedToast") || "Note deleted", () => {
+          const d = storage.getData();
+          d.notes.push(noteSnapshot);
+          storage.saveData();
+          refresh();
+        });
+      }
     },
-    [selectedNote, refresh]
+    [selectedNote, refresh, t]
   );
 
   // Toggle pin
+  const noteLongPress = useLongPress();
+  useEffect(() => {
+    if (noteLongPress.menu) {
+      setContextMenu({ x: noteLongPress.menu.x, y: noteLongPress.menu.y, noteId: noteLongPress.menu.id });
+      noteLongPress.closeMenu();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noteLongPress.menu?.id, noteLongPress.menu?.x, noteLongPress.menu?.y]);
   const togglePin = useCallback(
     (id: string) => {
       const note = notes.find((n) => n.id === id);
@@ -545,10 +567,7 @@ export default function NotesPage() {
                         setSelectedNote(note);
                         setShowMobileList(false);
                       }}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setContextMenu({ x: e.clientX, y: e.clientY, noteId: note.id });
-                      }}
+                      {...(() => { const { onContextMenu: _omit, ...p } = noteLongPress.longPressProps(note.id); return p; })()}
                       className={cn(
                         "flex w-full flex-col gap-1 border-b border-border/50 px-3 py-3 text-left transition-colors hover:bg-muted/50",
                         selectedNote?.id === note.id && "bg-muted"
@@ -1031,9 +1050,19 @@ export default function NotesPage() {
             >
               <Archive className="h-3.5 w-3.5" /> {t("notes.archive")}
             </button>
+            <button
+              onClick={async () => {
+                const n = notes.find((x) => x.id === contextMenu.noteId);
+                setContextMenu(null);
+                if (n) await shareText(n.title || t("notes.untitled"), noteToText(n.title || t("notes.untitled"), n.contentHtml || ""));
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted"
+            >
+              <Share2 className="h-3.5 w-3.5" /> {t("common.share")}
+            </button>
             <div className="border-t border-border" />
             <button
-              onClick={() => { if (confirm(t("notes.deleteNoteConfirm"))) { deleteNote(contextMenu.noteId); } setContextMenu(null); }}
+              onClick={() => { deleteNote(contextMenu.noteId); setContextMenu(null); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive transition-colors hover:bg-muted"
             >
               <Trash2 className="h-3.5 w-3.5" /> {t("notes.deleteNote")}

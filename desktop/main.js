@@ -1,11 +1,11 @@
-// Lexis Desktop — native OS integration layer.
+// Orleia Desktop — native OS integration layer.
 //
 // Security: nodeIntegration off, contextIsolation on, sandbox on.
 // The page never touches Node APIs — everything goes through preload bridges.
 
 const {
   app, BrowserWindow, Menu, shell, ipcMain, globalShortcut,
-  nativeTheme, nativeImage, Notification, Tray, protocol,
+  nativeTheme, nativeImage, Notification, Tray, protocol, dialog,
 } = require("electron");
 const path = require("path");
 const os = require("os");
@@ -14,7 +14,7 @@ const { startPairingServer, stopPairingServer, warmPairingCache } = require("./p
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const APP_URL = "https://app.lexisapp.xyz";
+const APP_URL = "https://app.orleia.app";
 const PAIRING_PORT = 8123;
 const PAIRING_CACHE_DIR = path.join(app.getPath("userData"), "pair-cache");
 const WINDOW_STATE_FILE = path.join(app.getPath("userData"), "window-state.json");
@@ -87,7 +87,7 @@ function saveWindowState() {
 const SHORTCUTS_FILE = path.join(app.getPath("userData"), "shortcuts.json");
 
 const DEFAULT_SHORTCUTS = {
-  "Focus Lexis": "CommandOrControl+Shift+L",
+  "Focus Orleia": "CommandOrControl+Shift+L",
   "New Note": "CommandOrControl+Shift+N",
   "New Task": "CommandOrControl+Shift+T",
 };
@@ -115,7 +115,7 @@ function registerAllShortcuts() {
   for (const [action, accelerator] of Object.entries(shortcuts)) {
     if (!accelerator) continue;
     try {
-      if (action === "Focus Lexis") {
+      if (action === "Focus Orleia") {
         globalShortcut.register(accelerator, () => showMainWindow());
       } else if (action === "New Note") {
         globalShortcut.register(accelerator, () => {
@@ -198,19 +198,19 @@ function createLinuxDesktopFile() {
     const path2 = require("path");
     var parts = [];
     parts.push("[Desktop Entry]");
-    parts.push("Name=Lexis");
+    parts.push("Name=Orleia");
     parts.push("Comment=Local-first AI productivity suite");
-    parts.push("Exec=lexis-desktop %U");
-    parts.push("Icon=lexis-desktop");
+    parts.push("Exec=orleia-desktop %U");
+    parts.push("Icon=orleia-desktop");
     parts.push("Type=Application");
     parts.push("Categories=Office;Productivity;Utility;");
     parts.push("MimeType=text/markdown;text/csv;text/plain;");
     parts.push("Keywords=productivity;habits;tasks;notes;journal;ai;");
-    parts.push("StartupWMClass=lexis-desktop");
+    parts.push("StartupWMClass=orleia-desktop");
     parts.push("Terminal=false");
     parts.push("StartupNotify=true");
     var content = parts.join(String.fromCharCode(10));
-    var p = path2.join(os2.homedir(), ".local", "share", "applications", "lexis-desktop.desktop");
+    var p = path2.join(os2.homedir(), ".local", "share", "applications", "orleia-desktop.desktop");
     fs2.mkdirSync(path2.dirname(p), { recursive: true });
     fs2.writeFileSync(p, content);
   } catch (e) {
@@ -231,12 +231,12 @@ function createTray() {
     trayIcon = nativeImage.createEmpty();
   }
   tray = new Tray(trayIcon);
-  tray.setToolTip("Lexis");
+  tray.setToolTip("Orleia");
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: "Show Lexis", click: () => showMainWindow() },
+    { label: "Show Orleia", click: () => showMainWindow() },
     { type: "separator" },
-    { label: "Quit Lexis", click: () => { isQuitting = true; app.quit(); } },
+    { label: "Quit Orleia", click: () => { isQuitting = true; app.quit(); } },
   ]);
   tray.setContextMenu(contextMenu);
 
@@ -317,7 +317,7 @@ function buildMacMenu() {
     {
       label: "Help",
       submenu: [
-        { label: "Lexis Website", click: () => shell.openExternal("https://lexisapp.xyz") },
+        { label: "Orleia Website", click: () => shell.openExternal("https://orleia.app") },
       ],
     },
   ];
@@ -349,7 +349,7 @@ function setupAutoUpdater() {
   autoUpdater.on("update-downloaded", (info) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       Notification({
-        title: "Lexis Update Ready",
+        title: "Orleia Update Ready",
         body: `v${info.version} has been downloaded. Click to restart.`,
         silent: false,
       }).on("click", () => autoUpdater.quitAndInstall());
@@ -365,22 +365,22 @@ function setupAutoUpdater() {
   setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 60 * 60 * 1000);
 }
 
-// ── Deep links (lexis://) ─────────────────────────────────────────────────
+// ── Deep links (orleia://) ─────────────────────────────────────────────────
 
 function setupDeepLinks() {
   // Register protocol before app is ready (macOS requirement)
   if (process.platform === "darwin") {
-    app.setAsDefaultProtocolClient("lexis");
+    app.setAsDefaultProtocolClient("orleia");
   } else {
     // Windows/Linux: register via app.whenReady
     app.whenReady().then(() => {
-      app.setAsDefaultProtocolClient("lexis");
+      app.setAsDefaultProtocolClient("orleia");
     });
   }
 
   // Handle deep link on Windows/Linux
   app.on("second-instance", (_event, commandLine) => {
-    const url = commandLine.find((arg) => arg.startsWith("lexis://"));
+    const url = commandLine.find((arg) => arg.startsWith("orleia://"));
     if (url && mainWindow) {
       showMainWindow();
       mainWindow.webContents.send("deep-link", url);
@@ -389,7 +389,7 @@ function setupDeepLinks() {
 
   // Handle deep link on macOS
   app.on("open-url", (_event, url) => {
-    if (url.startsWith("lexis://") && mainWindow) {
+    if (url.startsWith("orleia://") && mainWindow) {
       showMainWindow();
       mainWindow.webContents.send("deep-link", url);
     }
@@ -427,7 +427,7 @@ if (!gotLock) {
       minWidth: 900,
       minHeight: 600,
       show: false,
-      title: "Lexis",
+      title: "Orleia",
       backgroundColor: nativeTheme.shouldUseDarkColors ? "#0a0a0a" : "#ffffff",
       icon: path.join(__dirname, "build", "icon.png"),
       webPreferences: {
@@ -456,8 +456,8 @@ if (!gotLock) {
       if (url.includes("github.com")) return;               // GitHub sign-in
       if (url.includes("appleid.apple.com")) return;       // Apple sign-in
       if (url.includes("login.microsoftonline.com")) return; // Microsoft sign-in
-      // Allow lexis:// deep links (auth-complete, etc.)
-      if (url.startsWith("lexis://")) return;
+      // Allow orleia:// deep links (auth-complete, etc.)
+      if (url.startsWith("orleia://")) return;
       if (!url.startsWith(APP_URL)) {
         event.preventDefault();
         if (url.startsWith("http")) shell.openExternal(url);
@@ -516,9 +516,9 @@ if (!gotLock) {
         {
           name: 'Quick Actions',
           items: [
-            { type: 'task', title: 'New Task', program: process.execPath, args: 'lexis://new-task', iconPath: path.join(__dirname, 'build', 'icon.png'), iconIndex: 0 },
-            { type: 'task', title: 'New Note', program: process.execPath, args: 'lexis://new-note', iconPath: path.join(__dirname, 'build', 'icon.png'), iconIndex: 0 },
-            { type: 'task', title: 'New Habit', program: process.execPath, args: 'lexis://new-habit', iconPath: path.join(__dirname, 'build', 'icon.png'), iconIndex: 0 },
+            { type: 'task', title: 'New Task', program: process.execPath, args: 'orleia://new-task', iconPath: path.join(__dirname, 'build', 'icon.png'), iconIndex: 0 },
+            { type: 'task', title: 'New Note', program: process.execPath, args: 'orleia://new-note', iconPath: path.join(__dirname, 'build', 'icon.png'), iconIndex: 0 },
+            { type: 'task', title: 'New Habit', program: process.execPath, args: 'orleia://new-habit', iconPath: path.join(__dirname, 'build', 'icon.png'), iconIndex: 0 },
           ]
         },
         {
@@ -715,3 +715,157 @@ if (!gotLock) {
     app.quit();
   });
 }
+
+// ── Agent device workspace ────────────────────────────────────────────────
+// One user-chosen folder; remembered across launches (path in userData).
+// Text files only, path-locked, dotfiles/node_modules skipped, no exec.
+// The renderer never touches Node - everything crosses IPC as JSON.
+
+const fs = require("fs");
+const fsp = fs.promises;
+const WORKSPACE_FILE = path.join(app.getPath("userData"), "agent-workspace.json");
+
+const WS_TEXT_EXT = new Set([
+  "txt", "md", "markdown", "csv", "json", "yml", "yaml", "xml", "html", "htm",
+  "css", "js", "mjs", "cjs", "ts", "tsx", "jsx", "py", "rb", "go", "rs", "java",
+  "c", "h", "cpp", "hpp", "cs", "php", "sh", "bat", "sql", "ini", "toml",
+  "log", "env", "gitignore", "srt", "vtt",
+]);
+
+function wsSavedPath() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(WORKSPACE_FILE, "utf8"));
+    return typeof saved?.path === "string" ? saved.path : null;
+  } catch {
+    return null;
+  }
+}
+
+function wsIsText(name) {
+  const ext = path.extname(name).slice(1).toLowerCase();
+  return WS_TEXT_EXT.has(ext) || !name.includes(".");
+}
+
+// Path-lock: the resolved target must stay inside the workspace root.
+function wsResolve(root, rel) {
+  const target = path.resolve(root, rel || ".");
+  if (target !== root && !target.startsWith(root + path.sep)) {
+    throw new Error("path outside workspace");
+  }
+  return target;
+}
+
+ipcMain.handle("workspace:get", () => {
+  const p = wsSavedPath();
+  if (!p) return { path: null };
+  try {
+    fs.accessSync(p);
+    return { path: p, name: path.basename(p) };
+  } catch {
+    return { path: null, stale: p };
+  }
+});
+
+ipcMain.handle("workspace:pick", async () => {
+  const res = await dialog.showOpenDialog({
+    title: "Choose Agent's workspace folder",
+    message: "Orleia (Agent) will be able to read and edit TEXT files inside this folder.",
+    properties: ["openDirectory"],
+    buttonLabel: "Grant access",
+  });
+  if (res.canceled || !res.filePaths.length) return { path: null };
+  const p = res.filePaths[0];
+  try {
+    fs.writeFileSync(WORKSPACE_FILE, JSON.stringify({ path: p }));
+  } catch { /* persistence failed - session-only */ }
+  return { path: p, name: path.basename(p) };
+});
+
+ipcMain.handle("workspace:disconnect", () => {
+  try {
+    fs.unlinkSync(WORKSPACE_FILE);
+  } catch { /* already gone */ }
+  return { ok: true };
+});
+
+ipcMain.handle("workspace:list", async (_e, rel = "") => {
+  const root = wsSavedPath();
+  if (!root) return { error: "no workspace" };
+  let base;
+  try {
+    base = wsResolve(root, rel);
+  } catch (err) {
+    return { error: err.message };
+  }
+  const entries = [];
+  async function walk(dir, prefix, depth) {
+    if (depth > 4 || entries.length >= 300) return;
+    let items = [];
+    try {
+      items = await fsp.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const it of items) {
+      if (entries.length >= 300) return;
+      if (it.name.startsWith(".") || it.name === "node_modules") continue;
+      const p = prefix ? `${prefix}/${it.name}` : it.name;
+      if (it.isDirectory()) {
+        entries.push({ path: p, isDir: true });
+        await walk(path.join(dir, it.name), p, depth + 1);
+      } else if (it.isFile()) {
+        let size = 0;
+        try {
+          size = (await fsp.stat(path.join(dir, it.name))).size;
+        } catch { /* unreadable - size 0 */ }
+        entries.push({ path: p, isDir: false, size, text: wsIsText(it.name) });
+      }
+    }
+  }
+  await walk(base, "", 0);
+  return { root: path.basename(root), entries };
+});
+
+ipcMain.handle("workspace:read", async (_e, rel) => {
+  const root = wsSavedPath();
+  if (!root) return { error: "no workspace" };
+  try {
+    const target = wsResolve(root, String(rel || ""));
+    if (!wsIsText(path.basename(target))) return { error: "text files only" };
+    const st = await fsp.stat(target);
+    if (!st.isFile()) return { error: "not a file" };
+    if (st.size > 200 * 1024) return { error: `file too large (${st.size} bytes)` };
+    return { content: (await fsp.readFile(target, "utf8")).slice(0, 100_000) };
+  } catch (err) {
+    return { error: err.message || "read failed" };
+  }
+});
+
+ipcMain.handle("workspace:write", async (_e, rel, content) => {
+  const root = wsSavedPath();
+  if (!root) return { error: "no workspace" };
+  try {
+    if (typeof content !== "string") return { error: "content must be text" };
+    const target = wsResolve(root, String(rel || ""));
+    if (!wsIsText(path.basename(target))) return { error: "text files only" };
+    await fsp.mkdir(path.dirname(target), { recursive: true });
+    await fsp.writeFile(target, content, "utf8");
+    return { ok: true, bytes: Buffer.byteLength(content, "utf8") };
+  } catch (err) {
+    return { error: err.message || "write failed" };
+  }
+});
+
+ipcMain.handle("workspace:remove", async (_e, rel) => {
+  const root = wsSavedPath();
+  if (!root) return { error: "no workspace" };
+  try {
+    const target = wsResolve(root, String(rel || ""));
+    const st = await fsp.stat(target);
+    if (st.isDirectory()) return { error: "only files can be deleted" };
+    await fsp.unlink(target);
+    return { ok: true };
+  } catch (err) {
+    return { error: err.message || "delete failed" };
+  }
+});

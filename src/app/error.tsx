@@ -17,8 +17,8 @@ export default function PageError({
       </div>
       <h2 className="mt-4 text-lg font-bold tracking-tight">Something went wrong</h2>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground leading-relaxed">
-        This is usually stale app state after an update. Reloading almost
-        always fixes it - your data is safe on this device.
+        That's on us — nothing you did. Your workspace is safe: everything
+        lives on this device, so a quick reload almost always fixes it.
       </p>
       <button onClick={() => reset()} className="btn-primary mt-6 px-5 py-2">
         Reload

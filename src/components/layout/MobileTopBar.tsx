@@ -1,13 +1,20 @@
 "use client";
 
 // ============================================================
-// MobileTopBar — the floating mobile buttons (MATTE style).
+// MobileTopBar — the floating mobile buttons.
 // Hamburger pinned top-left on BOTH screens; search pill center;
 // reminders + settings top-right on BOTH screens (they sit above
 // the nav-screen overlay, mirroring the top bar exactly as they
 // appear on the main screen).
 // Pure event dispatchers / navigation.
 // Safe-area aware: buttons sit below the notch / Dynamic Island.
+//
+// Platforms: on Apple touch devices the three icon buttons get the
+// Liquid Glass material (html.ios-touch set by ClientLayout) and sit
+// inside 50x50 hit wrappers (Apple HIG >=44pt with buffer). Android
+// and desktop keep the original matte .orleia-glass-btn, unwrapped.
+// The wrapper flex-centers the 40px circle, so visual positions are
+// pixel-identical on both platforms.
 // ============================================================
 
 import { Menu, Bell, Settings, Search } from "lucide-react";
@@ -15,6 +22,26 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { haptic } from "@/lib/haptics";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+
+/** Apple touch device? (ClientLayout also sets html.ios-touch.) */
+function isAppleTouch(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  return iOS && (window as unknown as { standalone?: boolean }).standalone !== false;
+}
+
+const TOP = "calc(0.75rem + env(safe-area-inset-top, 0px))";
+
+/** 50x50 hit wrapper — iOS only. Centers the 40px glass circle. */
+function HitArea({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <div className={`orleia-hit-50 ${className}`} style={{ top: TOP }}>
+      {children}
+    </div>
+  );
+}
 
 export function MobileTopBar({
   onToggleSidebar,
@@ -26,57 +53,112 @@ export function MobileTopBar({
   const router = useRouter();
   const { t } = useI18n();
   const [reminderCount, setReminderCount] = useState(0);
+  const [ios, setIos] = useState(false);
 
   useEffect(() => {
+    setIos(isAppleTouch());
     const onCount = (e: Event) => setReminderCount((e as CustomEvent<number>).detail || 0);
     window.addEventListener("orleia:reminders-count", onCount);
     return () => window.removeEventListener("orleia:reminders-count", onCount);
   }, []);
 
+  /* The three icon buttons share styling/positions; only the wrapper
+     differs per platform. Glass vs matte is pure CSS (html.ios-touch). */
+  const hamburger = (
+    <button
+      onClick={() => { haptic.tap(); onToggleSidebar(); }}
+      className="orleia-glass-btn"
+      aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
+      aria-expanded={navOpen}
+    >
+      <Menu className="h-5 w-5" />
+    </button>
+  );
+  const settings = (
+    <button
+      onClick={() => { haptic.tap(); router.push("/settings"); }}
+      className="orleia-glass-btn"
+      aria-label="Settings"
+    >
+      <Settings className="h-5 w-5" />
+    </button>
+  );
+  const reminders = (
+    <button
+      onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:toggle-reminders")); }}
+      className="orleia-glass-btn"
+      aria-label="Reminders"
+    >
+      <Bell className="h-5 w-5" />
+      {reminderCount > 0 && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+          {reminderCount > 9 ? "9+" : reminderCount}
+        </span>
+      )}
+    </button>
+  );
+
   return (
     <>
       {/* Hamburger — pinned above BOTH screens (z-70 > nav screen z-60) */}
-      <button
-        onClick={() => { haptic.tap(); onToggleSidebar(); }}
-        className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-4 z-[70] md:hidden"
-        aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
-        aria-expanded={navOpen}
-      >
-        <Menu className="h-5 w-5" />
-      </button>
+      {ios ? (
+        <HitArea className="left-4">{hamburger}</HitArea>
+      ) : (
+        <button
+          onClick={() => { haptic.tap(); onToggleSidebar(); }}
+          className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-4 z-[70] md:hidden"
+          aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={navOpen}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
 
-      {/* Search — long pill spanning the middle between hamburger and settings */}
+      {/* Search — long pill spanning the middle between hamburger and settings.
+          iOS: Liquid Glass (grey #999 @17%, rim shadows; mic intentionally
+          omitted). Android/desktop: original bordered secondary pill. */}
       <button
         onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:open-search")); }}
-        className="fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-16 right-[7rem] z-[70] flex h-10 items-center gap-2 rounded-full border border-border bg-secondary px-4 text-left transition-colors hover:bg-secondary md:hidden"
+        className={cn(
+          "fixed top-[calc(1rem+env(safe-area-inset-top,0px))] left-[76px] right-[9.5rem] z-[70] flex h-[42px] items-center gap-2 rounded-full px-4 text-left transition-colors md:hidden",
+          ios ? "orleia-search-glass" : "border border-border bg-secondary hover:bg-secondary"
+        )}
         aria-label={t("search.title")}
       >
-        <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <Search className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
         <span className="truncate text-sm text-muted-foreground">{t("search.title")}</span>
       </button>
 
       {/* Settings — pinned above BOTH screens, same spot as on the main screen */}
-      <button
-        onClick={() => { haptic.tap(); router.push("/settings"); }}
-        className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-16 z-[70] md:hidden"
-        aria-label="Settings"
-      >
-        <Settings className="h-5 w-5" />
-      </button>
+      {ios ? (
+        <HitArea className="right-20">{settings}</HitArea>
+      ) : (
+        <button
+          onClick={() => { haptic.tap(); router.push("/settings"); }}
+          className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-20 z-[70] md:hidden"
+          aria-label="Settings"
+        >
+          <Settings className="h-5 w-5" />
+        </button>
+      )}
 
       {/* Reminders bell — pinned above BOTH screens, same spot as on the main screen */}
-      <button
-        onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:toggle-reminders")); }}
-        className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-4 z-[70] md:hidden"
-        aria-label="Reminders"
-      >
-        <Bell className="h-5 w-5" />
-        {reminderCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-            {reminderCount > 9 ? "9+" : reminderCount}
-          </span>
-        )}
-      </button>
+      {ios ? (
+        <HitArea className="right-4">{reminders}</HitArea>
+      ) : (
+        <button
+          onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:toggle-reminders")); }}
+          className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-4 z-[70] md:hidden"
+          aria-label="Reminders"
+        >
+          <Bell className="h-5 w-5" />
+          {reminderCount > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+              {reminderCount > 9 ? "9+" : reminderCount}
+            </span>
+          )}
+        </button>
+      )}
     </>
   );
 }

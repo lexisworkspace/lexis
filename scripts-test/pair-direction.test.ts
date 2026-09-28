@@ -27,7 +27,7 @@ async function main() {
   await storage.init();
   // Seed a fresh-ish workspace the way a phone-first user would have it.
   storage.createHabit({ name: "Morning run", description: "", categoryId: "health", frequency: "daily", timeOfDay: "morning", targetCount: 1, color: "#6366f1", icon: "🏃" });
-  storage.createTask({ title: "Call mom", description: "", status: "todo", priority: "high", dueDate: null, dueTime: null, completedAt: null, tags: [], listId: null, recurring: "none", recurringEndDate: null, estimatedMinutes: null });
+  storage.createTask({ title: "Call mom", description: "", status: "todo", priority: "high", dueDate: null, dueTime: null, completedAt: null, tags: [], listId: null, projectId: null, recurring: "none", recurringEndDate: null, estimatedMinutes: null });
   const before = storage.exportData();
   check("phone has seeded content", before.includes("Morning run") && before.includes("Call mom"));
 
@@ -65,7 +65,7 @@ async function main() {
     visibilityState: "visible",
   };
   (globalThis as any).sessionStorage = {
-    _m: new Map<string, string>([["lexis-pair-token", "test"]]),
+    _m: new Map<string, string>([["orleia-pair-token", "test"]]),
     getItem(k: string) { return this._m.get(k) ?? null; },
     setItem(k: string, v: string) { this._m.set(k, String(v)); },
     removeItem(k: string) { this._m.delete(k); },

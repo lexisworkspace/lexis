@@ -1,11 +1,11 @@
 {
-  "name": "lexis-desktop",
-  "productName": "Lexis",
-  "version": "2.0.0",
-  "description": "Lexis - the local-first AI productivity suite, as a desktop app. Same app as the browser, all data stays on your device.",
+  "name": "orleia-desktop",
+  "productName": "Orleia",
+  "version": "2.5.0",
+  "description": "Orleia - the local-first AI productivity suite, as a desktop app. Same app as the browser, all data stays on your device.",
   "main": "main.js",
-  "author": "Lexis",
-  "homepage": "https://lexisapp.xyz",
+  "author": "Orleia",
+  "homepage": "https://orleia.app",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -20,8 +20,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "xyz.lexisapp.desktop",
-    "productName": "Lexis",
+    "appId": "xyz.orleiaapp.desktop",
+    "productName": "Orleia",
     "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "files": [
       "main.js",
@@ -53,13 +53,13 @@
         {
           "ext": "md",
           "name": "Markdown Document",
-          "description": "Lexis Note",
+          "description": "Orleia Note",
           "role": "Editor"
         },
         {
           "ext": "csv",
           "name": "CSV File",
-          "description": "Lexis Grid Data",
+          "description": "Orleia Grid Data",
           "role": "Editor"
         }
       ],
@@ -78,14 +78,14 @@
         {
           "ext": "md",
           "name": "Markdown Document",
-          "description": "Lexis Note",
+          "description": "Orleia Note",
           "icon": "build/icon.png",
           "role": "Editor"
         },
         {
           "ext": "csv",
           "name": "CSV File",
-          "description": "Lexis Grid Data",
+          "description": "Orleia Grid Data",
           "icon": "build/icon.png",
           "role": "Editor"
         }
@@ -114,7 +114,7 @@
       ],
       "icon": "build/icon.png",
       "category": "Utility",
-      "maintainer": "Lexis <support@lexisapp.xyz>"
+      "maintainer": "Orleia <support@orleia.app>"
     },
     "nsis": {
       "oneClick": true,

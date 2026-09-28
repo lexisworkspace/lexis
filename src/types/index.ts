@@ -306,7 +306,10 @@ export interface WeeklySummary {
 // AI Types
 // ============================================================
 
-export type AIModel = "fast-1" | "core-1" | "agent-1";
+// Cloud tiers are the fixed ids below; "local-*" ids (Local AI, powered by
+// the user's own Ollama install) are validated at the usage sites. The
+// (string & {}) trick keeps literal autocomplete while allowing local ids.
+export type AIModel = "fast-1" | "core-1" | "agent-1" | (string & {});
 
 export type AISource = {
   id?: string;

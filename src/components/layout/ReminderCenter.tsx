@@ -298,7 +298,7 @@ export function ReminderCenter() {
             : "pointer-events-none translate-x-full invisible"
         )}
       >
-            <div className="flex items-center gap-3 border-b border-border px-4 py-4">
+            <div className="flex items-center gap-3 border-b-0 md:border-b md:border-border px-4 py-4">
               <Bell className="h-5 w-5 text-primary-500" />
               <h2 className="flex-1 font-semibold">{t("reminders.title")}</h2>
               {items.length > 0 && (

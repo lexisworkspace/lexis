@@ -116,7 +116,7 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
           onTouchEnd={onTouchEnd}
           className="fixed inset-0 z-[60] flex flex-col bg-sidebar md:hidden"
         >
-          <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+4.25rem)]">
+          <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+6rem)]">
             <ul className="space-y-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.href;

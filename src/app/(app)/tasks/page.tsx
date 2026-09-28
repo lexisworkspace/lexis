@@ -32,7 +32,11 @@ import {
   CheckCircle2,
   Circle,
   GripVertical,
+  Share2,
 } from "lucide-react";
+import { useLongPress, LongPressMenu } from "@/components/ui/long-press";
+import { shareText } from "@/lib/share";
+import { showUndo } from "@/lib/undo-toast";
 import { storage } from "@/lib/storage";
 import { useHydrated, useFirstVisit } from "@/lib/use-hydrated";
 import { cn, getToday, formatDate, generateId } from "@/lib/utils";
@@ -546,6 +550,8 @@ function TaskCardBody({ task, onRefresh, onEdit }: { task: Task; onRefresh: () =
 }
 
 function TaskCard({ task, onRefresh, onEdit }: { task: Task; onRefresh: () => void; onEdit?: () => void }) {
+  const { t } = useI18n();
+  const { menu, closeMenu, longPressProps } = useLongPress();
   return (
     <motion.div
       layout
@@ -556,8 +562,50 @@ function TaskCard({ task, onRefresh, onEdit }: { task: Task; onRefresh: () => vo
         "card p-3 flex items-center gap-3 group transition-all",
         task.status === "done" && "opacity-60"
       )}
+      {...longPressProps(task.id)}
     >
       <TaskCardBody task={task} onRefresh={onRefresh} onEdit={onEdit} />
+      <LongPressMenu menu={menu} onClose={closeMenu}>
+        <button
+          onClick={() => { closeMenu(); storage.toggleTask(task.id); onRefresh(); }}
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+        >
+          <CheckCircle2 className="h-3.5 w-3.5" /> {task.status === "done" ? t("tasks.markUndone") : t("tasks.markDone")}
+        </button>
+        {onEdit && (
+          <button
+            onClick={() => { closeMenu(); onEdit(); }}
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+          >
+            <Edit3 className="h-3.5 w-3.5" /> {t("tasks.editTask")}
+          </button>
+        )}
+        <button
+          onClick={async () => { closeMenu(); await shareText(task.title, task.title + (task.description ? "\n\n" + task.description : "")); }}
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+        >
+          <Share2 className="h-3.5 w-3.5"> </Share2> {t("common.share")}
+        </button>
+        <div className="border-t border-border" />
+        <button
+          onClick={() => {
+            closeMenu();
+            const snapshot = storage.getData();
+            const taskSnapshot = snapshot.tasks.find((x) => x.id === task.id);
+            storage.deleteTask(task.id);
+            onRefresh();
+            showUndo(t("tasks.deletedToast") || "Task deleted", () => {
+              const d = storage.getData();
+              if (taskSnapshot) d.tasks.push(taskSnapshot);
+              storage.saveData();
+              onRefresh();
+            });
+          }}
+          className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-destructive transition-colors hover:bg-muted"
+        >
+          <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
+        </button>
+      </LongPressMenu>
     </motion.div>
   );
 }

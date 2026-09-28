@@ -16,14 +16,14 @@ import type { WidgetId } from "@/types";
 
 const LandingPage = lazy(() => import("./landing/page"));
 
-const DASH_SIDEBAR_KEY = "lexis-dash-sidebar-collapsed";
+const DASH_SIDEBAR_KEY = "orleia-dash-sidebar-collapsed";
 
 function useIsLandingDomain() {
   const [isLanding, setIsLanding] = useState(false);
   useEffect(() => {
     if (typeof window !== "undefined") {
       const host = window.location.hostname;
-      setIsLanding(host.includes("lexis-suite") || host.includes("lexis-landing"));
+      setIsLanding(host.includes("orleia-suite") || host.includes("orleia-landing"));
     }
   }, []);
   return isLanding;
