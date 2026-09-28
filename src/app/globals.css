@@ -1251,27 +1251,10 @@ div[class*="fixed"][class*="inset-0"] {
   }
 }
 
-/* Second-screen navigation (mobile): the nav opens as an iOS-style SHEET
-   that slides in from UNDERNEATH the app. The app shell scales down and
-   rounds its corners while the sheet peeks out on the left; a hairline
-   border separates them (rounded corners included). Scrim on top of the
-   shell, sheet underneath the shell's z-index but above the page bg. */
-@media (max-width: 767px) {
-  html[data-nav-open] .orleia-app-shell {
-    transform: translateX(24%) scale(0.92);
-    border-radius: 28px;
-    filter: brightness(0.55);
-    box-shadow:
-      -1px 0 0 0 rgb(var(--foreground) / 0.28),
-      -16px 0 48px rgb(0 0 0 / 0.55);
-    transform-origin: left center;
-    overflow: hidden;
-    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), filter 0.38s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-  html:not([data-nav-open]) .orleia-app-shell {
-    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), filter 0.38s cubic-bezier(0.32, 0.72, 0, 1);
-  }
-}
+/* Mobile nav opens as a CARD sheet over the (dimmed, untouched) app.
+   NOTE: never transform .orleia-app-shell — a transformed ancestor
+   re-bases every position:fixed element inside the pages (composer,
+   drawers, modals) and breaks the whole UI. */
 
 /* ============================================================
    Documents editor — page backdrop + A4 sheet cards
