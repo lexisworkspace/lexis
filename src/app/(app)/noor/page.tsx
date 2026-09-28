@@ -2530,41 +2530,48 @@ try {
         </div>
       </aside>
 
-      {/* Mobile chats drawer — mirrors the Reminders sheet: right-side panel
-          at z-[70] so it slides OVER the floating buttons, with a scrim. */}
-      <div
-        aria-hidden={!showChats}
-        onClick={() => setShowChats(false)}
-        className={cn(
-          "fixed inset-0 z-[65] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out lg:hidden",
-          showChats ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-      />
-      <aside
-        aria-hidden={!showChats}
-        role="dialog"
-        aria-label={t("assistant.chats")}
-        className={cn(
-          "fixed inset-y-0 right-0 z-[70] flex w-80 max-w-[calc(100vw-1rem)] flex-col border-l border-border bg-card shadow-2xl lg:hidden",
-          "transition-[transform,visibility] duration-300 ease-out will-change-transform",
-          showChats ? "translate-x-0 visible" : "pointer-events-none translate-x-full invisible"
-        )}
-      >
-        <div className="flex items-center gap-3 px-4 py-4">
-          <MessageSquare className="h-5 w-5 text-primary-500" />
-          <h2 className="flex-1 font-semibold">{t("assistant.chats")}</h2>
-          <button
+      {/* Mobile chats drawer — mirrors the Reminders sheet. Portaled to
+          <body>: the page wrapper carries framer's will-change (a stacking
+          context), so an in-page z-index can never beat the root-level
+          Liquid Glass buttons. z-[75] at body level covers them. */}
+      {typeof document !== "undefined" && createPortal(
+        <>
+          <div
+            aria-hidden={!showChats}
             onClick={() => setShowChats(false)}
-            className="rounded-lg p-2.5 -m-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={t("assistant.closeChats")}
+            className={cn(
+              "fixed inset-0 z-[65] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out lg:hidden",
+              showChats ? "opacity-100" : "opacity-0 pointer-events-none"
+            )}
+          />
+          <aside
+            aria-hidden={!showChats}
+            role="dialog"
+            aria-label={t("assistant.chats")}
+            className={cn(
+              "fixed inset-y-0 right-0 z-[75] flex w-80 max-w-[calc(100vw-1rem)] flex-col border-l border-border bg-card shadow-2xl lg:hidden",
+              "transition-[transform,visibility] duration-300 ease-out will-change-transform",
+              showChats ? "translate-x-0 visible" : "pointer-events-none translate-x-full invisible"
+            )}
           >
-            <XIcon className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-3">
-          {chatsPanel()}
-        </div>
-      </aside>
+            <div className="flex items-center gap-3 px-4 py-4">
+              <MessageSquare className="h-5 w-5 text-primary-500" />
+              <h2 className="flex-1 font-semibold">{t("assistant.chats")}</h2>
+              <button
+                onClick={() => setShowChats(false)}
+                className="rounded-lg p-2.5 -m-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t("assistant.closeChats")}
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              {chatsPanel()}
+            </div>
+          </aside>
+        </>,
+        document.body
+      )}
     </div>
   );
 }

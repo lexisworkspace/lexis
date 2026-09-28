@@ -50,9 +50,12 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
   /* Close FIRST, then navigate — the card slides back over instantly
      while the new page loads underneath (no dead wait on the sheet). */
   const goTo = (href: string) => {
-    if (href === pathname) { close(); return; }
-    close();
-    router.push(href);
+    // data-nav-open flips off immediately -> CSS hides the sheet content
+    // instantly (see .orleia-nav-sheet rule) while the card slides back
+    // over; the new page loads underneath.
+    tick(6);
+    onClose();
+    if (href !== pathname) router.push(href);
   };
 
   /* Swipe LEFT anywhere on the sheet to fly it back under the app.
@@ -116,9 +119,18 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
           transition={{ duration: 0.32, ease: [0.32, 0.72, 0, 1] }}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
-          className="fixed inset-y-0 left-0 z-[40] flex w-[82vw] max-w-[340px] flex-col bg-sidebar md:hidden"
+          className="orleia-nav-sheet fixed inset-y-0 left-0 z-[40] flex w-[82vw] max-w-[340px] flex-col bg-sidebar md:hidden"
         >
-          <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+6rem)]">
+          {/* Wordmark — Instrument Sans, above the tabs */}
+          <div className="px-5 pt-[calc(env(safe-area-inset-top,0px)+4.5rem)] pb-1">
+            <span
+              className="text-xl font-semibold tracking-tight text-foreground"
+              style={{ fontFamily: "var(--font-instrument), system-ui, sans-serif" }}
+            >
+              Orleia
+            </span>
+          </div>
+          <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
             <ul className="space-y-1">
               {navItems.map((item) => {
                 const isActive = pathname === item.href;

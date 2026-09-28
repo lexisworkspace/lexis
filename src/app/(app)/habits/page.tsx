@@ -771,17 +771,12 @@ function HabitCardShell({
 }) {
   const { t } = useI18n();
   const { menu, closeMenu, longPressProps } = useLongPress();
+  // NOTE: deliberately NO entrance animation on these cards — every
+  // framer/CSS animation on the grid produced visible flicker on mobile.
   return (
-    <motion.div
-      initial={enter ? { opacity: 0, scale: 0.98 } : false}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: enterDelay, duration: 0.25, ease: "easeOut" }}
+    <div
       className={cn(
-        // NOTE: no `transition-all` here — combined with the framer-driven
-        // transform it made every repaint re-transition (visible flicker
-        // on mobile). Only the selection ring animates now, on the GPU.
-        "card card-hover cursor-pointer transform-gpu will-change-transform",
-        "transition-shadow duration-200",
+        "card cursor-pointer",
         selected && "ring-2 ring-primary-500"
       )}
       onClick={onSelect}
@@ -809,7 +804,7 @@ function HabitCardShell({
           <Trash2 className="h-3.5 w-3.5" /> {t("common.delete")}
         </button>
       </LongPressMenu>
-    </motion.div>
+    </div>
   );
 }
 
