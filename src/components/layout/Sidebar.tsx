@@ -64,12 +64,7 @@ export function Sidebar() {
         {collapsed ? (
           <img src="/orleia-logo-white.png" alt="Orleia" className="h-7 w-7" />
         ) : (
-          <span
-            className="text-xl font-semibold tracking-tight text-foreground"
-            style={{ fontFamily: "var(--font-instrument), system-ui, sans-serif" }}
-          >
-            Orleia
-          </span>
+          <img src="/orleia-wordmark.png" alt="Orleia" className="h-7 w-auto dark:invert" />
         )}
       </div>
 

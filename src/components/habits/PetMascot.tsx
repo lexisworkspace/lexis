@@ -73,24 +73,20 @@ export function PetMascot() {
   const pct = stage.next ? Math.min(100, Math.round((meals / stage.next) * 100)) : 100;
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+    // NOTE: static section — animations on this card flickered on mobile.
+    <section
       className="card relative overflow-hidden p-4 sm:p-5"
       aria-label={t("habits.pet.title")}
     >
       <div className="flex items-center gap-4">
-        {/* Pet body — grows with stage, floats when happy */}
+        {/* Pet body — grows with stage; glow is static (no pulsing). */}
         <div className="relative shrink-0">
           <div
-            className="absolute inset-0 -m-2 rounded-full opacity-20 blur-md transition-colors duration-500"
+            className="absolute inset-0 -m-2 rounded-full opacity-20 blur-md"
             style={{ backgroundColor: mood === "happy" ? pet.c1 : "transparent" }}
           />
-          <motion.div
-            animate={mood === "happy" ? { y: [0, -3, 0] } : { y: 0 }}
-            transition={{ duration: 2.4, repeat: mood === "happy" ? Infinity : 0, ease: "easeInOut" }}
-            className={cn(PET_STAGE_SIZE[stage.label], "transition-all duration-700")}
+          <div
+            className={cn(PET_STAGE_SIZE[stage.label])}
             dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }}
           />
           {mood === "hungry" && (
@@ -162,7 +158,7 @@ export function PetMascot() {
         <div className="hidden w-32 shrink-0 sm:block">
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full transition-all duration-700"
+              className="h-full rounded-full"
               style={{ width: `${pct}%`, backgroundColor: pet.c1 }}
             />
           </div>
@@ -171,6 +167,6 @@ export function PetMascot() {
           </p>
         </div>
       </div>
-    </motion.section>
+    </section>
   );
 }

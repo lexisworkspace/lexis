@@ -65,6 +65,24 @@
 [data-accent="violet"]  { --primary: 139 92 246; --ring: 139 92 246; }
 [data-accent="rose"]    { --primary: 244 63 94; --ring: 244 63 94; }
 [data-accent="orange"]  { --primary: 249 115 22; --ring: 249 115 22; }
+
+/* Accent colour reaches further: text selection, native form controls,
+   text carets and generic focus outlines all follow the chosen accent. */
+::selection {
+  background: rgb(var(--primary) / 0.32);
+}
+input, textarea, select, progress, meter {
+  accent-color: rgb(var(--primary));
+}
+input, textarea {
+  caret-color: rgb(var(--primary));
+}
+:focus-visible {
+  outline-color: rgb(var(--primary) / 0.6);
+}
+.dark ::selection {
+  background: rgb(var(--primary) / 0.40);
+}
 .dark [data-accent="amber"]   { --primary: 251 191 36; --ring: 251 191 36; }
 .dark [data-accent="emerald"] { --primary: 52 211 153; --ring: 52 211 153; }
 .dark [data-accent="sky"]     { --primary: 56 189 248; --ring: 56 189 248; }
@@ -1302,10 +1320,10 @@ div[class*="fixed"][class*="inset-0"] {
       1px 0 0 0 rgb(var(--foreground) / 0.14),
       -16px 0 48px rgb(0 0 0 / 0.5);
     will-change: transform;
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), filter 0.32s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform 0.46s cubic-bezier(0.32, 0.72, 0, 1), filter 0.46s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.46s cubic-bezier(0.32, 0.72, 0, 1);
   }
   html:not([data-nav-open]) .orleia-card {
-    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1), filter 0.32s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform 0.46s cubic-bezier(0.32, 0.72, 0, 1), filter 0.46s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.46s cubic-bezier(0.32, 0.72, 0, 1);
   }
 }
 
