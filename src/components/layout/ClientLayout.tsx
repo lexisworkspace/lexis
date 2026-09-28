@@ -75,6 +75,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     setDeviceRadius(r);
     document.documentElement.style.setProperty("--orleia-card-radius", `${r}px`);
   }, []);
+  // Re-apply the SAVED accent colour on every app start — without this
+  // the data-accent attribute only existed while the picker was used and
+  // the choice was lost after closing Orleia.
+  useEffect(() => {
+    try {
+      const saved = storage.getData()?.theme?.accentColor;
+      if (saved) document.documentElement.setAttribute("data-accent", saved);
+    } catch { /* storage not ready yet */ }
+  }, [storageReady]);
   const landing = isLandingDomain();
   const isFullWidth = FULL_WIDTH_ROUTES.some(r => pathname.startsWith(r));
   // Sidebar collapse state (from Sidebar's custom event) so the main

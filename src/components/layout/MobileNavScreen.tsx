@@ -122,7 +122,7 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
           className="orleia-nav-sheet fixed inset-y-0 left-0 z-[40] flex w-[82vw] max-w-[340px] flex-col bg-sidebar md:hidden"
         >
           {/* Orleia text logo — big, top left */}
-          <div className="px-5 pt-[calc(env(safe-area-inset-top,0px)+4.25rem)] pb-1">
+          <div className="px-5 pt-[calc(env(safe-area-inset-top,0px)+3.25rem)] pb-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/orleia-wordmark.png" alt="Orleia" className="h-9 w-auto dark:invert" />
           </div>
