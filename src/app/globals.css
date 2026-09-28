@@ -1251,10 +1251,52 @@ div[class*="fixed"][class*="inset-0"] {
   }
 }
 
-/* Mobile nav opens as a CARD sheet over the (dimmed, untouched) app.
-   NOTE: never transform .orleia-app-shell — a transformed ancestor
-   re-bases every position:fixed element inside the pages (composer,
-   drawers, modals) and breaks the whole UI. */
+/* ============================================================
+   Mobile nav REVEAL: the sidebar lives UNDER the app. Opening it
+   slides the whole main card to the RIGHT, revealing the nav sheet
+   beneath (with parallax). The main card keeps a visible sliver on
+   the right edge, rounded LEFT corners + hairline border + shadow.
+
+   CRITICAL: a transformed ancestor re-bases every position:fixed
+   descendant (composer, drawers...). That is only safe while the
+   shell is EXACTLY viewport-sized — hence the viewport lock below:
+   on mobile the shell is 100dvh/overflow-hidden and <main> scrolls
+   internally, so fixed children re-base 1:1 and slide with the card.
+   ============================================================ */
+@media (max-width: 767px) {
+  .orleia-card {
+    position: relative;
+    z-index: 50;
+  }
+  .orleia-app-shell {
+    position: relative;
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .orleia-app-shell > main {
+    height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  html[data-nav-open] {
+    overflow: hidden;
+  }
+  html[data-nav-open] .orleia-card {
+    transform: translateX(min(82vw, 340px));
+    border-top-left-radius: 28px;
+    border-bottom-left-radius: 28px;
+    filter: brightness(0.6);
+    box-shadow:
+      1px 0 0 0 rgb(var(--foreground) / 0.14),
+      -16px 0 48px rgb(0 0 0 / 0.5);
+    will-change: transform;
+    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), filter 0.38s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  html:not([data-nav-open]) .orleia-card {
+    transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1), filter 0.38s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+}
 
 /* ============================================================
    Documents editor — page backdrop + A4 sheet cards

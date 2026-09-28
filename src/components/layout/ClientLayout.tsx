@@ -243,14 +243,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           rendered app), not a delay (nothing renders until it's done). */}
       {storageReady && !needsOnboarding && (
         <>
-          {/* Second screen: full-page nav, OUTSIDE the shell so nothing can overlap it */}
+          {/* Second screen: nav sheet UNDER the main card. The card
+              (top bar + shell) slides right to reveal it. */}
           <MobileNavScreen open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-          {/* Floating buttons: rendered outside the shell so the hamburger
-              stays pinned in place on BOTH screens. */}
-          <MobileTopBar onToggleSidebar={toggleMobileNav} navOpen={mobileNavOpen} />
+          {/* The main CARD: floating buttons + shell slide together. */}
+          <div className="orleia-card">
+            <MobileTopBar onToggleSidebar={toggleMobileNav} navOpen={mobileNavOpen} />
 
-          <div className={`orleia-app-shell flex min-h-screen ${isFullWidth ? "max-md:h-dvh max-md:min-h-0 max-md:overflow-hidden" : ""}`}>
+            <div className={`orleia-app-shell flex min-h-screen ${isFullWidth ? "max-md:h-dvh max-md:min-h-0 max-md:overflow-hidden" : ""}`}>
             <Sidebar />
             <ReminderCenter />
             <main id="main-content" className={`flex-1 ${isFullWidth ? "" : "pt-[calc(4rem+env(safe-area-inset-top,0px))] md:pt-0"} md:transition-[padding] md:duration-300 md:ease-in-out ${sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"}`} tabIndex={-1}
@@ -270,6 +271,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 {children}
               </motion.div>
             </main>
+            </div>
           </div>
         </>
       )}

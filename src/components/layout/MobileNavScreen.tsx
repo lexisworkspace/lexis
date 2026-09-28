@@ -105,35 +105,18 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
   return (
     <AnimatePresence>
       {open && (
-        <>
-          {/* Scrim above the app shell: tap to close the sheet. */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            onClick={close}
-            className="fixed inset-0 z-[54] bg-black/50 md:hidden"
-            aria-hidden
-          />
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation"
-            initial={{ x: "-24%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-24%" }}
-            transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-            className="fixed inset-y-0 left-0 z-[55] flex w-[82vw] max-w-[340px] flex-col overflow-hidden bg-sidebar shadow-2xl md:hidden"
-            style={{
-              borderTopRightRadius: 28,
-              borderBottomRightRadius: 28,
-              borderRight: "1px solid rgb(var(--foreground) / 0.10)",
-              boxShadow: "0 0 0 1px rgb(var(--foreground) / 0.06), 24px 0 80px rgb(0 0 0 / 0.5)",
-            }}
-          >
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation"
+          initial={{ x: "-12%" }}
+          animate={{ x: 0 }}
+          exit={{ x: "-12%" }}
+          transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+          className="fixed inset-y-0 left-0 z-[40] flex w-[82vw] max-w-[340px] flex-col bg-sidebar md:hidden"
+        >
           <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+6rem)]">
             <ul className="space-y-1">
               {navItems.map((item) => {
@@ -235,8 +218,7 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
               )}
             </AnimatePresence>
           </div>
-          </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   );
