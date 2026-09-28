@@ -773,11 +773,15 @@ function HabitCardShell({
   const { menu, closeMenu, longPressProps } = useLongPress();
   return (
     <motion.div
-      initial={enter ? { opacity: 0, y: 20 } : false}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: enterDelay }}
+      initial={enter ? { opacity: 0, scale: 0.98 } : false}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: enterDelay, duration: 0.25, ease: "easeOut" }}
       className={cn(
-        "card cursor-pointer transition-all duration-200",
+        // NOTE: no `transition-all` here — combined with the framer-driven
+        // transform it made every repaint re-transition (visible flicker
+        // on mobile). Only the selection ring animates now, on the GPU.
+        "card card-hover cursor-pointer transform-gpu will-change-transform",
+        "transition-shadow duration-200",
         selected && "ring-2 ring-primary-500"
       )}
       onClick={onSelect}

@@ -54,7 +54,8 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
     window.setTimeout(close, 140);
   };
 
-  /* Swipe left anywhere on the nav screen to fly back to the app. */
+  /* Swipe LEFT anywhere on the sheet to fly it back under the app.
+     (Swipe right to open lives in ClientLayout.) */
   const touchRef = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
     touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -104,18 +105,29 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Navigation"
-          initial={{ x: "-100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "-100%" }}
-          transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-          className="fixed inset-0 z-[60] flex flex-col bg-sidebar md:hidden"
-        >
+        <>
+          {/* Scrim above the app shell: tap to close the sheet. */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            onClick={close}
+            className="fixed inset-0 z-[46] bg-black/45 md:hidden"
+            aria-hidden
+          />
+          <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation"
+            initial={{ x: "-24%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-24%" }}
+            transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            className="orleia-nav-sheet fixed inset-y-0 left-0 z-[45] flex w-[82vw] max-w-[340px] flex-col bg-sidebar md:hidden"
+          >
           <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+6rem)]">
             <ul className="space-y-1">
               {navItems.map((item) => {
@@ -177,7 +189,7 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
           </nav>
 
           {/* Office tools */}
-          <div className="px-2 pb-[max(env(safe-area-inset-bottom,0px),0.75rem)]">
+          <div className="px-2 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]">
             <button
               onClick={() => setToolsOpen((v) => !v)}
               aria-expanded={toolsOpen}
@@ -217,7 +229,8 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );

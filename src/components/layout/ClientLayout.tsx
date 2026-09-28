@@ -73,16 +73,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     touchStartY.current = e.touches[0].clientY;
   }, []);
 
-  // iOS-style edge gesture for the SIDEBAR (kept — feels native):
-  // OPEN only from the left 80px edge; swipe LEFT anywhere closes while
-  // the nav screen is up. The right-edge swipe-back (router.back) stays
-  // removed — that one conflicted with scrolling.
+  // Sidebar swipe (iOS-style): swipe RIGHT anywhere opens the nav sheet
+  // (it slides in from underneath the app); swipe LEFT closes it. Never
+  // fires mid text-selection. NOTE: this intentionally is NOT a back
+  // navigation gesture — router.back on right-swipe was removed.
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 2) {
-      const startedAtEdge = touchStartX.current <= 80;
-      const opening = dx > 0 && startedAtEdge;
+      const opening = dx > 0 && !mobileNavOpenRef.current;
       const closing = dx < 0 && mobileNavOpenRef.current;
       if (!opening && !closing) return;
       if (String(window.getSelection?.() ?? "").length > 0) return;

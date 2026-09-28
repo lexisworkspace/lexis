@@ -24163,9 +24163,9 @@ const dict: Record<string, Record<string, string>> = {  en: {
 };
 
 
-export function t(lang: string, key: string): string {
+export function t(lang: string, key: string, fallback?: string): string {
   const table = dict[lang] || dict.en;
-  return table[key] || dict.en[key] || key;
+  return table[key] || dict.en[key] || fallback || key;
 }
 
 export function getLangDir(lang: string): "ltr" | "rtl" {
@@ -24223,6 +24223,6 @@ export function useI18n() {
     document.documentElement.setAttribute("dir", getLangDir(lang));
   }, [lang]);
 
-  return { lang, t: (key: string) => t(lang, key), dir: getLangDir(lang) };
+  return { lang, t: (key: string, fallback?: string) => t(lang, key, fallback), dir: getLangDir(lang) };
 }
 

@@ -31,6 +31,7 @@ import {
   PanelRight,
   Info,
   Copy,
+  Share2,
   RefreshCw,
   Copy as CopyIcon,
   Zap,
@@ -69,6 +70,9 @@ import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
 import { useVoiceDictation } from "@/lib/useVoiceDictation";
 import { haptic } from "@/lib/haptics";
+import { createPortal } from "react-dom";
+import { shareText } from "@/lib/share";
+import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 
 const MODEL_META: Record<string, string> = {
@@ -1789,11 +1793,26 @@ try {
                       <Markdown content={msg.content} />
                       {msg.image && (
                         <div className="mt-2">
-                          <img
-                            src={typeof msg.image === "string" ? msg.image : msg.image.dataUrl}
-                            alt={typeof msg.image === "string" ? "" : msg.image.prompt}
-                            className="max-h-96 w-auto max-w-full rounded-2xl border border-border object-contain"
-                          />
+                          <div className="max-w-[min(100%,340px)] overflow-hidden rounded-2xl border border-border">
+                            <ImageLoader
+                              src={typeof msg.image === "string" ? msg.image : msg.image.dataUrl}
+                              alt={typeof msg.image === "string" ? "" : msg.image.prompt}
+                              gridSize={14}
+                              cellGap={10}
+                              cellShape="square"
+                              cellColor="#52525b"
+                              blinkSpeed={1400}
+                              transitionDuration={500}
+                              fadeOutDuration={600}
+                              loadingDelay={600}
+                              className="cursor-zoom-in"
+                              onClick={() => {
+                                const src = typeof msg.image === "string" ? msg.image : msg.image?.dataUrl;
+                                if (!src) return;
+                                setPreviewAttachment({ id: msg.id, name: `noor-${msg.id}.png`, dataUrl: src, size: 0, kind: "image" } as unknown as Attachment);
+                              }}
+                            />
+                          </div>
                           <p className="mt-1.5 text-[11px] text-muted-foreground/60">{typeof msg.image === "string" ? "" : msg.image.prompt}</p>
                         </div>
                       )}
@@ -2269,27 +2288,69 @@ try {
               </div>
               <input ref={imageInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleAttachImage} />
               <MiniCamera open={cameraOpen} onClose={() => setCameraOpen(false)} onCapture={handleCameraCapture} />
-              {/* Attachment preview overlay - tap the thumbnail to inspect. */}
-              {previewAttachment && (
+              {/* Attachment preview overlay - tap the thumbnail to inspect.
+                  Portaled to <body> so the floating bars can't overlap it;
+                  actions: save / copy / share. */}
+              {previewAttachment && typeof document !== "undefined" && createPortal(
                 <div
-                  className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-6"
+                  className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-black/90 p-4"
                   onClick={() => setPreviewAttachment(null)}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={previewAttachment.dataUrl || ""}
                     alt={previewAttachment.name}
-                    className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl"
+                    className="max-h-[70dvh] max-w-full rounded-2xl object-contain shadow-2xl"
                     onClick={(e) => e.stopPropagation()}
                   />
+                  <div
+                    className="mt-4 flex items-center gap-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => {
+                        const a = document.createElement("a");
+                        a.href = previewAttachment.dataUrl || "";
+                        a.download = previewAttachment.name || "orleia-image.png";
+                        a.click();
+                      }}
+                      className="flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                    >
+                      <Download className="h-4 w-4" />
+                      {t("common.save")}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const blob = await (await fetch(previewAttachment.dataUrl || "")).blob();
+                          await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                        } catch {
+                          /* clipboard image unsupported - ignore */
+                        }
+                      }}
+                      className="flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                    >
+                      <Copy className="h-4 w-4" />
+                      {t("common.copy", "Copy")}
+                    </button>
+                    <button
+                      onClick={() => { void shareText(previewAttachment.name || "Orleia image", previewAttachment.dataUrl || ""); }}
+                      className="flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2.5 text-xs font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      {t("common.share")}
+                    </button>
+                  </div>
                   <button
                     onClick={() => setPreviewAttachment(null)}
-                    className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white"
+                    className="absolute right-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm"
+                    style={{ top: "calc(1rem + env(safe-area-inset-top, 0px))" }}
                     aria-label="Close preview"
                   >
                     <XIcon className="h-5 w-5" />
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachFile} />
               <div className="relative flex flex-1 items-end">
@@ -2437,7 +2498,7 @@ try {
       {isMobile && mobileChatsSorted.length > 0 && (
         <div
           className="orleia-hit-50 left-4 md:hidden"
-          style={{ top: "calc(4rem + env(safe-area-inset-top, 0px))" }}
+          style={{ top: "calc(5rem + env(safe-area-inset-top, 0px))" }}
         >
           <button
             onClick={() => { haptic.tick(); setShowChats(true); }}
@@ -2469,29 +2530,41 @@ try {
         </div>
       </aside>
 
-      {/* Mobile chats drawer - CSS transition so it glides on touch devices */}
+      {/* Mobile chats drawer — mirrors the Reminders sheet: right-side panel
+          at z-[70] so it slides OVER the floating buttons, with a scrim. */}
       <div
         aria-hidden={!showChats}
         onClick={() => setShowChats(false)}
         className={cn(
-          "fixed inset-0 z-40 bg-black/50 backdrop-blur-sm transition-opacity duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
+          "fixed inset-0 z-[65] bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out lg:hidden",
           showChats ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       />
-      <div
+      <aside
         aria-hidden={!showChats}
+        role="dialog"
+        aria-label={t("assistant.chats")}
         className={cn(
-          "fixed right-0 top-0 z-50 h-full w-80 max-w-[85vw] bg-sidebar border-l border-border p-5 transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] lg:hidden",
-          showChats ? "translate-x-0" : "translate-x-full pointer-events-none"
+          "fixed inset-y-0 right-0 z-[70] flex w-80 max-w-[calc(100vw-1rem)] flex-col border-l border-border bg-card shadow-2xl lg:hidden",
+          "transition-[transform,visibility] duration-300 ease-out will-change-transform",
+          showChats ? "translate-x-0 visible" : "pointer-events-none translate-x-full invisible"
         )}
       >
-        <div className="flex items-center justify-end mb-2">
-          <button onClick={() => setShowChats(false)} className="btn-ghost p-1.5 rounded-xl hover:bg-secondary transition-colors" title={t("assistant.closeChats")}>
+        <div className="flex items-center gap-3 px-4 py-4">
+          <MessageSquare className="h-5 w-5 text-primary-500" />
+          <h2 className="flex-1 font-semibold">{t("assistant.chats")}</h2>
+          <button
+            onClick={() => setShowChats(false)}
+            className="rounded-lg p-2.5 -m-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={t("assistant.closeChats")}
+          >
             <XIcon className="h-4 w-4" />
           </button>
         </div>
-        {chatsPanel()}
-      </div>
+        <div className="flex-1 overflow-y-auto p-3">
+          {chatsPanel()}
+        </div>
+      </aside>
     </div>
   );
 }
