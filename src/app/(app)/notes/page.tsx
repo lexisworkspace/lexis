@@ -1032,9 +1032,10 @@ export default function NotesPage() {
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-[90] flex flex-col bg-background md:hidden"
           >
-            {/* Apple-style: back + compose on one airy row, large title,
-                search and folder pills — no heavy borders */}
-            <div className="flex items-center justify-between px-2 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
+            {/* Apple-style: back + compose float at the top, large title
+                sits at the same 8rem depth as the editor title, then search
+                and folder pills — no heavy borders */}
+            <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
               <a
                 href="/"
                 className="rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
@@ -1050,7 +1051,7 @@ export default function NotesPage() {
                 <Plus className="h-5 w-5" />
               </button>
             </div>
-            <div className="px-5 pb-1">
+            <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+8rem)]">
               <h2 className="text-2xl font-bold tracking-tight text-foreground">
                 {t("notes.allNotes")}
               </h2>
