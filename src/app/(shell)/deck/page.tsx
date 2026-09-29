@@ -218,19 +218,24 @@ export default function DeckPage() {
     );
   }
 
+  // ===== Mobile guard — matches Grid's placement exactly: same centered
+  // block, and deck's main gets the standard top padding (not a
+  // FULL_WIDTH_ROUTE) plus Grid's extra 24px container padding.
+  if (isMobile) {
+    return (
+      <div className="relative flex flex-col items-center justify-center py-24 px-6 pt-[calc(96px+env(safe-area-inset-top,0px))] text-center">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
+          <Presentation className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight">{t("deck.deck")}</h1>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("deck.mobileUnavailable")}</p>
+      </div>
+    );
+  }
+
   // ===== Library =====
   return (
     <div className="h-[calc(100vh-0px)] overflow-y-auto bg-background text-foreground">
-      {isMobile ? (
-        <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-            <Presentation className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("deck.deck")}</h1>
-          <p className="mt-2 max-w-sm text-sm text-muted-foreground">{t("deck.mobileUnavailable")}</p>
-        </div>
-      ) : (
-      <>
       <div className="max-w-6xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
@@ -613,8 +618,6 @@ export default function DeckPage() {
           </motion.div>
         )}
       </AnimatePresence>
-      </>
-      )}
     </div>
   );
 }

@@ -28,6 +28,7 @@ import {
   Code2,
   ListTodo,
   Quote,
+  CaseSensitive,
   Star,
   Download,
   Share2,
@@ -90,7 +91,6 @@ export default function NotesPage() {
   const [showNotePreview, setShowNotePreview] = useState(false);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [showMobileList, setShowMobileList] = useState(true);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; noteId: string } | null>(null);
@@ -101,6 +101,15 @@ export default function NotesPage() {
   const [showTagPicker, setShowTagPicker] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState("");
   const [showNewTag, setShowNewTag] = useState(false);
+  // Apple-Notes-style editor chrome: formatting row is hidden until the
+  // Aa button is tapped; secondary actions live in the (…) menu.
+  const [showFmtRow, setShowFmtRow] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Touch device detection (for the keyboard-following bottom toolbar)
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => {
+    setIsTouch(typeof window !== "undefined" && "ontouchstart" in window);
+  }, []);
 
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -335,18 +344,6 @@ export default function NotesPage() {
   }, [newTagName, refresh]);
 
   // Word count
-  const wordCount = useMemo(() => {
-    if (!selectedNote) return 0;
-    return selectedNote.content
-      .replace(/<[^>]*>/g, "")
-      .split(/\s+/)
-      .filter(Boolean).length;
-  }, [selectedNote]);
-
-  const charCount = useMemo(() => {
-    if (!selectedNote) return 0;
-    return selectedNote.content.replace(/<[^>]*>/g, "").length;
-  }, [selectedNote]);
 
   // Close context menu
   useEffect(() => {
@@ -354,6 +351,47 @@ export default function NotesPage() {
     window.addEventListener("click", close);
     return () => window.removeEventListener("click", close);
   }, []);
+
+  // Close editor popovers (More menu, tag picker) on any outside click
+  useEffect(() => {
+    if (!moreOpen && !showTagPicker) return;
+    const close = () => {
+      setMoreOpen(false);
+      setShowTagPicker(null);
+    };
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [moreOpen, showTagPicker]);
+
+  // Reset editor chrome when switching notes
+  useEffect(() => {
+    setMoreOpen(false);
+    setShowFmtRow(false);
+    setShowTagPicker(null);
+  }, [selectedNote?.id]);
+
+  // Publish the mobile keyboard overlap so the bottom toolbar rides above
+  // it (Apple-Notes behaviour) — Desktop Safari already co-insets.
+  useEffect(() => {
+    if (!isTouch) {
+      document.documentElement.style.removeProperty("--orleia-notes-kb");
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => {
+      const kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty("--orleia-notes-kb", `${Math.round(kb)}px`);
+    };
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      document.documentElement.style.removeProperty("--orleia-notes-kb");
+    };
+  }, [isTouch]);
 
   // ============================================================
   // Render
@@ -365,45 +403,61 @@ export default function NotesPage() {
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[90] flex flex-col bg-background"
     >
-      {/* Top bar */}
-      <div className="flex items-center gap-3 border-b border-border px-4 py-2 shrink-0">
+      {/* Floating top bar — Apple-Notes style: transparent, no border,
+          only Back + the overflow menu. Content scrolls underneath it. */}
+      <div className="absolute inset-x-0 top-0 z-30 flex items-center px-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <a
           href="/"
-          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+          aria-label={t("notes.allNotes")}
         >
           <ArrowLeft className="h-4 w-4" />
         </a>
 
-        <div className="flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium text-foreground">
-            {t("notes.allNotes")}
-          </span>
-        </div>
-
-        <div className="h-4 w-px bg-border" />
-
-        {/* Search toggle */}
-        <button
-          onClick={() => setShowSearch(!showSearch)}
-          className={cn(
-            "rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted",
-            showSearch && "bg-muted text-foreground"
-          )}
-        >
-          <Search className="h-3.5 w-3.5" />
-        </button>
-
         <div className="flex-1" />
 
-        {/* New note */}
-        <button
-          onClick={createNote}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t("notes.newNote")}
-        </button>
+        {/* Overflow menu — everything else lives here */}
+        <div className="relative">
+          <button
+            onClick={() => setMoreOpen((v) => !v)}
+            className="rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+            aria-label={t("notes.allNotes")}
+            aria-expanded={moreOpen}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          <AnimatePresence>
+            {moreOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
+              >
+                <button
+                  onClick={() => {
+                    createNote();
+                    setMoreOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                >
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                  {t("notes.newNote")}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSidebar((v) => !v);
+                    setMoreOpen(false);
+                  }}
+                  className="hidden w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted md:flex"
+                >
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  {t("notes.folders")}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
@@ -418,36 +472,24 @@ export default function NotesPage() {
               className="hidden md:flex flex-col border-r border-border overflow-hidden shrink-0"
               style={{ width: 280 }}
             >
-              {/* Search bar */}
-              <AnimatePresence>
-                {showSearch && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden border-b border-border"
+              {/* Search — always visible at the top of the list, like Apple Notes */}
+              <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t("notes.search")}
+                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
                   >
-                    <div className="flex items-center gap-2 px-3 py-2">
-                      <Search className="h-3.5 w-3.5 text-muted-foreground" />
-                      <input
-                        autoFocus
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={t("notes.search")}
-                        className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                      />
-                      {searchQuery && (
-                        <button
-                          onClick={() => setSearchQuery("")}
-                          className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
+                    <X className="h-3 w-3" />
+                  </button>
                 )}
-              </AnimatePresence>
+              </div>
 
               {/* Folders */}
               <div className="border-b border-border">
@@ -497,10 +539,15 @@ export default function NotesPage() {
                         />
                       </div>
                     ) : (
-                      <button
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setActiveFolder(folder.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") setActiveFolder(folder.id);
+                        }}
                         className={cn(
-                          "flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors",
+                          "flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-sm transition-colors",
                           activeFolder === folder.id
                             ? "bg-muted font-medium text-foreground"
                             : "text-muted-foreground hover:bg-muted/50"
@@ -527,7 +574,7 @@ export default function NotesPage() {
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
-                      </button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -603,213 +650,27 @@ export default function NotesPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           {selectedNote ? (
             <>
-              {/* Mobile back button */}
-              <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
-                <button
-                  onClick={() => setShowMobileList(true)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                <span className="text-sm font-medium text-foreground truncate">
-                  {selectedNote.title || t("notes.untitled")}
-                </span>
-              </div>
+              {/* Floating back buttons — mobile returns to the list,
+                  desktop goes home. No bar, no border. */}
+              <button
+                onClick={() => setShowMobileList(true)}
+                className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground md:hidden"
+                aria-label={t("notes.allNotes")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+              <a
+                href="/"
+                className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 hidden rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground md:block"
+                aria-label={t("notes.allNotes")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </a>
 
-              {/* Note actions + Markdown formatting (one toolbar block) */}
-              <div className="flex items-center gap-1 px-3 py-1.5 shrink-0">
-                {/* Pin */}
-                <button
-                  onClick={() => togglePin(selectedNote.id)}
-                  className={cn(
-                    "rounded p-1.5 transition-colors",
-                    selectedNote.pinned
-                      ? "text-primary bg-primary/10"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                  title={selectedNote.pinned ? t("notes.unpin") : t("notes.pin")}
-                >
-                  <Pin className="h-3.5 w-3.5" />
-                </button>
 
-                {/* Star */}
-                <button
-                  onClick={() => toggleFavorite(selectedNote.id)}
-                  className={cn(
-                    "rounded p-1.5 transition-colors",
-                    selectedNote.favorite
-                      ? "text-amber-400"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                  title={selectedNote.favorite ? "Unstar note" : "Star note"}
-                  aria-pressed={selectedNote.favorite}
-                >
-                  <Star className={cn("h-3.5 w-3.5", selectedNote.favorite && "fill-current")} />
-                </button>
-
-                {/* Tags */}
-                <div className="relative">
-                  <button
-                    onClick={() =>
-                      setShowTagPicker(showTagPicker === selectedNote.id ? null : selectedNote.id)
-                    }
-                    className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted"
-                    title={t("notes.tags")}
-                  >
-                    <Tag className="h-3.5 w-3.5" />
-                  </button>
-                  <AnimatePresence>
-                    {showTagPicker === selectedNote.id && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="absolute left-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border border-border bg-popover shadow-lg"
-                      >
-                        <div className="max-h-40 overflow-y-auto p-1">
-                          {tags.map((tag) => (
-                            <button
-                              key={tag.id}
-                              onClick={() => {
-                                if (selectedNote.tags.includes(tag.id)) {
-                                  removeTagFromNote(selectedNote.id, tag.id);
-                                } else {
-                                  addTagToNote(selectedNote.id, tag.id);
-                                }
-                              }}
-                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
-                            >
-                              <div
-                                className="h-2.5 w-2.5 rounded-full"
-                                style={{ backgroundColor: tag.color }}
-                              />
-                              <span className="flex-1 text-left">{tag.name}</span>
-                              {selectedNote.tags.includes(tag.id) && (
-                                <Check className="h-3 w-3 text-primary" />
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="border-t border-border p-1">
-                          {showNewTag ? (
-                            <div className="flex items-center gap-1 px-2 py-1">
-                              <input
-                                autoFocus
-                                value={newTagName}
-                                onChange={(e) => setNewTagName(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") createTag();
-                                  if (e.key === "Escape") setShowNewTag(false);
-                                }}
-                                placeholder={t("notes.newTag")}
-                                className="flex-1 bg-transparent text-sm outline-none"
-                              />
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => setShowNewTag(true)}
-                              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-                            >
-                              <Plus className="h-3 w-3" />
-                              {t("notes.newTag")}
-                            </button>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Archive (restores when note is already archived) */}
-                <button
-                  onClick={() => updateNoteContent(selectedNote.id, { archived: !selectedNote.archived })}
-                  className={cn(
-                    "rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted",
-                    selectedNote.archived && "text-amber-500"
-                  )}
-                  title={selectedNote.archived ? t("notes.unarchive") : t("notes.archive")}
-                >
-                  <Archive className="h-3.5 w-3.5" />
-                </button>
-
-                {/* Move to folder */}
-                {folders.length > 0 && (
-                  <div className="relative group">
-                    <button className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-muted" title={t("notes.moveToFolder")}>
-                      <Folder className="h-3.5 w-3.5" />
-                    </button>
-                    <div className="absolute left-0 top-full z-50 mt-1 hidden w-40 overflow-hidden rounded-xl border border-border bg-popover shadow-lg group-hover:block">
-                      <button
-                        onClick={() => updateNoteContent(selectedNote.id, { folderId: null })}
-                        className={cn(
-                          "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted",
-                          !selectedNote.folderId && "bg-muted"
-                        )}
-                      >
-                        <FileText className="h-3.5 w-3.5" />
-                        {t("notes.allNotes")}
-                      </button>
-                      {folders.map((f) => (
-                        <button
-                          key={f.id}
-                          onClick={() => updateNoteContent(selectedNote.id, { folderId: f.id })}
-                          className={cn(
-                            "flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted",
-                            selectedNote.folderId === f.id && "bg-muted"
-                          )}
-                        >
-                          <Folder className="h-3.5 w-3.5" />
-                          <span className="truncate">{f.name}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex-1" />
-
-                {/* Delete */}
-                <button
-                  onClick={() => {
-                    if (confirm(t("notes.deleteNoteConfirm"))) deleteNote(selectedNote.id);
-                  }}
-                  className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                  title={t("notes.deleteNote")}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              {/* Active tags */}
-              {selectedNote.tags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
-                  {selectedNote.tags.map((tagId) => {
-                    const tag = tags.find((t) => t.id === tagId);
-                    if (!tag) return null;
-                    return (
-                      <span
-                        key={tagId}
-                        className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
-                      >
-                        <div
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ backgroundColor: tag.color }}
-                        />
-                        {tag.name}
-                        <button
-                          onClick={() => removeTagFromNote(selectedNote.id, tagId)}
-                          className="ml-0.5 rounded-full hover:bg-background/50"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Title */}
-              <div className="px-4 pt-4 md:px-8 md:pt-6">
+              {/* Apple-style large title: big heading, date line, tags —
+                  then straight into the body. No toolbars in between. */}
+              <div className="px-5 pb-1 pt-14 md:px-8 md:pt-12">
                 <input
                   ref={titleRef}
                   value={selectedNote.title}
@@ -817,12 +678,51 @@ export default function NotesPage() {
                     updateNoteContent(selectedNote.id, { title: e.target.value })
                   }
                   placeholder={t("notes.titlePlaceholder")}
-                  className="w-full bg-transparent text-2xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/40 md:text-3xl"
+                  className="w-full bg-transparent text-2xl font-bold tracking-tight text-foreground outline-none placeholder:text-muted-foreground/40 md:text-3xl"
                 />
+                <p className="mt-1.5 text-[11px] font-medium text-muted-foreground/60">
+                  {selectedNote.pinned ? "📌 " : ""}{t("notes.lastEdited")} {formatDate(selectedNote.updatedAt)}
+                </p>
+                {selectedNote.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {selectedNote.tags.map((tagId) => {
+                      const tag = tags.find((tg) => tg.id === tagId);
+                      if (!tag) return null;
+                      return (
+                        <span
+                          key={tagId}
+                          className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground"
+                        >
+                          <span
+                            className="h-1.5 w-1.5 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          {tag.name}
+                          <button
+                            onClick={() => removeTagFromNote(selectedNote.id, tagId)}
+                            className="ml-0.5 rounded-full hover:bg-background/50"
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              {/* Markdown formatting row */}
-              <div className="flex flex-wrap items-center gap-0.5 border-b border-border px-3 py-1.5 md:px-8" role="toolbar" aria-label="Formatting">
+              {/* Formatting row — hidden by default. Apple Notes keeps a
+                  single Aa control; tapping it reveals the formatters
+                  between title and body instead of crowding the top. */}
+              <AnimatePresence initial={false}>
+                {showFmtRow && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-wrap items-center gap-0.5 px-5 pb-2 pt-3 md:px-8" role="toolbar" aria-label="Formatting">
                 {[
                   { icon: Bold, label: "Bold", run: () => applyMd("**", "bold") },
                   { icon: Italic, label: "Italic", run: () => applyMd("*", "italic") },
@@ -860,10 +760,13 @@ export default function NotesPage() {
                 >
                   <Download className="h-4 w-4" />
                 </button>
-              </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Content */}
-              <div className={cn("flex-1 overflow-y-auto px-4 pb-24 pt-2 md:px-8", showNotePreview && "grid grid-cols-1 gap-6 md:grid-cols-2")}>
+              <div className={cn("flex-1 overflow-y-auto px-5 pb-28 pt-1 md:px-8", showNotePreview && "grid grid-cols-1 gap-6 md:grid-cols-2")}>
                 <textarea
                   ref={contentRef}
                   value={selectedNote.content}
@@ -886,15 +789,212 @@ export default function NotesPage() {
                 )}
               </div>
 
-              {/* Status bar */}
-              <div className="flex items-center justify-between border-t border-border px-4 py-1.5 text-[11px] text-muted-foreground shrink-0">
-                <div className="flex items-center gap-3">
-                  <span>{charCount} {t("notes.characterCount")}</span>
-                  <span>{wordCount} {t("notes.wordCount")}</span>
+              {/* Apple-style bottom toolbar: scroll content underneath it
+                  (sits on a safe-area-aware gradient, no hard border). */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
+                <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
+                <div
+                  className="pointer-events-auto flex items-center gap-1 bg-background/90 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl"
+                  style={{ marginBottom: "calc(-1 * var(--orleia-notes-kb, 0px))" }}
+                >
+                  <button
+                    onClick={() => setShowFmtRow((v) => !v)}
+                    className={cn(
+                      "rounded-lg p-2 transition-colors",
+                      showFmtRow ? "text-primary" : "text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                    )}
+                    title="Formatting"
+                    aria-pressed={showFmtRow}
+                  >
+                    <CaseSensitive className="h-5 w-5" />
+                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowTagPicker(showTagPicker === selectedNote.id ? null : selectedNote.id);
+                      }}
+                      className={cn(
+                        "rounded-lg p-2 transition-colors",
+                        showTagPicker === selectedNote.id ? "text-primary" : "text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                      )}
+                      title={t("notes.tags")}
+                    >
+                      <Tag className="h-5 w-5" />
+                    </button>
+                    <AnimatePresence>
+                      {showTagPicker === selectedNote.id && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 4 }}
+                          className="absolute bottom-full left-0 z-50 mb-2 w-48 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
+                        >
+                          <div className="max-h-40 overflow-y-auto p-1">
+                            {tags.map((tag) => (
+                              <button
+                                key={tag.id}
+                                onClick={() => {
+                                  if (selectedNote.tags.includes(tag.id)) {
+                                    removeTagFromNote(selectedNote.id, tag.id);
+                                  } else {
+                                    addTagToNote(selectedNote.id, tag.id);
+                                  }
+                                }}
+                                className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+                              >
+                                <div
+                                  className="h-2.5 w-2.5 rounded-full"
+                                  style={{ backgroundColor: tag.color }}
+                                />
+                                <span className="flex-1 text-left">{tag.name}</span>
+                                {selectedNote.tags.includes(tag.id) && (
+                                  <Check className="h-3 w-3 text-primary" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="border-t border-border p-1">
+                            {showNewTag ? (
+                              <div className="flex items-center gap-1 px-2 py-1">
+                                <input
+                                  autoFocus
+                                  value={newTagName}
+                                  onChange={(e) => setNewTagName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") createTag();
+                                    if (e.key === "Escape") setShowNewTag(false);
+                                  }}
+                                  placeholder={t("notes.newTag")}
+                                  className="flex-1 bg-transparent text-sm outline-none"
+                                />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowNewTag(true)}
+                                className="flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted"
+                              >
+                                <Plus className="h-3 w-3" />
+                                {t("notes.newTag")}
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  <div className="flex-1" />
+                  <button
+                    onClick={() => {
+                      if (confirm(t("notes.deleteNoteConfirm"))) deleteNote(selectedNote.id);
+                    }}
+                    className="rounded-lg p-2 text-muted-foreground/80 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    title={t("notes.deleteNote", "Delete")}
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() => setMoreOpen((v) => !v)}
+                    className={cn(
+                      "rounded-lg p-2 transition-colors",
+                      moreOpen ? "text-primary" : "text-muted-foreground/80 hover:bg-muted hover:text-foreground"
+                    )}
+                    title={t("common.more", "More")}
+                    aria-expanded={moreOpen}
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </button>
+                  <AnimatePresence>
+                    {moreOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        className="absolute bottom-full right-3 z-50 mb-2 w-52 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
+                      >
+                        <button
+                          onClick={() => {
+                            togglePin(selectedNote.id);
+                            setMoreOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                        >
+                          <Pin className={cn("h-4 w-4", selectedNote.pinned && "fill-current text-primary")} />
+                          {selectedNote.pinned ? t("notes.unpin") : t("notes.pin")}
+                        </button>
+                        <button
+                          onClick={() => {
+                            toggleFavorite(selectedNote.id);
+                            setMoreOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                        >
+                          <Star className={cn("h-4 w-4", selectedNote.favorite && "fill-current text-amber-400")} />
+                          {selectedNote.favorite ? t("notes.unfavorite", "Unfavorite") : t("notes.favorite", "Favorite")}
+                        </button>
+                        {folders.length > 0 && (
+                          <>
+                            <div className="border-t border-border" />
+                            <button
+                              onClick={() => updateNoteContent(selectedNote.id, { folderId: null })}
+                              className={cn(
+                                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted",
+                                !selectedNote.folderId && "bg-muted"
+                              )}
+                            >
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              {t("notes.allNotes")}
+                            </button>
+                            {folders.map((f) => (
+                              <button
+                                key={f.id}
+                                onClick={() => updateNoteContent(selectedNote.id, { folderId: f.id })}
+                                className={cn(
+                                  "flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted",
+                                  selectedNote.folderId === f.id && "bg-muted"
+                                )}
+                              >
+                                <Folder className="h-4 w-4 text-muted-foreground" />
+                                <span className="truncate">{f.name}</span>
+                              </button>
+                            ))}
+                          </>
+                        )}
+                        <div className="border-t border-border" />
+                        <button
+                          onClick={() => {
+                            updateNoteContent(selectedNote.id, { archived: !selectedNote.archived });
+                            setMoreOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                        >
+                          <Archive className={cn("h-4 w-4 text-muted-foreground", selectedNote.archived && "text-amber-500")} />
+                          {selectedNote.archived ? t("notes.unarchive") : t("notes.archive")}
+                        </button>
+                        <button
+                          onClick={() => {
+                            shareText(selectedNote.title || t("notes.untitled"), noteToText(selectedNote.title || t("notes.untitled"), selectedNote.contentHtml || ""));
+                            setMoreOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                        >
+                          <Share2 className="h-4 w-4 text-muted-foreground" />
+                          {t("common.share")}
+                        </button>
+                        <button
+                          onClick={() => {
+                            exportNoteMd();
+                            setMoreOpen(false);
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
+                        >
+                          <Download className="h-4 w-4 text-muted-foreground" />
+                          Markdown
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <span>
-                  {t("notes.lastEdited")} {formatDate(selectedNote.updatedAt)}
-                </span>
               </div>
             </>
           ) : (
@@ -931,28 +1031,32 @@ export default function NotesPage() {
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-[90] flex flex-col bg-background md:hidden"
           >
-            <div className="flex items-center gap-3 border-b border-border px-4 py-2">
+            {/* Apple-style: back + compose on one airy row, large title,
+                search and folder pills — no heavy borders */}
+            <div className="flex items-center justify-between px-2 pb-1 pt-[max(0.5rem,env(safe-area-inset-top))]">
               <a
                 href="/"
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted"
+                className="rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t("notes.allNotes")}
               >
                 <ArrowLeft className="h-4 w-4" />
               </a>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-foreground">
-                {t("notes.allNotes")}
-              </span>
-              <div className="flex-1" />
               <button
                 onClick={createNote}
-                className="rounded-lg bg-primary p-1.5 text-primary-foreground transition-colors hover:bg-primary/90"
+                className="rounded-full p-2 text-primary transition-colors hover:bg-primary/10"
+                aria-label={t("notes.newNote")}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
               </button>
+            </div>
+            <div className="px-5 pb-1">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                {t("notes.allNotes")}
+              </h2>
             </div>
 
             {/* Mobile search */}
-            <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+            <div className="flex items-center gap-2 px-5 py-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <input
                 value={searchQuery}
@@ -963,7 +1067,7 @@ export default function NotesPage() {
             </div>
 
             {/* Mobile folders */}
-            <div className="flex gap-1 overflow-x-auto border-b border-border px-4 py-2">
+            <div className="flex gap-1 overflow-x-auto px-5 pb-2 pt-1">
               <button
                 onClick={() => setActiveFolder(null)}
                 className={cn(

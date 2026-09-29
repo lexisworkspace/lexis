@@ -193,7 +193,7 @@ export default function TasksPage() {
         <div className="flex items-center gap-2 shrink-0">
           {/* View Toggle - desktop-only (list is the mobile view; kanban &
               calendar need a wide screen) */}
-          <div className="hidden md:flex items-center rounded-md border border-border p-0.5">
+          <div className="hidden md:inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
             {[
               { mode: "list" as ViewMode, icon: List },
               { mode: "kanban" as ViewMode, icon: Columns },
@@ -202,9 +202,12 @@ export default function TasksPage() {
               <button
                 key={mode}
                 onClick={() => changeView(mode)}
+                aria-selected={viewMode === mode}
                 className={cn(
-                  "rounded px-1.5 py-1 transition-all text-xs",
-                  viewMode === mode ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
+                  "rounded-full p-2 transition-all active:scale-95",
+                  viewMode === mode
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -226,28 +229,36 @@ export default function TasksPage() {
         className="relative"
       >
         <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1 rounded-md border border-border p-0.5">
+          <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
             {["all", "todo", "in_progress", "done"].map((s) => (
               <button
                 key={s}
+                role="tab"
+                aria-selected={filterStatus === s}
                 onClick={() => setFilterStatus(s as any)}
                 className={cn(
-                  "rounded px-3 py-1.5 text-xs font-medium transition-all min-h-[32px] min-w-[40px]",
-                  filterStatus === s ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
+                  "rounded-full px-4 py-1.5 text-sm font-medium transition-all active:scale-95",
+                  filterStatus === s
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
                 )}
               >
                 {s === "all" ? t("tasks.all") : t(s === "todo" ? "tasks.toDo" : s === "in_progress" ? "tasks.inProgress" : "tasks.done")}
               </button>
             ))}
           </div>
-          <div className="flex gap-1 rounded-md border border-border p-0.5">
+          <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
             {(["all", "urgent", "high", "medium", "low"] as const).map((p) => (
               <button
                 key={p}
+                role="tab"
+                aria-selected={filterPriority === p}
                 onClick={() => setFilterPriority(p)}
                 className={cn(
-                  "rounded px-3 py-1.5 text-xs font-medium transition-all min-h-[32px] min-w-[40px]",
-                  filterPriority === p ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
+                  "rounded-full px-4 py-1.5 text-sm font-medium transition-all active:scale-95",
+                  filterPriority === p
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground border border-transparent"
                 )}
               >
                 {p === "all" ? t("tasks.all") : t("tasks." + p)}

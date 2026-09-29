@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, MapPin, Smartphone } from "lucide-react";
+import { ArrowRight, Check, MapPin, MoveHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -40,7 +40,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
   const title = t(`tutorial.${current.key}.title`);
   const desc = t(`tutorial.${current.key}.desc`);
   const loc = t(`tutorial.${current.key}.loc`);
-  const points = [1, 2, 3].map((i) => t(`tutorial.${current.key}.p${i}`)).filter(Boolean);
+  const points = [1, 2, 3, 4].map((i) => t(`tutorial.${current.key}.p${i}`)).map((v) => (v && v !== `tutorial.${current.key}.p4` ? v : "")).filter(Boolean);
 
   return (
     <div className="fixed inset-0 z-[90] flex flex-col overflow-hidden bg-background">
@@ -126,12 +126,13 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
               {loc}
             </p>
 
-            {/* Mobile navigation hint - only when room allows (small screens) */}
+            {/* Swipe gesture hint — replaces the old menu-button hint on
+                mobile (nav opens by swiping, like the rest of the app) */}
             <div
               className="mb-3 hidden items-start gap-2 rounded-xl border border-border bg-secondary/40 p-2.5 [@media(min-height:720px)]:flex md:hidden"
               style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.48s" }}
             >
-              <Smartphone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <MoveHorizontal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <p className="text-[11px] leading-snug text-muted-foreground/70">{t("tutorial.navHint")}</p>
             </div>
 

@@ -252,6 +252,12 @@ html[data-reduced-motion="true"] *::after {
     box-shadow: none !important;
     border-color: transparent;
   }
+  /* Apple-Notes-style bottom toolbar rides above the keyboard: the page
+     publishes the keyboard overlap to --orleia-notes-kb and the toolbar
+     lifts by exactly that amount. Default 0 = no keyboard. */
+  .orleia-app {
+    --orleia-notes-kb: 0px;
+  }
 
   /* Accessibility: Focus visible styles */
   :focus-visible {
@@ -1305,17 +1311,24 @@ div[class*="fixed"][class*="inset-0"] {
        (framer's exit-clone keeps the old DOM, hence CSS, not state). */
   html:not([data-nav-open]) .orleia-nav-sheet > * {
     opacity: 0;
-    transition: opacity 0ms;
+    filter: blur(6px);
+    transition: opacity 0ms, filter 0ms;
   }
+  /* Opening: content fades in and un-blurs — frosted-glass focus as the
+       card slides aside. */
   .orleia-nav-sheet > * {
-    transition: opacity 120ms linear 60ms;
+    transition: opacity 120ms linear 60ms, filter 200ms ease-out 40ms;
   }
 
   html[data-nav-open] .orleia-card {
     transform: translateX(min(82vw, 340px));
     border-top-left-radius: var(--orleia-card-radius, 28px);
     border-bottom-left-radius: var(--orleia-card-radius, 28px);
-    filter: brightness(0.6);
+    /* Frosted push: the app face dims AND blurs in sync with the slide
+       (same 460ms curve as transform, so the blur ramps smoothly during
+       the swipe in both directions). The crisp edge is kept by the sheet
+       shadow + rounded corners underneath. */
+    filter: brightness(0.6) blur(2.5px);
     /* Light mode: soft ambient shadow + subtle warm edge (a hard black
        glow reads as dirty grey on white). Dark mode: deep black glow. */
     box-shadow:

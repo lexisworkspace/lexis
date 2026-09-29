@@ -8,7 +8,6 @@
 // ============================================================
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Check, Heart, Pencil } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { storage } from "@/lib/storage";
@@ -48,15 +47,12 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
 
       {/* Pet grid */}
       <div className="mx-auto mt-8 grid w-full max-w-md grid-cols-3 gap-3">
-        {PETS.map((p, i) => {
+        {PETS.map((p) => {
           const active = pet === p.id;
           return (
-            <motion.button
+            <button
               key={p.id}
               type="button"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 * i, duration: 0.3 }}
               onClick={() => setPet(active ? "" : p.id)}
               aria-pressed={active}
               aria-label={`${p.name} pet`}
@@ -69,19 +65,14 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
               <span className="mt-2 block text-center text-[11px] font-medium text-muted-foreground">
                 {p.name}
               </span>
-            </motion.button>
+            </button>
           );
         })}
       </div>
 
       {/* Name field (appears once chosen) */}
       {chosen && (
-        <motion.div
-          initial={{ opacity:0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="mx-auto mt-6 w-full max-w-md"
-        >
+        <div className="mx-auto mt-6 w-full max-w-md">
           {naming ? (
             <div className="flex items-center gap-2">
               <input
@@ -121,7 +112,7 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
               </button>
             </div>
           )}
-        </motion.div>
+        </div>
       )}
 
       {/* Actions — required step: Continue locked until a pet is chosen */}
@@ -156,7 +147,7 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
 /* Local class helpers keep the JSX above readable. */
 function cnCard(active: boolean): string {
   return [
-    "group relative rounded-2xl border p-3 transition-all active:scale-95",
+    "group relative rounded-2xl border p-3 transition-colors",
     active
       ? "border-primary-500 bg-primary-500/10"
       : "border-border bg-secondary/40 hover:border-foreground/30",
@@ -164,8 +155,7 @@ function cnCard(active: boolean): string {
 }
 
 function cnCell(active: boolean): string {
-  return [
-    "mx-auto h-14 w-14 transition-transform duration-300",
-    active ? "scale-110" : "group-hover:scale-105",
-  ].join(" ");
+  // Static sizing — scale transitions here re-rendered the SVG blob and
+  // read as flicker on touch devices, so the cell never transforms.
+  return "mx-auto h-14 w-14";
 }
