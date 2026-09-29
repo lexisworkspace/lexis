@@ -671,7 +671,7 @@ export default function NotesPage() {
               {/* Apple-style large title: big heading, date line, tags —
                   then straight into the body. No toolbars in between.
                   Title sits below the floating back/… buttons. */}
-              <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+7rem)] md:px-8 md:pt-16">
+              <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+5.5rem)] md:px-8 md:pt-16">
                 <input
                   ref={titleRef}
                   value={selectedNote.title}
@@ -1032,18 +1032,17 @@ export default function NotesPage() {
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-[90] flex flex-col bg-background md:hidden"
           >
-            {/* Compose: Liquid Glass circle stacked UNDER the reminders
-                button (top bar row: hamburger / search / settings / bell).
-                No back arrow here — the sidebar & top bar handle nav. */}
+            {/* Compose: Liquid Glass SQUIRCLE sitting on the same line as
+                the "All Notes" large title (right-aligned). */}
             <button
               onClick={createNote}
-              className="orleia-glass-btn fixed right-4 z-[70]"
-              style={{ top: "calc(0.75rem + env(safe-area-inset-top, 0px) + 3.75rem)" }}
+              className="orleia-glass-btn !h-12 !w-12 !rounded-[18px] fixed right-4 z-[70]"
+              style={{ top: "calc(0.75rem + env(safe-area-inset-top, 0px) + 4.5rem)" }}
               aria-label={t("notes.newNote")}
             >
               <Plus className="h-5 w-5" />
             </button>
-            <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+7rem)]">
+            <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+5.5rem)]">
               <h2 className="text-2xl font-bold tracking-tight text-foreground">
                 {t("notes.allNotes")}
               </h2>
