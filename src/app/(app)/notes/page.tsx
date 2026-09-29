@@ -403,62 +403,10 @@ export default function NotesPage() {
       animate={{ opacity: 1 }}
       className="fixed inset-0 z-[90] flex flex-col bg-background"
     >
-      {/* Floating top bar — Apple-Notes style: transparent, no border,
-          only Back + the overflow menu. Content scrolls underneath it. */}
-      <div className="absolute inset-x-0 top-0 z-30 flex items-center px-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <a
-          href="/"
-          className="rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
-          aria-label={t("notes.allNotes")}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </a>
-
-        <div className="flex-1" />
-
-        {/* Overflow menu — everything else lives here */}
-        <div className="relative">
-          <button
-            onClick={() => setMoreOpen((v) => !v)}
-            className="rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={t("notes.allNotes")}
-            aria-expanded={moreOpen}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          <AnimatePresence>
-            {moreOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
-              >
-                <button
-                  onClick={() => {
-                    createNote();
-                    setMoreOpen(false);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted"
-                >
-                  <Plus className="h-4 w-4 text-muted-foreground" />
-                  {t("notes.newNote")}
-                </button>
-                <button
-                  onClick={() => {
-                    setShowSidebar((v) => !v);
-                    setMoreOpen(false);
-                  }}
-                  className="hidden w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-foreground transition-colors hover:bg-muted md:flex"
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  {t("notes.folders")}
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+      {/* No page-level chrome: the top bar row belongs to the app
+          (hamburger / search / settings / bell), compose is the glass
+          squircle on the title line, and all note actions live in the
+          editor's bottom toolbar. */}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar: Folders + Notes List */}
@@ -650,27 +598,10 @@ export default function NotesPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           {selectedNote ? (
             <>
-              {/* Floating back buttons — mobile returns to the list,
-                  desktop goes home. No bar, no border. */}
-              <button
-                onClick={() => setShowMobileList(true)}
-                className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground md:hidden"
-                aria-label={t("notes.allNotes")}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <a
-                href="/"
-                className="absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 hidden rounded-full p-2 text-muted-foreground/70 transition-colors hover:bg-muted hover:text-foreground md:block"
-                aria-label={t("notes.allNotes")}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </a>
-
-
               {/* Apple-style large title: big heading, date line, tags —
                   then straight into the body. No toolbars in between.
-                  Title sits below the floating back/… buttons. */}
+                  Back lives in the bottom toolbar (out of the hamburger's
+                  way), title sits below the top-bar row. */}
               <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+5.5rem)] md:px-8 md:pt-16">
                 <input
                   ref={titleRef}
@@ -795,9 +726,18 @@ export default function NotesPage() {
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
                 <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
                 <div
-                  className="pointer-events-auto flex items-center gap-1 bg-background/90 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl"
+                  className="pointer-events-auto flex items-center gap-1 bg-background/90 pl-16 pr-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl md:px-3"
                   style={{ marginBottom: "calc(-1 * var(--orleia-notes-kb, 0px))" }}
                 >
+                  {/* Back to the list — lives HERE so the top-left stays
+                      free for the app's hamburger (no overlap). */}
+                  <button
+                    onClick={() => setShowMobileList(true)}
+                    className="rounded-lg p-2 text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground md:hidden"
+                    aria-label={t("notes.allNotes")}
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
                   <button
                     onClick={() => setShowFmtRow((v) => !v)}
                     className={cn(
