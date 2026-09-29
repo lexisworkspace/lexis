@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Check, MapPin, MoveHorizontal } from "lucide-react";
+import { ArrowRight, Check, MoveHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -39,8 +39,15 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
   const kicker = t(`tutorial.${current.key}.kicker`);
   const title = t(`tutorial.${current.key}.title`);
   const desc = t(`tutorial.${current.key}.desc`);
-  const loc = t(`tutorial.${current.key}.loc`);
-  const points = [1, 2, 3, 4].map((i) => t(`tutorial.${current.key}.p${i}`)).map((v) => (v && v !== `tutorial.${current.key}.p4` ? v : "")).filter(Boolean);
+  // Keep slides light: max 2 bullets, no location line — too much text
+  // crowded a single phone screen.
+  const points = [1, 2, 3, 4]
+    .map((i) => {
+      const v = t(`tutorial.${current.key}.p${i}`);
+      return v && v !== `tutorial.${current.key}.p${i}` ? v : "";
+    })
+    .filter(Boolean)
+    .slice(0, 2);
 
   return (
     <div className="fixed inset-0 z-[90] flex flex-col overflow-hidden bg-background">
@@ -117,24 +124,17 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
               ))}
             </ul>
 
-            {/* Location */}
-            <p
-              className="mb-2.5 flex items-center gap-1.5 text-[10px] font-sans tracking-wider text-muted-foreground/40 md:mb-5 md:text-[11px]"
-              style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.45s" }}
-            >
-              <MapPin className="h-3 w-3" />
-              {loc}
-            </p>
-
-            {/* Swipe gesture hint — replaces the old menu-button hint on
-                mobile (nav opens by swiping, like the rest of the app) */}
-            <div
-              className="mb-3 hidden items-start gap-2 rounded-xl border border-border bg-secondary/40 p-2.5 [@media(min-height:720px)]:flex md:hidden"
-              style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.48s" }}
-            >
-              <MoveHorizontal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              <p className="text-[11px] leading-snug text-muted-foreground/70">{t("tutorial.navHint")}</p>
-            </div>
+            {/* Swipe gesture hint — first slide only, so later slides stay
+                minimal (nav opens by swiping, like the rest of the app) */}
+            {step === 0 && (
+              <div
+                className="mb-3 hidden items-start gap-2 rounded-xl border border-border bg-secondary/40 p-2.5 [@media(min-height:720px)]:flex md:hidden"
+                style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.48s" }}
+              >
+                <MoveHorizontal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <p className="text-[11px] leading-snug text-muted-foreground/70">{t("tutorial.navHint")}</p>
+              </div>
+            )}
 
             {/* Actions */}
             <div

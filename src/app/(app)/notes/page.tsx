@@ -669,8 +669,9 @@ export default function NotesPage() {
 
 
               {/* Apple-style large title: big heading, date line, tags —
-                  then straight into the body. No toolbars in between. */}
-              <div className="px-5 pb-1 pt-14 md:px-8 md:pt-12">
+                  then straight into the body. No toolbars in between.
+                  Title sits well BELOW the floating back/… buttons. */}
+              <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+6rem)] md:px-8 md:pt-16">
                 <input
                   ref={titleRef}
                   value={selectedNote.title}
