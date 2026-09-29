@@ -100,9 +100,11 @@ export function MobileTopBar({
 
   return (
     <>
-      {/* Hamburger — pinned above BOTH screens (z-70 > nav screen z-60) */}
+      {/* Hamburger — pinned above BOTH screens (z-70 > nav screen z-60).
+          md:hidden: tablets + landscape phones (≥768px) get the desktop
+          sidebar, so the floating mobile buttons are redundant there. */}
       {ios ? (
-        <HitArea className="left-4">{hamburger}</HitArea>
+        <HitArea className="left-4 md:hidden">{hamburger}</HitArea>
       ) : (
         <button
           onClick={() => { haptic.tap(); onToggleSidebar(); }}
@@ -135,7 +137,7 @@ export function MobileTopBar({
 
       {/* Settings — pinned above BOTH screens, same spot as on the main screen */}
       {ios ? (
-        <HitArea className="right-20">{settings}</HitArea>
+        <HitArea className="right-20 md:hidden">{settings}</HitArea>
       ) : (
         <button
           onClick={() => { haptic.tap(); router.push("/settings"); }}
@@ -148,7 +150,7 @@ export function MobileTopBar({
 
       {/* Reminders bell — pinned above BOTH screens, same spot as on the main screen */}
       {ios ? (
-        <HitArea className="right-4">{reminders}</HitArea>
+        <HitArea className="right-4 md:hidden">{reminders}</HitArea>
       ) : (
         <button
           onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:toggle-reminders")); }}
