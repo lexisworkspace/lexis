@@ -106,22 +106,26 @@ export function MobileTopBar({
       ) : (
         <button
           onClick={() => { haptic.tap(); onToggleSidebar(); }}
-          className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-4 z-[70] md:hidden"
+          className="orleia-glass-btn orleia-glass-btn-lg fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] left-4 z-[70] md:hidden"
           aria-label={navOpen ? "Close navigation menu" : "Open navigation menu"}
           aria-expanded={navOpen}
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-6 w-6" />
         </button>
       )}
 
       {/* Search — long pill spanning the middle between hamburger and settings.
           iOS: Liquid Glass (grey #999 @17%, rim shadows; mic intentionally
-          omitted). Android/desktop: original bordered secondary pill. */}
+          omitted), 42px at 1rem top to optically center against its 40px
+          circles. Android/desktop: 48px pill on the SAME top as the 48px
+          buttons — the whole row shares one height level. */}
       <button
         onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:open-search")); }}
         className={cn(
-          "fixed top-[calc(1rem+env(safe-area-inset-top,0px))] left-[76px] right-[9.5rem] z-[70] flex h-[42px] items-center gap-2 rounded-full px-4 text-left transition-colors md:hidden",
-          ios ? "orleia-search-glass" : "border border-border bg-secondary hover:bg-secondary"
+          "fixed z-[70] flex items-center gap-2 rounded-full px-4 text-left transition-colors md:hidden",
+          ios
+            ? "orleia-search-glass top-[calc(1rem+env(safe-area-inset-top,0px))] h-[42px] left-[76px] right-[9.5rem]"
+            : "border border-border bg-secondary hover:bg-secondary top-[calc(0.75rem+env(safe-area-inset-top,0px))] h-12 left-[76px] right-[10rem]"
         )}
         aria-label={t("search.title")}
       >
@@ -135,10 +139,10 @@ export function MobileTopBar({
       ) : (
         <button
           onClick={() => { haptic.tap(); router.push("/settings"); }}
-          className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-20 z-[70] md:hidden"
+          className="orleia-glass-btn orleia-glass-btn-lg fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-[5.5rem] z-[70] md:hidden"
           aria-label="Settings"
         >
-          <Settings className="h-5 w-5" />
+          <Settings className="h-6 w-6" />
         </button>
       )}
 
@@ -148,10 +152,10 @@ export function MobileTopBar({
       ) : (
         <button
           onClick={() => { haptic.tap(); window.dispatchEvent(new CustomEvent("orleia:toggle-reminders")); }}
-          className="orleia-glass-btn fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-4 z-[70] md:hidden"
+          className="orleia-glass-btn orleia-glass-btn-lg fixed top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-4 z-[70] md:hidden"
           aria-label="Reminders"
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-6 w-6" />
           {reminderCount > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
               {reminderCount > 9 ? "9+" : reminderCount}

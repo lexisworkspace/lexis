@@ -1267,6 +1267,13 @@ div[class*="fixed"][class*="inset-0"] {
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.12);
 }
+/* Large variant — Android/desktop top-bar buttons (48px, matches the
+   search pill height so the whole row sits on one level). iOS keeps
+   the 40px circle inside its 50px hit wrapper. */
+.orleia-glass-btn-lg {
+  width: 3rem;
+  height: 3rem;
+}
 @media (prefers-reduced-motion: reduce) {
   .orleia-glass-btn,
   .orleia-glass-btn:active {
