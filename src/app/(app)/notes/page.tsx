@@ -726,7 +726,7 @@ export default function NotesPage() {
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
                 <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
                 <div
-                  className="pointer-events-auto flex items-center gap-1 bg-background/90 pl-16 pr-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl md:px-3"
+                  className="pointer-events-auto flex items-center gap-1 bg-background/90 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl"
                   style={{ marginBottom: "calc(-1 * var(--orleia-notes-kb, 0px))" }}
                 >
                   {/* Back to the list — lives HERE so the top-left stays
@@ -768,9 +768,9 @@ export default function NotesPage() {
                         <motion.div
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 4 }}
-                          className="absolute bottom-full left-0 z-50 mb-2 w-48 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
-                        >
+                          exit={{ opacity: 0, y: 4 }}                        className="absolute bottom-full left-0 z-50 mb-2 w-48 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                           <div className="max-h-40 overflow-y-auto p-1">
                             {tags.map((tag) => (
                               <button
@@ -835,7 +835,13 @@ export default function NotesPage() {
                     <Trash2 className="h-5 w-5" />
                   </button>
                   <button
-                    onClick={() => setMoreOpen((v) => !v)}
+                    onClick={(e) => {
+                      // stopPropagation: the document-level outside-click
+                      // closer must not see this tap (a bubbling click
+                      // closed the menu the same instant it opened).
+                      e.stopPropagation();
+                      setMoreOpen((v) => !v);
+                    }}
                     className={cn(
                       "rounded-lg p-2 transition-colors",
                       moreOpen ? "text-primary" : "text-muted-foreground/80 hover:bg-muted hover:text-foreground"
@@ -852,6 +858,7 @@ export default function NotesPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 4 }}
                         className="absolute bottom-full right-3 z-50 mb-2 w-52 overflow-hidden rounded-2xl border border-border bg-popover p-1 shadow-xl"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <button
                           onClick={() => {
