@@ -62,7 +62,9 @@ export function Sidebar() {
       {/* Logo */}
       <div className={cn("flex items-center gap-3 border-b border-border px-4 py-4", collapsed && "justify-center px-2")}>
         {collapsed ? (
-          <img src="/orleia-logo-white.png" alt="Orleia" className="h-7 w-7" />
+          /* White "o." mark: inverted to a dark version in LIGHT mode so
+              it doesn't vanish on the light sidebar; stays white in dark. */
+          <img src="/orleia-logo-white.png" alt="Orleia" className="h-7 w-7 invert dark:invert-0" />
         ) : (
           <img src="/orleia-wordmark.png" alt="Orleia" className="h-7 w-auto dark:invert" />
         )}
